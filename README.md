@@ -47,6 +47,12 @@ The standalone browser parser handles IFC files below 25 MiB by default. Larger 
 
 LAS, LAZ, PLY, and E57 point clouds can be attached to a project and overlaid in the IFC viewer. The current browser preview decodes in a worker, limits the number of uploaded points through sampling, and keeps alignment in PostgreSQL. It still downloads the complete original object before decoding; true camera-driven octree/LOD streaming for very large scans is the next point-cloud milestone.
 
+BCF topics are persisted per project in PostgreSQL. A topic can carry a status,
+priority, description, comments, and a durable IFC component reference by
+`GlobalId`; when created from the viewer it also keeps the asset and Express ID
+needed to focus the element immediately. Viewpoints, screenshots, and BCF ZIP
+import/export are intentionally kept for the next collaboration slice.
+
 ## Repository
 
 ```text

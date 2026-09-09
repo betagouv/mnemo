@@ -6,11 +6,13 @@ import {
   type IfcViewerSnapshot,
 } from "@mnemo/ifc-viewer-adapter";
 import type { PointCloudSettings } from "@mnemo/contracts/point-clouds";
+import type { BcfTopic } from "@mnemo/contracts/bcf";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { IfcElementProperties } from "@/entities/ifc-element";
 import { BimExplorer } from "@/features/filter-bim-model";
+import { BcfTopicsPanel } from "@/features/manage-bcf-topics";
 import {
   PointCloudPanel,
   type PointCloudConfiguration,
@@ -79,6 +81,7 @@ const phaseLabels = {
 export function IfcViewer({
   assetId,
   assetName,
+  initialBcfTopics,
   initialDownloadUrl,
   processing,
   pointCloudSources,
@@ -87,6 +90,7 @@ export function IfcViewer({
 }: {
   assetId: string;
   assetName: string;
+  initialBcfTopics: BcfTopic[];
   initialDownloadUrl: string;
   processing: NonNullable<LoadIfcInput["processing"]>;
   pointCloudSources: ViewerPointCloudSource[];
@@ -98,6 +102,10 @@ export function IfcViewer({
   const [snapshot, setSnapshot] = useState(initialSnapshot);
   const [retrying, setRetrying] = useState(false);
   const [accessError, setAccessError] = useState<string | null>(null);
+  const [inspectorMode, setInspectorMode] = useState<"properties" | "bcf">(
+    "properties",
+  );
+  const [bcfTopicCount, setBcfTopicCount] = useState(initialBcfTopics.length);
   const [pointBudget, setPointBudget] = useState(initialPointBudget);
   const [pointCloudConfigurations, setPointCloudConfigurations] = useState<
     PointCloudConfiguration[]
@@ -367,14 +375,29 @@ export function IfcViewer({
           </div>
         </section>
 
-        <aside className={styles.inspector} aria-label="Propriétés IFC">
+        <aside className={styles.inspector} aria-label="Inspecteur BIM">
           <header className={styles.inspectorHeader}>
-            <div>
-              <small>Inspecteur</small>
-              <strong>Propriétés IFC</strong>
-            </div>
-            {snapshot.selection ? (
+            <div className={styles.inspectorTabs} role="tablist">
               <button
+                aria-selected={inspectorMode === "properties"}
+                onClick={() => setInspectorMode("properties")}
+                role="tab"
+                type="button"
+              >
+                Propriétés
+              </button>
+              <button
+                aria-selected={inspectorMode === "bcf"}
+                onClick={() => setInspectorMode("bcf")}
+                role="tab"
+                type="button"
+              >
+                BCF <span>{bcfTopicCount}</span>
+              </button>
+            </div>
+            {inspectorMode === "properties" && snapshot.selection ? (
+              <button
+                className={styles.frameButton}
                 aria-label="Cadrer l’élément sélectionné"
                 onClick={() => controllerRef.current?.frameSelection()}
                 title="Cadrer l’élément"
@@ -386,7 +409,20 @@ export function IfcViewer({
           </header>
 
           <div className={styles.inspectorBody}>
-            {snapshot.selectionPhase === "loading" ? (
+            {inspectorMode === "bcf" ? (
+              <BcfTopicsPanel
+                assetId={assetId}
+                initialTopics={initialBcfTopics}
+                onFocusComponent={(expressId) => {
+                  controllerRef.current?.selectEntity(expressId);
+                  controllerRef.current?.frameSelection();
+                  setInspectorMode("properties");
+                }}
+                onTopicCountChange={setBcfTopicCount}
+                projectId={projectId}
+                selection={snapshot.selection}
+              />
+            ) : snapshot.selectionPhase === "loading" ? (
               <p className={styles.inspectorState}>Lecture des propriétés…</p>
             ) : snapshot.selectionPhase === "error" ? (
               <p className={styles.inspectorError}>

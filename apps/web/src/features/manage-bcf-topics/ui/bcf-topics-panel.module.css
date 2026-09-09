@@ -1,0 +1,220 @@
+.panel {
+  display: grid;
+  gap: 1rem;
+  padding: 0.9rem;
+  color: #eee;
+  font-size: 0.72rem;
+}
+
+.panel input,
+.panel textarea,
+.panel select {
+  box-sizing: border-box;
+  width: 100%;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 0;
+  color: #fff;
+  background: #2b2b2b;
+  font: inherit;
+}
+
+.panel input,
+.panel select {
+  height: 2.25rem;
+  padding: 0 0.6rem;
+}
+
+.panel textarea {
+  min-height: 3.4rem;
+  padding: 0.55rem 0.6rem;
+  resize: vertical;
+}
+
+.panel button {
+  border: 1px solid rgb(133 133 246 / 65%);
+  color: #fff;
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.panel button:hover:not(:disabled) {
+  background: rgb(133 133 246 / 14%);
+}
+
+.panel button:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.create {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.create > button,
+.commentForm button {
+  min-height: 2.25rem;
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.sectionTitle strong {
+  font-size: 0.78rem;
+}
+
+.sectionTitle span {
+  overflow: hidden;
+  color: #aaa;
+  font-size: 0.65rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.fields label {
+  display: grid;
+  gap: 0.25rem;
+  color: #b9b9b9;
+  font-size: 0.64rem;
+}
+
+.message {
+  margin: -0.4rem 0 0;
+  color: #b8fec9;
+}
+
+.topics,
+.detail {
+  display: grid;
+  gap: 0.55rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgb(255 255 255 / 13%);
+}
+
+.topicList {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.topicList > button {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.55rem 0.6rem;
+  border-color: transparent;
+  text-align: left;
+}
+
+.topicList > button[aria-pressed="true"] {
+  border-color: #8585f6;
+  background: rgb(133 133 246 / 12%);
+}
+
+.topicList > button span {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.topicList i {
+  width: 0.42rem;
+  height: 0.42rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #8585f6;
+}
+
+.topicList i[data-priority="high"],
+.topicList i[data-priority="critical"] {
+  background: #ff8d7e;
+}
+
+.topicList small {
+  color: #aaa;
+  font-size: 0.62rem;
+}
+
+.empty {
+  margin: 0;
+  color: #aaa;
+}
+
+.detail > header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.detail > header div {
+  display: grid;
+  min-width: 0;
+  gap: 0.15rem;
+}
+
+.detail > header strong {
+  overflow: hidden;
+  font-size: 0.76rem;
+  text-overflow: ellipsis;
+}
+
+.detail > header span {
+  color: #aaa;
+  font-size: 0.62rem;
+}
+
+.detail > header select {
+  width: 6.8rem;
+  height: 1.9rem;
+}
+
+.detail > p {
+  margin: 0;
+  color: #d8d8d8;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.component {
+  min-height: 2.1rem;
+}
+
+.comments {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.comments article {
+  padding: 0.55rem 0.6rem;
+  background: #292929;
+}
+
+.comments header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  color: #aaa;
+  font-size: 0.6rem;
+}
+
+.comments p {
+  margin: 0.35rem 0 0;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
+.commentForm {
+  display: grid;
+  gap: 0.4rem;
+}
