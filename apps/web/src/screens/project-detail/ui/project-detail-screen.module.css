@@ -56,6 +56,13 @@
   background: #dffee6;
 }
 
+.headingActions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.75rem;
+  align-items: center;
+}
+
 .status span {
   width: 0.55rem;
   height: 0.55rem;

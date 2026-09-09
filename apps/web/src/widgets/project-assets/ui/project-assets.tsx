@@ -4,6 +4,7 @@ import type { AssetSummary } from "@mnemo/contracts/assets";
 import { useState } from "react";
 
 import { AssetCard } from "@/entities/asset";
+import { DeleteAssetButton } from "@/features/delete-asset";
 import { OpenIfcViewerLink } from "@/features/open-ifc-viewer";
 import { UploadAssetControls } from "@/features/upload-asset";
 
@@ -61,12 +62,25 @@ export function ProjectAssets({
             {assets.map((asset) => (
               <AssetCard
                 action={
-                  asset.kind === "ifc" && asset.status !== "upload_pending" ? (
-                    <OpenIfcViewerLink
+                  <>
+                    {asset.kind === "ifc" &&
+                    asset.status !== "upload_pending" ? (
+                      <OpenIfcViewerLink
+                        assetId={asset.id}
+                        projectId={projectId}
+                      />
+                    ) : null}
+                    <DeleteAssetButton
                       assetId={asset.id}
+                      assetName={asset.originalFileName}
+                      onDeleted={(assetId) =>
+                        setAssets((current) =>
+                          current.filter((item) => item.id !== assetId),
+                        )
+                      }
                       projectId={projectId}
                     />
-                  ) : undefined
+                  </>
                 }
                 asset={asset}
                 key={asset.id}

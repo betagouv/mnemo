@@ -204,4 +204,29 @@ describe("DrizzleProcessingJobQueue", () => {
         .where(eq(processingJobs.id, fixture.job.id)),
     ).resolves.toEqual([{ lockedBy: "replacement-worker" }]);
   });
+
+  it("does not claim or revive an asset that is being deleted", async () => {
+    const fixture = await createQueuedJob("ifc");
+    await database.db
+      .update(assets)
+      .set({ status: "deleting" })
+      .where(eq(assets.id, fixture.asset.id));
+    const queue = new DrizzleProcessingJobQueue(database.db);
+
+    await expect(
+      queue.claim({
+        workerId: "worker-deletion-race",
+        supportedTypes: ["process_ifc"],
+        claimedAt: now,
+        staleBefore: new Date(now.getTime() - 60_000),
+      }),
+    ).resolves.toBeNull();
+
+    await expect(
+      database.db
+        .select({ status: assets.status })
+        .from(assets)
+        .where(eq(assets.id, fixture.asset.id)),
+    ).resolves.toEqual([{ status: "deleting" }]);
+  });
 });

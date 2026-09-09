@@ -6,10 +6,12 @@ import type {
   BeginAssetUploadInput,
   BeginAssetUploadResult,
   CompleteAssetUploadInput,
+  DeleteAssetInput,
   OpenAssetInput,
   OpenAssetResult,
 } from "@mnemo/contracts/assets";
 import { canUploadAsset, supportsAssetFile } from "@mnemo/domain/asset";
+import { hasProjectPermission } from "@mnemo/domain/project";
 import { buildOriginalObjectKey, type ObjectStorage } from "@mnemo/storage";
 
 import type { ProjectRepository } from "@/server/projects/application/project-repository";
@@ -167,7 +169,11 @@ export class AssetService {
       input.assetId,
     );
 
-    if (!match || match.asset.status === "upload_pending") {
+    if (
+      !match ||
+      match.asset.status === "upload_pending" ||
+      match.asset.status === "deleting"
+    ) {
       throw new AssetAccessDeniedError(
         "The asset is not available to this actor",
       );
@@ -185,5 +191,22 @@ export class AssetService {
       downloadUrl,
       expiresAt: expiresAt.toISOString(),
     };
+  }
+
+  async delete(actorId: string, input: DeleteAssetInput) {
+    const match = await this.assets.findForActor(
+      actorId,
+      input.projectId,
+      input.assetId,
+    );
+
+    if (!match || !hasProjectPermission(match.role, "asset:delete")) {
+      throw new AssetAccessDeniedError(
+        "The actor cannot delete this project asset",
+      );
+    }
+
+    await this.assets.requestDeletion(match.asset.id, this.now());
+    return { accepted: true as const };
   }
 }

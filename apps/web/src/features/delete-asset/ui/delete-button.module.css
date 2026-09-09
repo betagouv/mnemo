@@ -1,0 +1,19 @@
+.button {
+  display: inline-grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border: 1px solid var(--border-default-grey);
+  color: #ce0500;
+  background: transparent;
+  cursor: pointer;
+}
+
+.button:hover:not(:disabled) {
+  color: #fff;
+  background: #ce0500;
+}
+
+.button:disabled {
+  opacity: 0.5;
+}

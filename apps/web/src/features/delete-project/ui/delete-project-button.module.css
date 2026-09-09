@@ -1,0 +1,21 @@
+.button {
+  display: inline-flex;
+  gap: 0.45rem;
+  align-items: center;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid #ce0500;
+  color: #ce0500;
+  font-size: 0.8rem;
+  font-weight: 700;
+  background: transparent;
+  cursor: pointer;
+}
+
+.button:hover:not(:disabled) {
+  color: #fff;
+  background: #ce0500;
+}
+
+.button:disabled {
+  opacity: 0.55;
+}

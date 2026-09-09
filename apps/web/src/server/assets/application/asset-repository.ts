@@ -35,4 +35,5 @@ export interface AssetRepository {
     assetId: string,
     uploadedAt: Date,
   ): Promise<AssetForActor>;
+  requestDeletion(assetId: string, requestedAt: Date): Promise<void>;
 }

@@ -5,6 +5,7 @@ import { ProjectService } from "./project-service";
 
 class InMemoryProjectRepository implements ProjectRepository {
   readonly projects: ProjectForActor[] = [];
+  readonly deletionRequests: string[] = [];
 
   async listForActor() {
     return this.projects;
@@ -28,6 +29,10 @@ class InMemoryProjectRepository implements ProjectRepository {
     };
     this.projects.push(project);
     return project;
+  }
+
+  async requestDeletion(projectId: string) {
+    this.deletionRequests.push(projectId);
   }
 }
 
@@ -63,5 +68,21 @@ describe("ProjectService", () => {
     await expect(
       service.find("actor-id", "e4891586-f3d9-4d60-9f22-e16be897cb6b"),
     ).resolves.toBeNull();
+  });
+
+  it("lets only an owner request project deletion", async () => {
+    const repository = new InMemoryProjectRepository();
+    const service = new ProjectService(repository);
+    const project = await service.create("actor-id", { name: "À supprimer" });
+
+    await expect(service.delete("actor-id", project.id)).resolves.toEqual({
+      accepted: true,
+    });
+    expect(repository.deletionRequests).toEqual([project.id]);
+
+    repository.projects[0] = { ...repository.projects[0]!, role: "editor" };
+    await expect(service.delete("actor-id", project.id)).resolves.toEqual({
+      accepted: false,
+    });
   });
 });

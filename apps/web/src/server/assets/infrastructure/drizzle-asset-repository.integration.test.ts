@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import {
   assets,
   createDatabase,
+  deletionJobs,
   processingJobs,
   projectMembers,
   projects,
@@ -47,6 +48,9 @@ describe("DrizzleAssetRepository", () => {
   });
 
   afterAll(async () => {
+    await database.db
+      .delete(deletionJobs)
+      .where(eq(deletionJobs.resourceId, assetId));
     await database.db.delete(projects).where(eq(projects.id, projectId));
     await database.db.delete(users).where(eq(users.id, actorId));
     await database.close();
@@ -104,5 +108,27 @@ describe("DrizzleAssetRepository", () => {
         .from(processingJobs)
         .where(eq(processingJobs.assetId, assetId)),
     ).resolves.toHaveLength(1);
+
+    const deletedAt = new Date();
+    await repository.requestDeletion(assetId, deletedAt);
+    await expect(repository.listForActor(actorId, projectId)).resolves.toEqual(
+      [],
+    );
+    await expect(
+      database.db
+        .select({
+          resourceId: deletionJobs.resourceId,
+          type: deletionJobs.type,
+          objectKeys: deletionJobs.objectKeys,
+        })
+        .from(deletionJobs)
+        .where(eq(deletionJobs.resourceId, assetId)),
+    ).resolves.toEqual([
+      {
+        resourceId: assetId,
+        type: "delete_asset",
+        objectKeys: [`projects/${projectId}/assets/${assetId}/original.ifc`],
+      },
+    ]);
   });
 });

@@ -13,6 +13,7 @@ export const assetStatusSchema = z.enum([
   "processing",
   "ready",
   "failed",
+  "deleting",
 ]);
 export type AssetStatus = z.infer<typeof assetStatusSchema>;
 
@@ -40,6 +41,9 @@ export const openAssetInputSchema = z.object({
   projectId: projectIdSchema,
   assetId: assetIdSchema,
 });
+
+export const deleteAssetInputSchema = openAssetInputSchema;
+export const deletionAcceptedSchema = z.object({ accepted: z.literal(true) });
 
 export const assetSummarySchema = z.object({
   id: assetIdSchema,
@@ -81,3 +85,4 @@ export type CompleteAssetUploadInput = z.infer<
 >;
 export type OpenAssetInput = z.infer<typeof openAssetInputSchema>;
 export type OpenAssetResult = z.infer<typeof openAssetResultSchema>;
+export type DeleteAssetInput = z.infer<typeof deleteAssetInputSchema>;

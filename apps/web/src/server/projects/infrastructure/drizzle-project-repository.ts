@@ -1,5 +1,11 @@
 import type { CreateProjectInput } from "@mnemo/contracts/projects";
-import { projectMembers, projects, type MnemoDatabase } from "@mnemo/database";
+import {
+  assets,
+  deletionJobs,
+  projectMembers,
+  projects,
+  type MnemoDatabase,
+} from "@mnemo/database";
 import { and, desc, eq, isNull } from "drizzle-orm";
 
 import type {
@@ -87,6 +93,40 @@ export class DrizzleProjectRepository implements ProjectRepository {
         createdAt: project.createdAt,
         updatedAt: project.updatedAt,
       };
+    });
+  }
+
+  async requestDeletion(projectId: string, requestedAt: Date) {
+    await this.database.transaction(async (transaction) => {
+      const [project] = await transaction
+        .update(projects)
+        .set({ archivedAt: requestedAt, updatedAt: requestedAt })
+        .where(eq(projects.id, projectId))
+        .returning({ id: projects.id });
+
+      if (!project) return;
+
+      const projectAssets = await transaction
+        .select({
+          id: assets.id,
+          objectKey: assets.originalObjectKey,
+        })
+        .from(assets)
+        .where(eq(assets.projectId, projectId));
+
+      await transaction
+        .update(assets)
+        .set({ status: "deleting", updatedAt: requestedAt })
+        .where(eq(assets.projectId, projectId));
+      await transaction
+        .insert(deletionJobs)
+        .values({
+          resourceId: project.id,
+          type: "delete_project",
+          objectKeys: projectAssets.map((asset) => asset.objectKey),
+          availableAt: requestedAt,
+        })
+        .onConflictDoNothing();
     });
   }
 }

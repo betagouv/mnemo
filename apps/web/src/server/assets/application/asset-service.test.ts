@@ -36,11 +36,14 @@ class ProjectRepositoryStub implements ProjectRepository {
   async createForActor() {
     return project;
   }
+
+  async requestDeletion() {}
 }
 
 class AssetRepositoryStub implements AssetRepository {
   private asset: AssetForActor | undefined;
   enqueuedAssetIds: string[] = [];
+  deletionRequests: string[] = [];
 
   async listForActor() {
     return this.asset ? [this.asset] : [];
@@ -77,6 +80,10 @@ class AssetRepositoryStub implements AssetRepository {
       updatedAt: uploadedAt,
     };
     return this.asset;
+  }
+
+  async requestDeletion(assetId: string) {
+    this.deletionRequests.push(assetId);
   }
 }
 
@@ -210,5 +217,24 @@ describe("AssetService", () => {
         expiresInSeconds: 300,
       },
     ]);
+  });
+
+  it("queues an idempotent cleanup for a project asset", async () => {
+    const { assets, service } = createService();
+    const started = await service.beginUpload("actor-id", {
+      projectId: project.id,
+      kind: "ifc",
+      fileName: "model.ifc",
+      mediaType: "application/x-step",
+      sizeBytes: 42,
+    });
+
+    await expect(
+      service.delete("actor-id", {
+        projectId: project.id,
+        assetId: started.asset.id,
+      }),
+    ).resolves.toEqual({ accepted: true });
+    expect(assets.deletionRequests).toEqual([started.asset.id]);
   });
 });

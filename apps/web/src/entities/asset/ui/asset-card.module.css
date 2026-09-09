@@ -77,7 +77,8 @@
 }
 
 .upload_pending,
-.processing {
+.processing,
+.deleting {
   color: #0063cb;
   background: #e8edff;
 }

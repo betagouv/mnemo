@@ -6,6 +6,8 @@ import {
   assetProcessingResults,
   assets,
   assetStatusEnum,
+  deletionJobs,
+  deletionJobTypeEnum,
   processingJobs,
   processingJobStatusEnum,
   processingJobTypeEnum,
@@ -51,5 +53,13 @@ describe("database schema", () => {
     expect(getTableName(assetProcessingResults)).toBe(
       "asset_processing_results",
     );
+  });
+
+  it("keeps cleanup jobs independent from resources being deleted", () => {
+    expect(getTableName(deletionJobs)).toBe("deletion_jobs");
+    expect(deletionJobTypeEnum.enumValues).toEqual([
+      "delete_asset",
+      "delete_project",
+    ]);
   });
 });

@@ -1,11 +1,12 @@
 import {
   assets,
+  deletionJobs,
   processingJobs,
   projectMembers,
   type MnemoDatabase,
 } from "@mnemo/database";
 import { processingJobTypeForAsset } from "@mnemo/domain/processing-job";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 
 import type {
   AssetForActor,
@@ -41,6 +42,7 @@ export class DrizzleAssetRepository implements AssetRepository {
         and(
           eq(assets.projectId, projectId),
           eq(projectMembers.userId, actorId),
+          ne(assets.status, "deleting"),
         ),
       )
       .orderBy(desc(assets.createdAt));
@@ -122,6 +124,31 @@ export class DrizzleAssetRepository implements AssetRepository {
         .onConflictDoNothing();
 
       return asset;
+    });
+  }
+
+  async requestDeletion(assetId: string, requestedAt: Date) {
+    await this.database.transaction(async (transaction) => {
+      const [asset] = await transaction
+        .update(assets)
+        .set({ status: "deleting", updatedAt: requestedAt })
+        .where(eq(assets.id, assetId))
+        .returning({
+          id: assets.id,
+          originalObjectKey: assets.originalObjectKey,
+        });
+
+      if (!asset) return;
+
+      await transaction
+        .insert(deletionJobs)
+        .values({
+          resourceId: asset.id,
+          type: "delete_asset",
+          objectKeys: [asset.originalObjectKey],
+          availableAt: requestedAt,
+        })
+        .onConflictDoNothing();
     });
   }
 }
