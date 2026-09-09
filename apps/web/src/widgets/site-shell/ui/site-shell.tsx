@@ -44,7 +44,7 @@ export function SiteShell({
           {
             iconId: "fr-icon-folder-2-line",
             text: "Accéder aux projets",
-            linkProps: { href: "/#demarrer" },
+            linkProps: { href: "/projets" },
           },
         ]}
       />

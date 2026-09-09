@@ -31,3 +31,19 @@ test("exposes the type-safe API over HTTP", async ({ request }) => {
     status: "ok",
   });
 });
+
+test("creates a persistent project from the workspace", async ({ page }) => {
+  const projectName = `Projet Playwright ${Date.now()}`;
+
+  await page.goto("/projets");
+  await page.getByLabel("Nom du projet").fill(projectName);
+  await page
+    .getByLabel("Description")
+    .fill("Projet créé par le parcours navigateur automatisé.");
+  await page.getByRole("button", { name: "Créer le projet" }).click();
+
+  await expect(page.getByRole("heading", { name: projectName })).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByRole("heading", { name: projectName })).toBeVisible();
+});

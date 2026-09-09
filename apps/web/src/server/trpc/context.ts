@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { resolveActor } from "@/server/auth/resolve-actor";
+
 const requestIdSchema = z.uuid();
 
 export async function createTrpcContext({ headers }: { headers: Headers }) {
@@ -8,6 +10,7 @@ export async function createTrpcContext({ headers }: { headers: Headers }) {
   );
 
   return {
+    actor: resolveActor(),
     headers,
     requestId: forwardedRequestId.success
       ? forwardedRequestId.data

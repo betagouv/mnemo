@@ -148,11 +148,10 @@ export function HomeScreen() {
           </p>
         </div>
         <Button
-          disabled
           iconId="fr-icon-arrow-right-line"
           iconPosition="right"
+          linkProps={{ href: "/projets" }}
           size="large"
-          title="L’espace projets sera activé à la prochaine étape"
         >
           Accéder aux projets
         </Button>

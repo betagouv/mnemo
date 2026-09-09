@@ -7,6 +7,8 @@ services:
       dockerfile: apps/web/Dockerfile
     image: mnemo-web:0.1.0
     environment:
+      MNEMO_AUTH_MODE: development
+      MNEMO_DEPLOYMENT_ENV: local
       DATABASE_URL: postgresql://mnemo:mnemo@postgres:5432/mnemo
       S3_ENDPOINT: http://minio:9000
       S3_PUBLIC_ENDPOINT: http://localhost:9200
