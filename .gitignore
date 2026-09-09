@@ -1,0 +1,32 @@
+# Dependencies and builds
+node_modules/
+.next/
+dist/
+coverage/
+playwright-report/
+test-results/
+.turbo/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Local data
+.data/
+tmp/
+uploads/
+models/
+*.ifc
+*.ifczip
+*.las
+*.laz
+*.e57
+*.ply
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
+*.swp
+
