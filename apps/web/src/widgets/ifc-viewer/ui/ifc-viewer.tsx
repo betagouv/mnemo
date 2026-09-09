@@ -2,6 +2,7 @@
 
 import {
   IfcViewerController,
+  type LoadIfcInput,
   type IfcViewerSnapshot,
 } from "@mnemo/ifc-viewer-adapter";
 import Link from "next/link";
@@ -23,6 +24,11 @@ const initialSnapshot: IfcViewerSnapshot = {
   selectionPhase: "idle",
   selectionMessage: null,
   catalog: null,
+  processing: {
+    engine: null,
+    cacheKey: null,
+    cacheHit: null,
+  },
   visual: {
     mode: "all",
     label: null,
@@ -56,12 +62,14 @@ export function IfcViewer({
   assetId,
   assetName,
   initialDownloadUrl,
+  processing,
   projectId,
   projectName,
 }: {
   assetId: string;
   assetName: string;
   initialDownloadUrl: string;
+  processing: NonNullable<LoadIfcInput["processing"]>;
   projectId: string;
   projectName: string;
 }) {
@@ -80,7 +88,7 @@ export function IfcViewer({
     controllerRef.current = controller;
     const unsubscribe = controller.subscribe(setSnapshot);
     void controller
-      .loadIfc({ downloadUrl: initialDownloadUrl })
+      .loadIfc({ downloadUrl: initialDownloadUrl, processing })
       .catch(() => undefined);
 
     return () => {
@@ -88,7 +96,7 @@ export function IfcViewer({
       controller.dispose();
       controllerRef.current = null;
     };
-  }, [initialDownloadUrl]);
+  }, [initialDownloadUrl, processing]);
 
   const retry = useCallback(async () => {
     const controller = controllerRef.current;
@@ -99,7 +107,10 @@ export function IfcViewer({
 
     try {
       const access = await trpcClient.assets.open.query({ assetId, projectId });
-      await controller.loadIfc({ downloadUrl: access.downloadUrl });
+      await controller.loadIfc({
+        downloadUrl: access.downloadUrl,
+        processing,
+      });
     } catch {
       if (controller.getSnapshot().phase !== "error") {
         setAccessError(
@@ -109,7 +120,7 @@ export function IfcViewer({
     } finally {
       setRetrying(false);
     }
-  }, [assetId, projectId, trpcClient]);
+  }, [assetId, processing, projectId, trpcClient]);
 
   const isBusy =
     snapshot.phase === "initializing" ||
@@ -140,6 +151,14 @@ export function IfcViewer({
             <i aria-hidden="true" />
             {phaseLabels[snapshot.phase]}
           </span>
+          {snapshot.processing.engine ? (
+            <span className={styles.engine}>
+              {snapshot.processing.engine === "rust"
+                ? "Rust + Parquet"
+                : "Navigateur WASM"}
+              {snapshot.processing.cacheHit === true ? " · cache" : ""}
+            </span>
+          ) : null}
           <button
             className={styles.actionButton}
             disabled={snapshot.phase !== "ready"}
@@ -188,7 +207,7 @@ export function IfcViewer({
                 <strong>{phaseLabels[snapshot.phase]}</strong>
                 <p>
                   {snapshot.phase === "processing"
-                    ? `${snapshot.meshCount.toLocaleString("fr-FR")} maillages reçus`
+                    ? `${snapshot.meshCount.toLocaleString("fr-FR")} maillages reçus${snapshot.processing.engine === "rust" ? " du serveur Rust" : ""}`
                     : "Préparation de la maquette…"}
                 </p>
                 {snapshot.parserPercent !== null ? (

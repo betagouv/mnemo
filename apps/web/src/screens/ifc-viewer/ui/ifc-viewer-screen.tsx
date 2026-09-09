@@ -3,6 +3,7 @@ import { projectIdSchema } from "@mnemo/contracts/projects";
 import { notFound } from "next/navigation";
 
 import { getServerCaller } from "@/server/trpc/server-caller";
+import { selectIfcProcessing } from "@/shared/config/ifc-processing/server-only";
 import { IfcViewer } from "@/widgets/ifc-viewer";
 
 export async function IfcViewerScreen({
@@ -44,6 +45,7 @@ export async function IfcViewerScreen({
       assetId={result.asset.id}
       assetName={result.asset.originalFileName}
       initialDownloadUrl={result.downloadUrl}
+      processing={selectIfcProcessing(result.asset.sizeBytes)}
       projectId={project.id}
       projectName={project.name}
     />

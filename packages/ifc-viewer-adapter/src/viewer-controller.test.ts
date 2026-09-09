@@ -5,6 +5,10 @@ import type {
 } from "@ifc-lite/geometry";
 import type { IfcDataStore, IfcParser } from "@ifc-lite/parser";
 import type { Renderer } from "@ifc-lite/renderer";
+import type {
+  MeshData as ServerMeshData,
+  ParquetStreamResult,
+} from "@ifc-lite/server-client";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -17,6 +21,7 @@ function createHarness() {
     rendererCreated: 0,
     rendererInitialized: 0,
     geometryInitialized: 0,
+    serverClientCreated: 0,
     sceneCleared: 0,
     colorOverridesSet: 0,
     colorOverridesCleared: 0,
@@ -157,6 +162,34 @@ function createHarness() {
     },
     createGeometryProcessor: () => geometry,
     createParser: () => parser,
+    createServerClient: () => {
+      calls.serverClientCreated += 1;
+      return {
+        async parseParquetStream(_source, onBatch) {
+          onBatch({
+            batch_number: 0,
+            decode_time_ms: 1,
+            meshes: [
+              {
+                express_id: 42,
+                ifc_type: "IfcWall",
+                positions: new Float32Array([0, 0, 0]),
+                normals: new Float32Array([0, 1, 0]),
+                indices: new Uint32Array([0]),
+                color: [0.4, 0.5, 0.6, 1],
+              } satisfies ServerMeshData,
+            ],
+          });
+
+          return {
+            cache_key: "sha256-model-medium",
+            total_meshes: 1,
+            stats: { from_cache: true },
+            metadata: {},
+          } as unknown as ParquetStreamResult;
+        },
+      };
+    },
     createBimIndex: () => ({
       catalog: {
         types: [
@@ -255,6 +288,33 @@ describe("IfcViewerController", () => {
     expect(calls.rendererCreated).toBe(1);
     expect(calls.sceneCleared).toBe(2);
     expect(calls.fitToView).toBe(2);
+    controller.dispose();
+  });
+
+  it("streams Parquet geometry through the Rust server without replacing the renderer", async () => {
+    const { calls, controller } = createHarness();
+
+    await controller.loadIfc({
+      downloadUrl: "http://storage.local/large-model.ifc",
+      processing: {
+        engine: "rust",
+        serverBaseUrl: "http://ifc-server.local",
+      },
+    });
+
+    expect(controller.getSnapshot()).toMatchObject({
+      phase: "ready",
+      meshCount: 1,
+      processing: {
+        engine: "rust",
+        cacheKey: "sha256-model-medium",
+        cacheHit: true,
+      },
+    });
+    expect(calls.serverClientCreated).toBe(1);
+    expect(calls.batchesAdded).toBe(1);
+    expect(calls.rendererCreated).toBe(1);
+    expect(calls.fitToView).toBe(1);
     controller.dispose();
   });
 
