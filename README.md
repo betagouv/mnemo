@@ -48,7 +48,12 @@ Ports can be changed through the variables documented in [`.env.example`](./.env
 apps/
   web/                 Next.js application and HTTP boundary
   processing-worker/   asynchronous processing runtime
-packages/              reusable domain and infrastructure packages (added by slices)
+packages/
+  contracts/           shared Zod and tRPC contracts
+  database/            Drizzle schema and PostgreSQL adapter
+  domain/              framework-independent business rules and ports
+  ifc-viewer-adapter/  stable bridge to the IFC-Lite WebGPU runtime
+  storage/             S3-compatible object-storage adapter
 docs/adr/              durable architecture decisions
 ```
 

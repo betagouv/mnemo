@@ -1,4 +1,5 @@
 import type { AssetSummary } from "@mnemo/contracts/assets";
+import type { ReactNode } from "react";
 
 import styles from "./asset-card.module.css";
 
@@ -22,7 +23,13 @@ function formatBytes(bytes: number) {
   return `${(bytes / 1_024 ** 3).toFixed(2)} Go`;
 }
 
-export function AssetCard({ asset }: { asset: AssetSummary }) {
+export function AssetCard({
+  action,
+  asset,
+}: {
+  action?: ReactNode;
+  asset: AssetSummary;
+}) {
   return (
     <article className={styles.card}>
       <div className={styles.icon} aria-hidden="true">
@@ -39,9 +46,12 @@ export function AssetCard({ asset }: { asset: AssetSummary }) {
         <h3 title={asset.originalFileName}>{asset.originalFileName}</h3>
         <span>{formatBytes(asset.sizeBytes)}</span>
       </div>
-      <div className={`${styles.status} ${styles[asset.status]}`}>
-        <span aria-hidden="true" />
-        {statusLabels[asset.status]}
+      <div className={styles.side}>
+        <div className={`${styles.status} ${styles[asset.status]}`}>
+          <span aria-hidden="true" />
+          {statusLabels[asset.status]}
+        </div>
+        {action}
       </div>
     </article>
   );
