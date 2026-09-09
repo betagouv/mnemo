@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   output: "standalone",
   outputFileTracingRoot: path.join(process.cwd(), "../.."),
   reactStrictMode: true,
-  transpilePackages: ["@codegouvfr/react-dsfr"],
+  transpilePackages: ["@codegouvfr/react-dsfr", "@mnemo/contracts"],
 };
 
 export default nextConfig;
