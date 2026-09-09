@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@codegouvfr/react-dsfr": "1.34.0",
+    "@mnemo/bcf-adapter": "workspace:*",
     "@mnemo/contracts": "workspace:*",
     "@mnemo/database": "workspace:*",
     "@mnemo/domain": "workspace:*",

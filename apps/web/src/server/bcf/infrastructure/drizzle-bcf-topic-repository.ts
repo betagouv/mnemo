@@ -1,6 +1,5 @@
 import {
   bcfViewpointPayloadSchema,
-  type BcfComment,
   type BcfComponent,
   type BcfTopic,
 } from "@mnemo/contracts/bcf";
@@ -13,12 +12,14 @@ import {
   users,
   type MnemoDatabase,
 } from "@mnemo/database";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 
 import { BcfComponentNotFoundError } from "../application/bcf-topic-errors";
 import type {
   BcfTopicRepository,
   CreateBcfTopicRecord,
+  ImportBcfTopicRecord,
+  StoredBcfComment,
   StoredBcfTopic,
   StoredBcfViewpoint,
 } from "../application/bcf-topic-repository";
@@ -31,18 +32,19 @@ type TopicRow = {
 function toTopic(
   row: TopicRow,
   components: BcfComponent[],
-  comments: BcfComment[],
+  comments: StoredBcfComment[],
   viewpoints: StoredBcfViewpoint[],
 ): StoredBcfTopic {
   return {
     id: row.topic.id,
+    bcfGuid: row.topic.bcfGuid,
     projectId: row.topic.projectId,
     title: row.topic.title,
     description: row.topic.description,
     type: row.topic.type,
     status: row.topic.status,
     priority: row.topic.priority,
-    authorName: row.authorName,
+    authorName: row.topic.externalAuthor ?? row.authorName,
     components,
     comments,
     viewpoints,
@@ -97,14 +99,16 @@ export class DrizzleBcfTopicRepository implements BcfTopicRepository {
       componentsByTopic.set(component.topicId, components);
     }
 
-    const commentsByTopic = new Map<string, BcfComment[]>();
+    const commentsByTopic = new Map<string, StoredBcfComment[]>();
     for (const { comment, authorName } of commentRows) {
       const comments = commentsByTopic.get(comment.topicId) ?? [];
       comments.push({
         id: comment.id,
-        authorName,
+        bcfGuid: comment.bcfGuid,
+        authorName: comment.externalAuthor ?? authorName,
         comment: comment.comment,
         createdAt: comment.createdAt.toISOString(),
+        viewpointBcfGuid: comment.viewpointBcfGuid,
       });
       commentsByTopic.set(comment.topicId, comments);
     }
@@ -114,6 +118,7 @@ export class DrizzleBcfTopicRepository implements BcfTopicRepository {
       const viewpoints = viewpointsByTopic.get(viewpoint.topicId) ?? [];
       viewpoints.push({
         id: viewpoint.id,
+        bcfGuid: viewpoint.bcfGuid,
         topicId: viewpoint.topicId,
         data: bcfViewpointPayloadSchema.parse(viewpoint.data),
         targetDistance: viewpoint.targetDistance,
@@ -121,7 +126,7 @@ export class DrizzleBcfTopicRepository implements BcfTopicRepository {
         snapshotMediaType: viewpoint.snapshotMediaType,
         snapshotExpectedSize: viewpoint.snapshotExpectedSize,
         snapshotUploadedAt: viewpoint.snapshotUploadedAt?.toISOString() ?? null,
-        authorName,
+        authorName: viewpoint.externalAuthor ?? authorName,
         createdAt: viewpoint.createdAt.toISOString(),
       });
       viewpointsByTopic.set(viewpoint.topicId, viewpoints);
@@ -159,6 +164,7 @@ export class DrizzleBcfTopicRepository implements BcfTopicRepository {
 
       await transaction.insert(bcfTopics).values({
         id: input.id,
+        bcfGuid: input.id,
         projectId: input.projectId,
         title: input.title,
         description: input.description || null,
@@ -181,6 +187,112 @@ export class DrizzleBcfTopicRepository implements BcfTopicRepository {
     });
 
     return this.requireTopic(input.projectId, input.id);
+  }
+
+  async importTopics(input: ImportBcfTopicRecord[]) {
+    if (!input.length) {
+      return { insertedTopicIds: [], skippedBcfGuids: [] };
+    }
+
+    return this.database.transaction(async (transaction) => {
+      const projectId = input[0]?.projectId;
+      if (!projectId || input.some((topic) => topic.projectId !== projectId)) {
+        throw new Error("A BCF import transaction must target one project");
+      }
+
+      const bcfGuids = input.map((topic) => topic.bcfGuid);
+      const existing = await transaction
+        .select({ bcfGuid: bcfTopics.bcfGuid })
+        .from(bcfTopics)
+        .where(
+          and(
+            eq(bcfTopics.projectId, projectId),
+            inArray(bcfTopics.bcfGuid, bcfGuids),
+          ),
+        );
+      const existingGuids = new Set(existing.map((row) => row.bcfGuid));
+      const pending = input.filter(
+        (topic) => !existingGuids.has(topic.bcfGuid),
+      );
+      const insertedTopicIds: string[] = [];
+      const skippedBcfGuids = new Set(existingGuids);
+
+      for (const topic of pending) {
+        const [inserted] = await transaction
+          .insert(bcfTopics)
+          .values({
+            id: topic.id,
+            bcfGuid: topic.bcfGuid,
+            projectId: topic.projectId,
+            title: topic.title,
+            description: topic.description,
+            type: topic.type,
+            status: topic.status,
+            priority: topic.priority,
+            createdBy: topic.createdBy,
+            externalAuthor: topic.externalAuthor,
+            createdAt: topic.createdAt,
+            updatedAt: topic.updatedAt,
+          })
+          .onConflictDoNothing()
+          .returning({ id: bcfTopics.id });
+        if (!inserted) {
+          skippedBcfGuids.add(topic.bcfGuid);
+          continue;
+        }
+        insertedTopicIds.push(topic.id);
+
+        if (topic.components.length) {
+          await transaction.insert(bcfTopicComponents).values(
+            topic.components.map((component) => ({
+              id: component.id,
+              topicId: topic.id,
+              assetId: null,
+              globalId: component.globalId,
+              expressId: null,
+              createdAt: topic.createdAt,
+            })),
+          );
+        }
+        if (topic.viewpoints.length) {
+          await transaction.insert(bcfViewpoints).values(
+            topic.viewpoints.map((viewpoint) => ({
+              id: viewpoint.id,
+              bcfGuid: viewpoint.bcfGuid,
+              topicId: topic.id,
+              data: viewpoint.data,
+              targetDistance: viewpoint.targetDistance,
+              snapshotObjectKey: viewpoint.snapshotObjectKey,
+              snapshotMediaType: viewpoint.snapshotMediaType,
+              snapshotExpectedSize: viewpoint.snapshotExpectedSize,
+              snapshotUploadedAt: viewpoint.snapshotUploadedAt,
+              createdBy: topic.createdBy,
+              externalAuthor: viewpoint.externalAuthor,
+              createdAt: viewpoint.createdAt,
+            })),
+          );
+        }
+        if (topic.comments.length) {
+          await transaction.insert(bcfComments).values(
+            topic.comments.map((comment) => ({
+              id: comment.id,
+              bcfGuid: comment.bcfGuid,
+              topicId: topic.id,
+              authorId: topic.createdBy,
+              externalAuthor: comment.externalAuthor,
+              viewpointBcfGuid: comment.viewpointBcfGuid,
+              comment: comment.comment,
+              createdAt: comment.createdAt,
+            })),
+          );
+        }
+      }
+
+      return {
+        insertedTopicIds,
+        skippedBcfGuids: [...skippedBcfGuids],
+      };
+    });
   }
 
   async addComment(input: {
@@ -206,6 +318,7 @@ export class DrizzleBcfTopicRepository implements BcfTopicRepository {
     await this.database.transaction(async (transaction) => {
       await transaction.insert(bcfComments).values({
         id: input.id,
+        bcfGuid: input.id,
         topicId: input.topicId,
         authorId: input.authorId,
         comment: input.comment,
@@ -265,6 +378,7 @@ export class DrizzleBcfTopicRepository implements BcfTopicRepository {
 
       await transaction.insert(bcfViewpoints).values({
         id: input.id,
+        bcfGuid: input.id,
         topicId: input.topicId,
         data: input.data,
         targetDistance: input.targetDistance,
@@ -303,6 +417,7 @@ export class DrizzleBcfTopicRepository implements BcfTopicRepository {
 
     return {
       id: row.viewpoint.id,
+      bcfGuid: row.viewpoint.bcfGuid,
       topicId: row.viewpoint.topicId,
       data: bcfViewpointPayloadSchema.parse(row.viewpoint.data),
       targetDistance: row.viewpoint.targetDistance,
@@ -311,7 +426,7 @@ export class DrizzleBcfTopicRepository implements BcfTopicRepository {
       snapshotExpectedSize: row.viewpoint.snapshotExpectedSize,
       snapshotUploadedAt:
         row.viewpoint.snapshotUploadedAt?.toISOString() ?? null,
-      authorName: row.authorName,
+      authorName: row.viewpoint.externalAuthor ?? row.authorName,
       createdAt: row.viewpoint.createdAt.toISOString(),
     } satisfies StoredBcfViewpoint;
   }

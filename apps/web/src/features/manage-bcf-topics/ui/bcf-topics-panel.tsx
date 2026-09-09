@@ -6,6 +6,7 @@ import type {
   BcfTopicStatus,
   BcfTopicType,
 } from "@mnemo/contracts/bcf";
+import { bcfArchiveImportResultSchema } from "@mnemo/contracts/bcf";
 import type {
   CapturedBcfViewpoint,
   IfcElementDetails,
@@ -66,7 +67,7 @@ export function BcfTopicsPanel({
   const [priority, setPriority] = useState<BcfPriority>("normal");
   const [comment, setComment] = useState("");
   const [pending, setPending] = useState<
-    "topic" | "comment" | "status" | "viewpoint" | null
+    "topic" | "comment" | "status" | "viewpoint" | "import" | "export" | null
   >(null);
   const [message, setMessage] = useState<string | null>(null);
   const activeTopic = useMemo(
@@ -215,8 +216,118 @@ export function BcfTopicsPanel({
     }
   }
 
+  async function importArchive(file: File) {
+    setPending("import");
+    setMessage(null);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/bcf`, {
+        method: "POST",
+        headers: { "content-type": file.type || "application/zip" },
+        body: file,
+      });
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(payload?.error ?? `Import HTTP ${response.status}`);
+      }
+
+      const result = bcfArchiveImportResultSchema.parse(await response.json());
+      setTopics(result.topics);
+      onTopicCountChange(result.topics.length);
+      setActiveTopicId((current) =>
+        result.topics.some((topic) => topic.id === current)
+          ? current
+          : (result.topics[0]?.id ?? null),
+      );
+      const details = [
+        `${result.imported.topics} remarque(s)`,
+        `${result.imported.comments} commentaire(s)`,
+        `${result.imported.viewpoints} vue(s)`,
+      ].join(" · ");
+      const warningSummary = result.warnings.length
+        ? ` ${result.warnings.length} avertissement(s).`
+        : "";
+      setMessage(
+        result.skippedTopics
+          ? `Import terminé : ${details}. ${result.skippedTopics} doublon(s) ignoré(s).${warningSummary}`
+          : `Import terminé : ${details}.${warningSummary}`,
+      );
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? `Import impossible : ${error.message}`
+          : "L’archive BCF n’a pas pu être importée.",
+      );
+    } finally {
+      setPending(null);
+    }
+  }
+
+  async function exportArchive() {
+    setPending("export");
+    setMessage(null);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/bcf`);
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(payload?.error ?? `Export HTTP ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const encodedName = response.headers
+        .get("content-disposition")
+        ?.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+      const fileName = encodedName
+        ? decodeURIComponent(encodedName)
+        : "projet-mnemo.bcfzip";
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = fileName;
+      anchor.click();
+      anchor.remove();
+      requestAnimationFrame(() => URL.revokeObjectURL(url));
+      setMessage(`${topics.length} remarque(s) exportée(s) en BCFZIP.`);
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? `Export impossible : ${error.message}`
+          : "L’archive BCF n’a pas pu être exportée.",
+      );
+    } finally {
+      setPending(null);
+    }
+  }
+
   return (
     <div className={styles.panel}>
+      <div className={styles.exchange}>
+        <label aria-disabled={pending !== null}>
+          <span className="fr-icon-upload-2-line" aria-hidden="true" />
+          {pending === "import" ? "Import…" : "Importer BCF"}
+          <input
+            accept=".bcf,.bcfzip,application/zip"
+            disabled={pending !== null}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              if (file) void importArchive(file);
+            }}
+            type="file"
+          />
+        </label>
+        <button
+          disabled={pending !== null}
+          onClick={() => void exportArchive()}
+          type="button"
+        >
+          <span className="fr-icon-download-line" aria-hidden="true" />
+          {pending === "export" ? "Export…" : "Exporter"}
+        </button>
+      </div>
       <form
         className={styles.create}
         onSubmit={(event) => void createTopic(event)}

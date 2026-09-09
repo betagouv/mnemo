@@ -24,6 +24,7 @@ export {
 } from "./assets";
 export {
   addBcfCommentInputSchema,
+  bcfArchiveImportResultSchema,
   bcfCommentIdSchema,
   bcfCommentSchema,
   bcfComponentSchema,
@@ -37,6 +38,7 @@ export {
   listBcfTopicsInputSchema,
   updateBcfTopicStatusInputSchema,
   type AddBcfCommentInput,
+  type BcfArchiveImportResult,
   type BcfComment,
   type BcfComponent,
   type BcfPriority,

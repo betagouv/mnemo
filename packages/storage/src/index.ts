@@ -11,6 +11,7 @@ export {
   type CreateUploadUrlInput,
   type ObjectStorage,
   type StoredObject,
+  type WriteObjectInput,
 } from "./object-storage";
 export {
   S3ObjectStorage,

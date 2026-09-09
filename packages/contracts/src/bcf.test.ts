@@ -1,12 +1,24 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  bcfArchiveImportResultSchema,
   bcfViewpointPayloadSchema,
   createBcfTopicInputSchema,
   updateBcfTopicStatusInputSchema,
 } from "./bcf";
 
 describe("BCF contracts", () => {
+  it("validates bounded BCF archive import summaries", () => {
+    expect(
+      bcfArchiveImportResultSchema.parse({
+        topics: [],
+        imported: { topics: 1, comments: 2, viewpoints: 3, snapshots: 1 },
+        skippedTopics: 0,
+        warnings: [],
+      }).imported.viewpoints,
+    ).toBe(3);
+  });
+
   it("normalizes a minimal topic to interoperable application defaults", () => {
     expect(
       createBcfTopicInputSchema.parse({

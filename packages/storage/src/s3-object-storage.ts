@@ -12,6 +12,7 @@ import type {
   CreateUploadUrlInput,
   ObjectStorage,
   StoredObject,
+  WriteObjectInput,
 } from "./object-storage";
 
 export type S3ObjectStorageOptions = {
@@ -110,6 +111,18 @@ export class S3ObjectStorage implements ObjectStorage {
     }
 
     return result.Body.transformToByteArray();
+  }
+
+  async writeObject({ objectKey, contentType, body }: WriteObjectInput) {
+    await this.internalClient.send(
+      new PutObjectCommand({
+        Bucket: this.options.bucket,
+        Key: objectKey,
+        Body: body,
+        ContentLength: body.byteLength,
+        ContentType: contentType,
+      }),
+    );
   }
 
   async deleteObject(objectKey: string) {

@@ -52,8 +52,10 @@ priority, description, comments, and a durable IFC component reference by
 `GlobalId`; when created from the viewer it also keeps the asset and Express ID
 needed to focus the element immediately. Viewpoints capture and restore the
 IFC-Lite camera, selection, visibility, and coloring; screenshots are uploaded
-directly to S3/MinIO and cleaned with their project. BCF ZIP import/export is the
-next interoperability slice.
+directly to S3/MinIO and cleaned with their project. The inspector imports and
+exports bounded BCF 2.1/3.0 archives through `@ifc-lite/bcf`; imported topic,
+comment, and viewpoint GUIDs remain stable, duplicate imports are ignored, and
+snapshot binaries are extracted back to MinIO.
 
 ## Repository
 
@@ -63,6 +65,7 @@ apps/
   processing-worker/   asynchronous processing runtime
 packages/
   contracts/           shared Zod and tRPC contracts
+  bcf-adapter/         BCF 2.1/3.0 archive interoperability
   database/            Drizzle schema and PostgreSQL adapter
   domain/              framework-independent business rules and ports
   ifc-viewer-adapter/  stable bridge to the IFC-Lite WebGPU runtime

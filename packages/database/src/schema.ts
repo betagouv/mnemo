@@ -188,6 +188,7 @@ export const bcfTopics = pgTable(
   "bcf_topics",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    bcfGuid: uuid("bcf_guid").defaultRandom().notNull(),
     projectId: uuid("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
@@ -199,11 +200,16 @@ export const bcfTopics = pgTable(
     createdBy: uuid("created_by")
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
+    externalAuthor: varchar("external_author", { length: 320 }),
     ...timestamps(),
   },
   (table) => [
     index("bcf_topics_project_id_idx").on(table.projectId),
     index("bcf_topics_status_idx").on(table.status),
+    uniqueIndex("bcf_topics_project_guid_unique").on(
+      table.projectId,
+      table.bcfGuid,
+    ),
   ],
 );
 
@@ -234,24 +240,34 @@ export const bcfComments = pgTable(
   "bcf_comments",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    bcfGuid: uuid("bcf_guid").defaultRandom().notNull(),
     topicId: uuid("topic_id")
       .notNull()
       .references(() => bcfTopics.id, { onDelete: "cascade" }),
     authorId: uuid("author_id")
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
+    externalAuthor: varchar("external_author", { length: 320 }),
+    viewpointBcfGuid: uuid("viewpoint_bcf_guid"),
     comment: text("comment").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
   },
-  (table) => [index("bcf_comments_topic_id_idx").on(table.topicId)],
+  (table) => [
+    index("bcf_comments_topic_id_idx").on(table.topicId),
+    uniqueIndex("bcf_comments_topic_guid_unique").on(
+      table.topicId,
+      table.bcfGuid,
+    ),
+  ],
 );
 
 export const bcfViewpoints = pgTable(
   "bcf_viewpoints",
   {
     id: uuid("id").primaryKey(),
+    bcfGuid: uuid("bcf_guid").defaultRandom().notNull(),
     topicId: uuid("topic_id")
       .notNull()
       .references(() => bcfTopics.id, { onDelete: "cascade" }),
@@ -268,6 +284,7 @@ export const bcfViewpoints = pgTable(
     createdBy: uuid("created_by")
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
+    externalAuthor: varchar("external_author", { length: 320 }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -275,6 +292,10 @@ export const bcfViewpoints = pgTable(
   (table) => [
     index("bcf_viewpoints_topic_id_idx").on(table.topicId),
     index("bcf_viewpoints_created_by_idx").on(table.createdBy),
+    uniqueIndex("bcf_viewpoints_topic_guid_unique").on(
+      table.topicId,
+      table.bcfGuid,
+    ),
   ],
 );
 
