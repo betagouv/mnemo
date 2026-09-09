@@ -4,8 +4,10 @@ test("renders the application foundation", async ({ page }) => {
   await page.goto("/");
 
   await expect(
-    page.getByRole("heading", { name: "La fondation est prête." }),
+    page.getByRole("heading", { name: "Comprendre une maquette, ensemble." }),
   ).toBeVisible();
+  await expect(page.getByRole("banner")).toContainText("Mnemo");
+  await expect(page.getByRole("contentinfo")).toBeVisible();
 });
 
 test("exposes a healthy application endpoint", async ({ request }) => {

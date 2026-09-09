@@ -1,21 +1,22 @@
 :root {
-  color-scheme: light;
-  font-family: Marianne, Arial, sans-serif;
+  --mnemo-ink: #161616;
+  --mnemo-blue: #000091;
+  --mnemo-blue-dark: #00006d;
+  --mnemo-soft: #f5f5fe;
+  --mnemo-mint: #b8fec9;
 }
 
 * {
   box-sizing: border-box;
 }
 
-html,
 body {
-  min-height: 100%;
   margin: 0;
+  color: var(--mnemo-ink);
+  background: #fff;
 }
 
-button,
-input,
-textarea,
-select {
-  font: inherit;
+::selection {
+  color: #fff;
+  background: var(--mnemo-blue);
 }
