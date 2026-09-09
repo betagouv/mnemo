@@ -68,6 +68,12 @@ jobs:
       DATABASE_URL: postgresql://mnemo:mnemo@localhost:5432/mnemo
       MNEMO_AUTH_MODE: development
       MNEMO_DEPLOYMENT_ENV: local
+      S3_ENDPOINT: http://localhost:9200
+      S3_PUBLIC_ENDPOINT: http://localhost:9200
+      S3_REGION: us-east-1
+      S3_BUCKET: mnemo-files
+      S3_ACCESS_KEY: mnemo
+      S3_SECRET_KEY: mnemo-local-password
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -78,5 +84,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:migrate
       - run: pnpm db:seed
+      - run: docker compose up -d minio create-bucket
       - run: pnpm --filter @mnemo/web exec playwright install --with-deps chromium
       - run: pnpm test:e2e

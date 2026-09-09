@@ -39,7 +39,7 @@ export function ProjectCard({ project }: { project: ProjectSummary }) {
               "Ajoutez une maquette IFC ou un nuage de points pour commencer."}
           </p>
           <div className={styles.footer}>
-            <span>Aucun fichier</span>
+            <span>Ouvrir l’espace projet</span>
             <span className="fr-icon-arrow-right-line" aria-hidden="true" />
           </div>
         </div>

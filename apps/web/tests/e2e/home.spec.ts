@@ -55,4 +55,17 @@ test("creates a persistent project from the workspace", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Fichiers du projet" }),
   ).toBeVisible();
+
+  const fileName = `maquette-${Date.now()}.ifc`;
+  await page.locator('input[type="file"][accept*=".ifc"]').setInputFiles({
+    name: fileName,
+    mimeType: "application/x-step",
+    buffer: Buffer.from("ISO-10303-21;\nEND-ISO-10303-21;\n"),
+  });
+
+  await expect(page.getByRole("heading", { name: fileName })).toBeVisible();
+  await expect(page.getByText("Reçu", { exact: true })).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByRole("heading", { name: fileName })).toBeVisible();
 });

@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
     "@mnemo/contracts",
     "@mnemo/database",
     "@mnemo/domain",
+    "@mnemo/storage",
   ],
 };
 

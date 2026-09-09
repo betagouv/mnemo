@@ -76,6 +76,7 @@ services:
     environment:
       MINIO_ROOT_USER: mnemo
       MINIO_ROOT_PASSWORD: mnemo-local-password
+      MINIO_API_CORS_ALLOW_ORIGIN: http://localhost:3200,http://127.0.0.1:3100
     ports:
       - "${MNEMO_MINIO_PORT:-9200}:9000"
       - "${MNEMO_MINIO_CONSOLE_PORT:-9201}:9001"
