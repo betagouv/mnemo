@@ -1,5 +1,6 @@
 import {
   DeleteObjectCommand,
+  GetObjectCommand,
   HeadObjectCommand,
   PutObjectCommand,
   S3Client,
@@ -7,6 +8,7 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 import type {
+  CreateDownloadUrlInput,
   CreateUploadUrlInput,
   ObjectStorage,
   StoredObject,
@@ -53,6 +55,17 @@ export class S3ObjectStorage implements ObjectStorage {
         Bucket: this.options.bucket,
         Key: objectKey,
         ContentType: contentType,
+      }),
+      { expiresIn: expiresInSeconds },
+    );
+  }
+
+  createDownloadUrl({ objectKey, expiresInSeconds }: CreateDownloadUrlInput) {
+    return getSignedUrl(
+      this.publicSigningClient,
+      new GetObjectCommand({
+        Bucket: this.options.bucket,
+        Key: objectKey,
       }),
       { expiresIn: expiresInSeconds },
     );
