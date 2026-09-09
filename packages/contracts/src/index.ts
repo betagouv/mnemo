@@ -1,4 +1,16 @@
 export {
+  assetIdSchema,
+  assetKindSchema,
+  assetListSchema,
+  assetStatusSchema,
+  assetSummarySchema,
+  listAssetsInputSchema,
+  type AssetId,
+  type AssetList,
+  type AssetSummary,
+  type ListAssetsInput,
+} from "./assets";
+export {
   createProjectInputSchema,
   getProjectInputSchema,
   projectIdSchema,
