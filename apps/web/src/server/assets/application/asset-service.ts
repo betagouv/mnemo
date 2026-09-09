@@ -153,7 +153,7 @@ export class AssetService {
     }
 
     return toAssetSummary(
-      await this.assets.markUploaded(match.asset.id, this.now()),
+      await this.assets.markUploadedAndEnqueue(match.asset.id, this.now()),
     );
   }
 }

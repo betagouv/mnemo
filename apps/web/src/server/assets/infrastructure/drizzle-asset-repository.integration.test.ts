@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import {
   assets,
   createDatabase,
+  processingJobs,
   projectMembers,
   projects,
   users,
@@ -74,10 +75,34 @@ describe("DrizzleAssetRepository", () => {
       repository.findForActor(actorId, projectId, assetId),
     ).resolves.toMatchObject({ role: "owner", asset: pending });
 
-    const completed = await repository.markUploaded(assetId, new Date());
+    const completed = await repository.markUploadedAndEnqueue(
+      assetId,
+      new Date(),
+    );
     expect(completed.status).toBe("uploaded");
     await expect(
       database.db.select().from(assets).where(eq(assets.id, assetId)),
+    ).resolves.toHaveLength(1);
+    await expect(
+      database.db
+        .select()
+        .from(processingJobs)
+        .where(eq(processingJobs.assetId, assetId)),
+    ).resolves.toMatchObject([
+      {
+        assetId,
+        type: "process_ifc",
+        status: "queued",
+        attempts: 0,
+      },
+    ]);
+
+    await repository.markUploadedAndEnqueue(assetId, new Date());
+    await expect(
+      database.db
+        .select()
+        .from(processingJobs)
+        .where(eq(processingJobs.assetId, assetId)),
     ).resolves.toHaveLength(1);
   });
 });

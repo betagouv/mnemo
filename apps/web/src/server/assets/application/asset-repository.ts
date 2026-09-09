@@ -31,5 +31,8 @@ export interface AssetRepository {
     assetId: string,
   ): Promise<{ asset: AssetForActor; role: ProjectRole } | undefined>;
   createPending(input: PendingAsset): Promise<AssetForActor>;
-  markUploaded(assetId: string, uploadedAt: Date): Promise<AssetForActor>;
+  markUploadedAndEnqueue(
+    assetId: string,
+    uploadedAt: Date,
+  ): Promise<AssetForActor>;
 }

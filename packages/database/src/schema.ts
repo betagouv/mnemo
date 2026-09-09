@@ -1,8 +1,13 @@
 import { assetKinds, assetStatuses } from "@mnemo/domain/asset";
+import {
+  processingJobStatuses,
+  processingJobTypes,
+} from "@mnemo/domain/processing-job";
 import { projectRoles } from "@mnemo/domain/project";
 import {
   bigint,
   index,
+  integer,
   pgEnum,
   pgTable,
   primaryKey,
@@ -26,6 +31,14 @@ const timestamps = () => ({
 export const projectRoleEnum = pgEnum("project_role", projectRoles);
 export const assetKindEnum = pgEnum("asset_kind", assetKinds);
 export const assetStatusEnum = pgEnum("asset_status", assetStatuses);
+export const processingJobTypeEnum = pgEnum(
+  "processing_job_type",
+  processingJobTypes,
+);
+export const processingJobStatusEnum = pgEnum(
+  "processing_job_status",
+  processingJobStatuses,
+);
 
 export const users = pgTable(
   "users",
@@ -106,7 +119,37 @@ export const assets = pgTable(
   ],
 );
 
+export const processingJobs = pgTable(
+  "processing_jobs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    assetId: uuid("asset_id")
+      .notNull()
+      .references(() => assets.id, { onDelete: "cascade" }),
+    type: processingJobTypeEnum("type").notNull(),
+    status: processingJobStatusEnum("status").default("queued").notNull(),
+    attempts: integer("attempts").default(0).notNull(),
+    maxAttempts: integer("max_attempts").default(3).notNull(),
+    availableAt: timestamp("available_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    lockedAt: timestamp("locked_at", { withTimezone: true }),
+    lockedBy: varchar("locked_by", { length: 160 }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    ...timestamps(),
+  },
+  (table) => [
+    uniqueIndex("processing_jobs_asset_type_unique").on(
+      table.assetId,
+      table.type,
+    ),
+    index("processing_jobs_poll_idx").on(table.status, table.availableAt),
+  ],
+);
+
 export type UserRecord = typeof users.$inferSelect;
 export type ProjectRecord = typeof projects.$inferSelect;
 export type ProjectMemberRecord = typeof projectMembers.$inferSelect;
 export type AssetRecord = typeof assets.$inferSelect;
+export type ProcessingJobRecord = typeof processingJobs.$inferSelect;

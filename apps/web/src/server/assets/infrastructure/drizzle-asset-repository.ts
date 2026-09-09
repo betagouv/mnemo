@@ -1,4 +1,10 @@
-import { assets, projectMembers, type MnemoDatabase } from "@mnemo/database";
+import {
+  assets,
+  processingJobs,
+  projectMembers,
+  type MnemoDatabase,
+} from "@mnemo/database";
+import { processingJobTypeForAsset } from "@mnemo/domain/processing-job";
 import { and, desc, eq } from "drizzle-orm";
 
 import type {
@@ -81,21 +87,41 @@ export class DrizzleAssetRepository implements AssetRepository {
     return asset;
   }
 
-  async markUploaded(assetId: string, uploadedAt: Date) {
-    const [asset] = await this.database
-      .update(assets)
-      .set({
-        status: "uploaded",
-        uploadedAt,
-        updatedAt: uploadedAt,
-      })
-      .where(eq(assets.id, assetId))
-      .returning(assetSelection);
+  markUploadedAndEnqueue(assetId: string, uploadedAt: Date) {
+    return this.database.transaction(async (transaction) => {
+      const [updatedAsset] = await transaction
+        .update(assets)
+        .set({
+          status: "uploaded",
+          uploadedAt,
+          updatedAt: uploadedAt,
+        })
+        .where(and(eq(assets.id, assetId), eq(assets.status, "upload_pending")))
+        .returning(assetSelection);
 
-    if (!asset) {
-      throw new Error("Asset update returned no record");
-    }
+      const asset =
+        updatedAsset ??
+        (
+          await transaction
+            .select(assetSelection)
+            .from(assets)
+            .where(eq(assets.id, assetId))
+            .limit(1)
+        )[0];
 
-    return asset;
+      if (!asset) {
+        throw new Error("Asset update returned no record");
+      }
+
+      await transaction
+        .insert(processingJobs)
+        .values({
+          assetId: asset.id,
+          type: processingJobTypeForAsset(asset.kind),
+        })
+        .onConflictDoNothing();
+
+      return asset;
+    });
   }
 }

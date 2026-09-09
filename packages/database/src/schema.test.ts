@@ -5,6 +5,9 @@ import {
   assetKindEnum,
   assets,
   assetStatusEnum,
+  processingJobs,
+  processingJobStatusEnum,
+  processingJobTypeEnum,
   projectMembers,
   projectRoleEnum,
   projects,
@@ -27,5 +30,19 @@ describe("database schema", () => {
     expect(assetKindEnum.enumValues).toEqual(["ifc", "point_cloud"]);
     expect(assetStatusEnum.enumValues).toContain("upload_pending");
     expect(assetStatusEnum.enumValues).toContain("ready");
+  });
+
+  it("persists retryable processing jobs", () => {
+    expect(getTableName(processingJobs)).toBe("processing_jobs");
+    expect(processingJobTypeEnum.enumValues).toEqual([
+      "process_ifc",
+      "process_point_cloud",
+    ]);
+    expect(processingJobStatusEnum.enumValues).toEqual([
+      "queued",
+      "running",
+      "succeeded",
+      "failed",
+    ]);
   });
 });
