@@ -14,6 +14,7 @@ const statusLabels = {
   processing: "Traitement",
   ready: "Prêt",
   failed: "Échec",
+  deleting: "Suppression",
 } as const;
 
 function formatBytes(bytes: number) {

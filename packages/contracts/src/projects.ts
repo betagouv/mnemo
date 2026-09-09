@@ -7,6 +7,8 @@ export const getProjectInputSchema = z.object({
   projectId: projectIdSchema,
 });
 
+export const deleteProjectInputSchema = getProjectInputSchema;
+
 export type GetProjectInput = z.infer<typeof getProjectInputSchema>;
 
 export const projectRoleSchema = z.enum(["owner", "editor", "viewer"]);

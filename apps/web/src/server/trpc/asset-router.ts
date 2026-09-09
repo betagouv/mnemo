@@ -4,6 +4,8 @@ import {
   beginAssetUploadInputSchema,
   beginAssetUploadResultSchema,
   completeAssetUploadInputSchema,
+  deleteAssetInputSchema,
+  deletionAcceptedSchema,
   listAssetsInputSchema,
   openAssetInputSchema,
   openAssetResultSchema,
@@ -70,5 +72,11 @@ export const assetRouter = createTrpcRouter({
     .output(openAssetResultSchema)
     .query(({ ctx, input }) =>
       mapAssetError(() => getAssetService().open(ctx.actor.id, input)),
+    ),
+  delete: publicProcedure
+    .input(deleteAssetInputSchema)
+    .output(deletionAcceptedSchema)
+    .mutation(({ ctx, input }) =>
+      mapAssetError(() => getAssetService().delete(ctx.actor.id, input)),
     ),
 });

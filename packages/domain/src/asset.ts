@@ -10,6 +10,7 @@ export const assetStatuses = [
   "processing",
   "ready",
   "failed",
+  "deleting",
 ] as const;
 export type AssetStatus = (typeof assetStatuses)[number];
 

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { getServerCaller } from "@/server/trpc/server-caller";
+import { DeleteProjectButton } from "@/features/delete-project";
 import { ProjectAssets } from "@/widgets/project-assets";
 
 import styles from "./project-detail-screen.module.css";
@@ -51,9 +52,17 @@ export async function ProjectDetailScreen({
               "Cet espace est prêt à recevoir ses premières données."}
           </p>
         </div>
-        <div className={styles.status}>
-          <span aria-hidden="true" />
-          Espace actif
+        <div className={styles.headingActions}>
+          <div className={styles.status}>
+            <span aria-hidden="true" />
+            Espace actif
+          </div>
+          {project.role === "owner" ? (
+            <DeleteProjectButton
+              projectId={project.id}
+              projectName={project.name}
+            />
+          ) : null}
         </div>
       </header>
 

@@ -3,6 +3,7 @@ import type {
   ProjectList,
   ProjectSummary,
 } from "@mnemo/contracts/projects";
+import { hasProjectPermission } from "@mnemo/domain/project";
 
 import type { ProjectForActor, ProjectRepository } from "./project-repository";
 
@@ -15,7 +16,10 @@ function toProjectSummary(project: ProjectForActor): ProjectSummary {
 }
 
 export class ProjectService {
-  constructor(private readonly projects: ProjectRepository) {}
+  constructor(
+    private readonly projects: ProjectRepository,
+    private readonly now: () => Date = () => new Date(),
+  ) {}
 
   async list(actorId: string): Promise<ProjectList> {
     const projects = await this.projects.listForActor(actorId);
@@ -40,5 +44,16 @@ export class ProjectService {
         description: input.description || undefined,
       }),
     );
+  }
+
+  async delete(actorId: string, projectId: string) {
+    const project = await this.projects.findForActor(actorId, projectId);
+
+    if (!project || !hasProjectPermission(project.role, "project:delete")) {
+      return { accepted: false as const };
+    }
+
+    await this.projects.requestDeletion(projectId, this.now());
+    return { accepted: true as const };
   }
 }

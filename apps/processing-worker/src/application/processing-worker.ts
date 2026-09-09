@@ -1,7 +1,6 @@
-import type { ProcessingJobType } from "@mnemo/domain/processing-job";
-
 import type {
   ProcessingJobHandlers,
+  ProcessingJobLease,
   ProcessingJobQueue,
 } from "./processing-job";
 
@@ -15,6 +14,37 @@ export type ProcessingWorkerOptions = {
   now?: () => Date;
   logger?: WorkerLogger;
 };
+
+export type BackgroundJobLease<JobType extends string> = {
+  id: string;
+  type: JobType;
+  attempt: number;
+  maxAttempts: number;
+};
+
+export interface BackgroundJobQueue<
+  JobType extends string,
+  Job extends BackgroundJobLease<JobType>,
+> {
+  claim(input: {
+    workerId: string;
+    supportedTypes: JobType[];
+    claimedAt: Date;
+    staleBefore: Date;
+  }): Promise<Job | null>;
+  complete(input: {
+    job: Job;
+    workerId: string;
+    completedAt: Date;
+  }): Promise<void>;
+  fail(input: {
+    job: Job;
+    workerId: string;
+    error: string;
+    failedAt: Date;
+    retryAt: Date;
+  }): Promise<void>;
+}
 
 function errorMessage(error: unknown) {
   if (error instanceof Error) {
@@ -43,19 +73,24 @@ function wait(milliseconds: number, signal: AbortSignal) {
   });
 }
 
-export class ProcessingWorker {
+export class BackgroundWorker<
+  JobType extends string,
+  Job extends BackgroundJobLease<JobType>,
+> {
   private readonly now: () => Date;
   private readonly logger: WorkerLogger;
-  private readonly supportedTypes: ProcessingJobType[];
+  private readonly supportedTypes: JobType[];
 
   constructor(
-    private readonly queue: ProcessingJobQueue,
-    private readonly handlers: ProcessingJobHandlers,
+    private readonly queue: BackgroundJobQueue<JobType, Job>,
+    private readonly handlers: Partial<
+      Record<JobType, (job: Job) => Promise<void>>
+    >,
     private readonly options: ProcessingWorkerOptions,
   ) {
     this.now = options.now ?? (() => new Date());
     this.logger = options.logger ?? console;
-    this.supportedTypes = Object.keys(handlers) as ProcessingJobType[];
+    this.supportedTypes = Object.keys(handlers) as JobType[];
   }
 
   async runOnce() {
@@ -92,7 +127,7 @@ export class ProcessingWorker {
         failedAt,
         retryAt: new Date(failedAt.getTime() + delay),
       });
-      this.logger.warn("Processing job failed", {
+      this.logger.warn("Background job failed", {
         jobId: job.id,
         type: job.type,
         attempt: job.attempt,
@@ -106,7 +141,7 @@ export class ProcessingWorker {
       workerId: this.options.workerId,
       completedAt: this.now(),
     });
-    this.logger.info("Processing job completed", {
+    this.logger.info("Background job completed", {
       jobId: job.id,
       type: job.type,
       attempt: job.attempt,
@@ -131,5 +166,18 @@ export class ProcessingWorker {
 
       await wait(this.options.pollIntervalMs, signal);
     }
+  }
+}
+
+export class ProcessingWorker extends BackgroundWorker<
+  ProcessingJobLease["type"],
+  ProcessingJobLease
+> {
+  constructor(
+    queue: ProcessingJobQueue,
+    handlers: ProcessingJobHandlers,
+    options: ProcessingWorkerOptions,
+  ) {
+    super(queue, handlers, options);
   }
 }

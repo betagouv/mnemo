@@ -1,6 +1,6 @@
 import { assets, processingJobs, type MnemoDatabase } from "@mnemo/database";
 import type { ProcessingJobType } from "@mnemo/domain/processing-job";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, ne, sql } from "drizzle-orm";
 
 import type {
   ProcessingJobLease,
@@ -60,7 +60,12 @@ export class DrizzleProcessingJobQueue implements ProcessingJobQueue {
               "Le traitement a été interrompu après le nombre maximal de tentatives.",
             updatedAt: input.claimedAt,
           })
-          .where(inArray(assets.id, exhaustedAssetIds));
+          .where(
+            and(
+              inArray(assets.id, exhaustedAssetIds),
+              ne(assets.status, "deleting"),
+            ),
+          );
       }
 
       const supportedTypes = sql.join(
@@ -70,16 +75,25 @@ export class DrizzleProcessingJobQueue implements ProcessingJobQueue {
       const claimedResult = await transaction.execute<ProcessingJobLeaseRow>(
         sql`
           WITH candidate AS (
-            SELECT id
-            FROM processing_jobs
+            SELECT candidate_job.id
+            FROM processing_jobs AS candidate_job
+            INNER JOIN assets AS candidate_asset
+              ON candidate_asset.id = candidate_job.asset_id
             WHERE
-              type IN (${supportedTypes})
-              AND attempts < max_attempts
+              candidate_asset.status <> 'deleting'
+              AND candidate_job.type IN (${supportedTypes})
+              AND candidate_job.attempts < candidate_job.max_attempts
               AND (
-                (status = 'queued' AND available_at <= ${input.claimedAt})
-                OR (status = 'running' AND locked_at <= ${input.staleBefore})
+                (
+                  candidate_job.status = 'queued'
+                  AND candidate_job.available_at <= ${input.claimedAt}
+                )
+                OR (
+                  candidate_job.status = 'running'
+                  AND candidate_job.locked_at <= ${input.staleBefore}
+                )
               )
-            ORDER BY available_at ASC, created_at ASC
+            ORDER BY candidate_job.available_at ASC, candidate_job.created_at ASC
             FOR UPDATE SKIP LOCKED
             LIMIT 1
           )
@@ -114,7 +128,7 @@ export class DrizzleProcessingJobQueue implements ProcessingJobQueue {
           errorMessage: null,
           updatedAt: input.claimedAt,
         })
-        .where(eq(assets.id, job.assetId));
+        .where(and(eq(assets.id, job.assetId), ne(assets.status, "deleting")));
 
       return job;
     });
@@ -158,7 +172,12 @@ export class DrizzleProcessingJobQueue implements ProcessingJobQueue {
           errorMessage: null,
           updatedAt: input.completedAt,
         })
-        .where(eq(assets.id, completedJob.assetId));
+        .where(
+          and(
+            eq(assets.id, completedJob.assetId),
+            ne(assets.status, "deleting"),
+          ),
+        );
     });
   }
 
@@ -205,7 +224,9 @@ export class DrizzleProcessingJobQueue implements ProcessingJobQueue {
           errorMessage: exhausted ? input.error : null,
           updatedAt: input.failedAt,
         })
-        .where(eq(assets.id, failedJob.assetId));
+        .where(
+          and(eq(assets.id, failedJob.assetId), ne(assets.status, "deleting")),
+        );
     });
   }
 }

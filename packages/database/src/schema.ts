@@ -40,6 +40,10 @@ export const processingJobStatusEnum = pgEnum(
   "processing_job_status",
   processingJobStatuses,
 );
+export const deletionJobTypeEnum = pgEnum("deletion_job_type", [
+  "delete_asset",
+  "delete_project",
+]);
 
 export const users = pgTable(
   "users",
@@ -166,6 +170,34 @@ export const assetProcessingResults = pgTable("asset_processing_results", {
   ...timestamps(),
 });
 
+export const deletionJobs = pgTable(
+  "deletion_jobs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    resourceId: uuid("resource_id").notNull(),
+    type: deletionJobTypeEnum("type").notNull(),
+    objectKeys: text("object_keys").array().notNull(),
+    status: processingJobStatusEnum("status").default("queued").notNull(),
+    attempts: integer("attempts").default(0).notNull(),
+    maxAttempts: integer("max_attempts").default(5).notNull(),
+    availableAt: timestamp("available_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    lockedAt: timestamp("locked_at", { withTimezone: true }),
+    lockedBy: varchar("locked_by", { length: 160 }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    ...timestamps(),
+  },
+  (table) => [
+    uniqueIndex("deletion_jobs_resource_type_unique").on(
+      table.resourceId,
+      table.type,
+    ),
+    index("deletion_jobs_poll_idx").on(table.status, table.availableAt),
+  ],
+);
+
 export type UserRecord = typeof users.$inferSelect;
 export type ProjectRecord = typeof projects.$inferSelect;
 export type ProjectMemberRecord = typeof projectMembers.$inferSelect;
@@ -173,3 +205,4 @@ export type AssetRecord = typeof assets.$inferSelect;
 export type ProcessingJobRecord = typeof processingJobs.$inferSelect;
 export type AssetProcessingResultRecord =
   typeof assetProcessingResults.$inferSelect;
+export type DeletionJobRecord = typeof deletionJobs.$inferSelect;

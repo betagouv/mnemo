@@ -20,4 +20,5 @@ export interface ProjectRepository {
     actorId: string,
     input: CreateProjectInput,
   ): Promise<ProjectForActor>;
+  requestDeletion(projectId: string, requestedAt: Date): Promise<void>;
 }
