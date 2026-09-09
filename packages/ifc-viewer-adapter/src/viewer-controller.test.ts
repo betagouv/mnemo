@@ -23,6 +23,8 @@ function createHarness() {
     orbit: 0,
     pan: 0,
     zoom: 0,
+    pick: 0,
+    orbitCenter: null as { x: number; y: number; z: number } | null,
     rendererDestroyed: 0,
     geometryDisposed: 0,
   };
@@ -38,6 +40,9 @@ function createHarness() {
     zoom: () => {
       calls.zoom += 1;
     },
+    setOrbitCenter: (center: { x: number; y: number; z: number } | null) => {
+      calls.orbitCenter = center;
+    },
   };
   const scene = {
     clear: () => {
@@ -45,6 +50,10 @@ function createHarness() {
     },
     hasQueuedMeshes: () => false,
     flushPending: () => false,
+    getEntityBoundingBox: () => ({
+      min: { x: 0, y: 2, z: 4 },
+      max: { x: 2, y: 4, z: 6 },
+    }),
   };
   const renderer = {
     init: async () => {
@@ -72,6 +81,13 @@ function createHarness() {
       return requested;
     },
     render: () => undefined,
+    pick: async () => {
+      calls.pick += 1;
+      return {
+        expressId: 42,
+        worldXYZ: { x: 1, y: 3, z: 5 },
+      };
+    },
     destroy: () => {
       calls.rendererDestroyed += 1;
     },
@@ -132,6 +148,28 @@ function createHarness() {
     },
     createGeometryProcessor: () => geometry,
     createParser: () => parser,
+    readElementDetails: (_store, expressId) => ({
+      expressId,
+      globalId: "3vB1mExampleGlobalId",
+      ifcClass: "IfcWall",
+      name: "Mur test",
+      description: "",
+      objectType: "",
+      tag: "W-42",
+      propertySets: [
+        {
+          name: "Pset_WallCommon",
+          values: [
+            {
+              name: "IsExternal",
+              type: 3,
+              value: true,
+            },
+          ],
+        },
+      ],
+      quantitySets: [],
+    }),
     fetch: async () => new Response(Uint8Array.of(1, 2, 3)),
     requestFrame: () => 1,
     cancelFrame: () => undefined,
@@ -213,8 +251,9 @@ describe("IfcViewerController", () => {
     dispatch("pointermove", {
       clientX: 130,
       clientY: 115,
+      pointerId: 1,
     });
-    dispatch("pointerup", { pointerId: 1 });
+    dispatch("pointerup", { button: 0, pointerId: 1, type: "pointerup" });
     dispatch("wheel", {
       clientX: 500,
       clientY: 350,
@@ -227,6 +266,40 @@ describe("IfcViewerController", () => {
     expect(calls.zoom).toBe(1);
     expect(calls.fitToView).toBe(0);
     expect(calls.rendererCreated).toBe(1);
+    controller.dispose();
+  });
+
+  it("selects IFC semantics and uses the clicked surface as orbit center", async () => {
+    const { calls, controller, dispatch } = createHarness();
+    await controller.loadIfc({ downloadUrl: "http://storage.local/model.ifc" });
+
+    dispatch("pointerdown", {
+      type: "pointerdown",
+      button: 0,
+      shiftKey: false,
+      clientX: 100,
+      clientY: 120,
+      pointerId: 7,
+    });
+    dispatch("pointerup", {
+      type: "pointerup",
+      button: 0,
+      clientX: 100,
+      clientY: 120,
+      pointerId: 7,
+    });
+    await Promise.resolve();
+
+    expect(calls.pick).toBe(1);
+    expect(calls.orbitCenter).toEqual({ x: 1, y: 3, z: 5 });
+    expect(controller.getSnapshot().selection).toMatchObject({
+      expressId: 42,
+      globalId: "3vB1mExampleGlobalId",
+      ifcClass: "IfcWall",
+      name: "Mur test",
+    });
+    expect(controller.getSnapshot().selection?.propertySets).toHaveLength(1);
+    expect(calls.fitToView).toBe(1);
     controller.dispose();
   });
 });

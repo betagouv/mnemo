@@ -1,0 +1,145 @@
+.content {
+  min-height: 0;
+}
+
+.identity {
+  padding: 1rem;
+  border-bottom: 1px solid var(--viewer-border);
+}
+
+.identity > span {
+  display: inline-block;
+  padding: 0.2rem 0.45rem;
+  color: #c7c7ff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  background: rgb(106 106 244 / 18%);
+}
+
+.identity h2 {
+  margin: 0.65rem 0 0;
+  color: #fff;
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.identity p {
+  margin: 0.35rem 0 0;
+  color: var(--viewer-muted);
+  font-size: 0.75rem;
+}
+
+.metadata {
+  display: grid;
+  margin: 0;
+  padding: 0.45rem 1rem 0.75rem;
+  border-bottom: 1px solid var(--viewer-border);
+}
+
+.metadata > div {
+  display: grid;
+  grid-template-columns: 6rem minmax(0, 1fr);
+  gap: 0.75rem;
+  padding: 0.45rem 0;
+}
+
+.metadata dt,
+.metadata dd {
+  min-width: 0;
+  margin: 0;
+  font-size: 0.72rem;
+}
+
+.metadata dt {
+  color: var(--viewer-muted);
+}
+
+.metadata dd {
+  overflow: hidden;
+  color: #fff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.groups {
+  padding: 0.65rem;
+}
+
+.group {
+  border-bottom: 1px solid var(--viewer-border);
+}
+
+.group summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 0.35rem;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.group summary span {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.group summary small {
+  color: var(--viewer-muted);
+  font-size: 0.58rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.group summary strong {
+  min-width: 1.45rem;
+  padding: 0.15rem 0.35rem;
+  border-radius: 1rem;
+  color: var(--viewer-muted);
+  font-size: 0.62rem;
+  text-align: center;
+  background: rgb(255 255 255 / 8%);
+}
+
+.group dl {
+  margin: 0;
+  padding: 0 0.35rem 0.55rem;
+}
+
+.group dl > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(5rem, 0.9fr);
+  gap: 0.75rem;
+  padding: 0.35rem 0;
+}
+
+.group dt,
+.group dd {
+  min-width: 0;
+  margin: 0;
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.group dt {
+  color: #ddd;
+}
+
+.group dd {
+  overflow: hidden;
+  color: var(--viewer-muted);
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.empty {
+  margin: 0;
+  padding: 1rem 0.35rem;
+  color: var(--viewer-muted);
+  font-size: 0.75rem;
+}
