@@ -6,6 +6,7 @@ coverage/
 playwright-report/
 test-results/
 .turbo/
+*.tsbuildinfo
 
 # Environment and secrets
 .env
@@ -29,4 +30,3 @@ models/
 .vscode/
 .DS_Store
 *.swp
-

@@ -16,3 +16,48 @@ This repository is a clean rewrite of the validated prototype. Features are rein
 
 See [`AGENTS.md`](./AGENTS.md) for engineering rules and `docs/adr` for architecture decisions.
 
+## Local development
+
+Prerequisites: Node.js 22+, pnpm 10+, and Docker Compose.
+
+```bash
+cp .env.example .env
+pnpm install
+pnpm dev
+```
+
+To run the complete local stack:
+
+```bash
+docker compose up --build
+```
+
+The default local endpoints are:
+
+- application: <http://localhost:3200>
+- health check: <http://localhost:3200/api/health>
+- MinIO API: <http://localhost:9200>
+- MinIO console: <http://localhost:9201>
+- PostgreSQL: `localhost:5436`
+
+Ports can be changed through the variables documented in [`.env.example`](./.env.example).
+
+## Repository
+
+```text
+apps/
+  web/                 Next.js application and HTTP boundary
+  processing-worker/   asynchronous processing runtime
+packages/              reusable domain and infrastructure packages (added by slices)
+docs/adr/              durable architecture decisions
+```
+
+Useful commands:
+
+```bash
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+docker compose config
+```

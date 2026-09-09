@@ -1,0 +1,101 @@
+name: mnemo
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    image: mnemo-web:0.1.0
+    environment:
+      DATABASE_URL: postgresql://mnemo:mnemo@postgres:5432/mnemo
+      S3_ENDPOINT: http://minio:9000
+      S3_PUBLIC_ENDPOINT: http://localhost:9200
+      S3_REGION: us-east-1
+      S3_BUCKET: mnemo-files
+      S3_ACCESS_KEY: mnemo
+      S3_SECRET_KEY: mnemo-local-password
+    depends_on:
+      postgres:
+        condition: service_healthy
+      create-bucket:
+        condition: service_completed_successfully
+    ports:
+      - "${MNEMO_WEB_PORT:-3200}:3000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/api/health').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  processing-worker:
+    build:
+      context: .
+      dockerfile: apps/processing-worker/Dockerfile
+    image: mnemo-processing-worker:0.1.0
+    environment:
+      DATABASE_URL: postgresql://mnemo:mnemo@postgres:5432/mnemo
+      S3_ENDPOINT: http://minio:9000
+      S3_REGION: us-east-1
+      S3_BUCKET: mnemo-files
+      S3_ACCESS_KEY: mnemo
+      S3_SECRET_KEY: mnemo-local-password
+      WORKER_POLL_INTERVAL_MS: 3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      create-bucket:
+        condition: service_completed_successfully
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: mnemo
+      POSTGRES_USER: mnemo
+      POSTGRES_PASSWORD: mnemo
+    ports:
+      - "${MNEMO_POSTGRES_PORT:-5436}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mnemo -d mnemo"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: mnemo
+      MINIO_ROOT_PASSWORD: mnemo-local-password
+    ports:
+      - "${MNEMO_MINIO_PORT:-9200}:9000"
+      - "${MNEMO_MINIO_CONSOLE_PORT:-9201}:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  create-bucket:
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >-
+      /bin/sh -c '
+      mc alias set local http://minio:9000 mnemo mnemo-local-password;
+      mc mb --ignore-existing local/mnemo-files;
+      '
+
+volumes:
+  postgres-data:
+  minio-data:
