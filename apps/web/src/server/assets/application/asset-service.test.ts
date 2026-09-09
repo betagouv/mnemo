@@ -104,6 +104,10 @@ class ObjectStorageStub implements ObjectStorage {
     return this.storedObject;
   }
 
+  async readObject() {
+    return new Uint8Array();
+  }
+
   async deleteObject() {}
 }
 

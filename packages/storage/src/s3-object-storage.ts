@@ -97,6 +97,21 @@ export class S3ObjectStorage implements ObjectStorage {
     }
   }
 
+  async readObject(objectKey: string) {
+    const result = await this.internalClient.send(
+      new GetObjectCommand({
+        Bucket: this.options.bucket,
+        Key: objectKey,
+      }),
+    );
+
+    if (!result.Body) {
+      throw new Error(`Object ${objectKey} has no response body`);
+    }
+
+    return result.Body.transformToByteArray();
+  }
+
   async deleteObject(objectKey: string) {
     await this.internalClient.send(
       new DeleteObjectCommand({

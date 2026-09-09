@@ -1,8 +1,12 @@
 import { createDatabase } from "@mnemo/database";
+import { IfcLiteServerProcessor } from "@mnemo/ifc-processing-adapter";
+import { S3ObjectStorage } from "@mnemo/storage";
 
+import { createProcessIfcAssetHandler } from "./application/process-ifc-asset";
 import type { ProcessingJobHandlers } from "./application/processing-job";
 import { ProcessingWorker } from "./application/processing-worker";
 import { DrizzleProcessingJobQueue } from "./infrastructure/drizzle-processing-job-queue";
+import { DrizzleIfcProcessingRepository } from "./infrastructure/drizzle-ifc-processing-repository";
 import { getWorkerConfig } from "./runtime-config";
 
 async function main() {
@@ -11,7 +15,17 @@ async function main() {
     connectionString: config.databaseUrl,
     maxConnections: 2,
   });
-  const handlers: ProcessingJobHandlers = {};
+  const storage = new S3ObjectStorage({
+    ...config.storage,
+    publicEndpoint: config.storage.endpoint,
+  });
+  const handlers: ProcessingJobHandlers = {
+    process_ifc: createProcessIfcAssetHandler({
+      repository: new DrizzleIfcProcessingRepository(database.db),
+      storage,
+      processor: new IfcLiteServerProcessor(config.ifcLiteServerUrl),
+    }),
+  };
   const worker = new ProcessingWorker(
     new DrizzleProcessingJobQueue(database.db),
     handlers,
@@ -24,12 +38,6 @@ async function main() {
     pollIntervalMs: config.pollIntervalMs,
     handlers: Object.keys(handlers),
   });
-
-  if (Object.keys(handlers).length === 0) {
-    console.warn(
-      "No processor is registered yet; queued jobs remain untouched until an adapter is enabled.",
-    );
-  }
 
   const shutdown = (signal: NodeJS.Signals) => {
     console.info("Mnemo processing worker is stopping", { signal });

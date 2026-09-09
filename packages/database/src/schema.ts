@@ -6,6 +6,7 @@ import {
 import { projectRoles } from "@mnemo/domain/project";
 import {
   bigint,
+  boolean,
   index,
   integer,
   pgEnum,
@@ -148,8 +149,27 @@ export const processingJobs = pgTable(
   ],
 );
 
+export const assetProcessingResults = pgTable("asset_processing_results", {
+  assetId: uuid("asset_id")
+    .primaryKey()
+    .references(() => assets.id, { onDelete: "cascade" }),
+  processor: varchar("processor", { length: 80 }).notNull(),
+  processorVersion: varchar("processor_version", { length: 80 }).notNull(),
+  cacheKey: text("cache_key").notNull(),
+  entityCount: bigint("entity_count", { mode: "number" }).notNull(),
+  geometryEntityCount: bigint("geometry_entity_count", {
+    mode: "number",
+  }).notNull(),
+  meshCount: bigint("mesh_count", { mode: "number" }).notNull(),
+  cacheHit: boolean("cache_hit").notNull(),
+  processedAt: timestamp("processed_at", { withTimezone: true }).notNull(),
+  ...timestamps(),
+});
+
 export type UserRecord = typeof users.$inferSelect;
 export type ProjectRecord = typeof projects.$inferSelect;
 export type ProjectMemberRecord = typeof projectMembers.$inferSelect;
 export type AssetRecord = typeof assets.$inferSelect;
 export type ProcessingJobRecord = typeof processingJobs.$inferSelect;
+export type AssetProcessingResultRecord =
+  typeof assetProcessingResults.$inferSelect;

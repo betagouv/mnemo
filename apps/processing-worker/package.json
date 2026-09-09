@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && node scripts/copy-parquet-wasm.mjs",
     "dev": "tsx watch src/index.ts",
     "lint": "eslint src tsup.config.ts vitest.integration.config.ts",
     "start": "node dist/index.cjs",
@@ -22,6 +22,9 @@
   "dependencies": {
     "@mnemo/database": "workspace:*",
     "@mnemo/domain": "workspace:*",
-    "drizzle-orm": "0.45.2"
+    "@mnemo/ifc-processing-adapter": "workspace:*",
+    "@mnemo/storage": "workspace:*",
+    "drizzle-orm": "0.45.2",
+    "parquet-wasm": "0.7.2"
   }
 }

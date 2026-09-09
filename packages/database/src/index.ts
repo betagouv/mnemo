@@ -6,6 +6,7 @@ export {
 export { developmentActorId } from "./development-actor";
 export {
   assetKindEnum,
+  assetProcessingResults,
   assets,
   assetStatusEnum,
   projectMembers,
@@ -15,6 +16,7 @@ export {
   projects,
   users,
   type AssetRecord,
+  type AssetProcessingResultRecord,
   type ProjectMemberRecord,
   type ProcessingJobRecord,
   type ProjectRecord,

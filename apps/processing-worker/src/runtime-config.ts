@@ -11,15 +11,23 @@ function positiveInteger(name: string, fallback: number, minimum: number) {
   return value;
 }
 
+function required(name: string) {
+  const value = process.env[name]?.trim();
+  if (!value) throw new Error(`${name} is required`);
+  return value;
+}
+
 export function getWorkerConfig() {
-  const databaseUrl = process.env.DATABASE_URL;
-
-  if (!databaseUrl) {
-    throw new Error("DATABASE_URL is required");
-  }
-
   return {
-    databaseUrl,
+    databaseUrl: required("DATABASE_URL"),
+    ifcLiteServerUrl: required("IFC_LITE_SERVER_URL"),
+    storage: {
+      endpoint: required("S3_ENDPOINT"),
+      region: required("S3_REGION"),
+      bucket: required("S3_BUCKET"),
+      accessKeyId: required("S3_ACCESS_KEY"),
+      secretAccessKey: required("S3_SECRET_KEY"),
+    },
     workerId:
       process.env.WORKER_ID ??
       `${hostname()}:${process.pid}:${randomUUID().slice(0, 8)}`,

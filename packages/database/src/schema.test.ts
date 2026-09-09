@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   assetKindEnum,
+  assetProcessingResults,
   assets,
   assetStatusEnum,
   processingJobs,
@@ -44,5 +45,11 @@ describe("database schema", () => {
       "succeeded",
       "failed",
     ]);
+  });
+
+  it("persists the latest disposable IFC processing cache reference", () => {
+    expect(getTableName(assetProcessingResults)).toBe(
+      "asset_processing_results",
+    );
   });
 });
