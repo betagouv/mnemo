@@ -15,6 +15,22 @@ concurrency:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: mnemo
+          POSTGRES_USER: mnemo
+          POSTGRES_PASSWORD: mnemo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mnemo -d mnemo"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgresql://mnemo:mnemo@localhost:5432/mnemo
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -27,6 +43,8 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+      - run: pnpm db:migrate
+      - run: pnpm test:integration
       - run: pnpm build
       - run: docker compose config
 
