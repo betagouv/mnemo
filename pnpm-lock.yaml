@@ -235,10 +235,26 @@ importers:
       '@ifc-lite/server-client':
         specifier: 2.0.0
         version: 2.0.0(apache-arrow@21.2.0)(parquet-wasm@0.7.2)
+      '@mnemo/point-cloud-viewer-adapter':
+        specifier: workspace:*
+        version: link:../point-cloud-viewer-adapter
       apache-arrow:
         specifier: 21.2.0
         version: 21.2.0
       parquet-wasm:
+        specifier: 0.7.2
+        version: 0.7.2
+    devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 5.0.0
+        version: 5.0.0(@types/node@25.9.5)(vite@8.2.2(@types/node@25.9.5)(esbuild@0.28.2)(sass@1.104.0)(tsx@4.23.13))
+
+  packages/point-cloud-viewer-adapter:
+    dependencies:
+      '@ifc-lite/pointcloud':
         specifier: 0.7.2
         version: 0.7.2
     devDependencies:

@@ -8,6 +8,7 @@
     ".": "./src/index.ts",
     "./assets": "./src/assets.ts",
     "./projects": "./src/projects.ts",
+    "./point-clouds": "./src/point-clouds.ts",
     "./system": "./src/system.ts"
   },
   "scripts": {

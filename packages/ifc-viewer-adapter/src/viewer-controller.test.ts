@@ -34,6 +34,11 @@ function createHarness() {
     orbitCenter: null as { x: number; y: number; z: number } | null,
     rendererDestroyed: 0,
     geometryDisposed: 0,
+    pointCloudsBegun: 0,
+    pointCloudChunks: 0,
+    pointCloudTransforms: 0,
+    pointCloudOptions: 0,
+    pointCloudsRemoved: 0,
   };
   let renderRequested = false;
   const camera = {
@@ -101,6 +106,23 @@ function createHarness() {
         expressId: 42,
         worldXYZ: { x: 1, y: 3, z: 5 },
       };
+    },
+    beginPointCloudStream: () => {
+      calls.pointCloudsBegun += 1;
+      return { id: calls.pointCloudsBegun };
+    },
+    appendPointCloudChunk: () => {
+      calls.pointCloudChunks += 1;
+    },
+    endPointCloudStream: () => undefined,
+    removePointCloudAsset: () => {
+      calls.pointCloudsRemoved += 1;
+    },
+    setPointCloudTransform: () => {
+      calls.pointCloudTransforms += 1;
+    },
+    setPointCloudOptions: () => {
+      calls.pointCloudOptions += 1;
     },
     destroy: () => {
       calls.rendererDestroyed += 1;
@@ -213,6 +235,25 @@ function createHarness() {
             : [42, 84],
       query: () => [],
     }),
+    createPointCloudStream: (options) => {
+      options.onOpen?.({
+        totalPointCount: 2,
+        bbox: { min: [0, 0, 0], max: [1, 1, 1] },
+        hasColor: true,
+        hasClassification: false,
+        hasIntensity: false,
+        stride: 1,
+      });
+      options.onChunk({
+        positions: new Float32Array([0, 0, 0, 1, 1, 1]),
+        colors: new Float32Array([1, 0, 0, 0, 1, 0]),
+        pointCount: 2,
+        bbox: { min: [0, 0, 0], max: [1, 1, 1] },
+      });
+      options.onProgress?.(2, 2);
+      options.onComplete?.({ min: [0, 0, 0], max: [1, 1, 1] }, 2, null);
+      return { cancel: () => undefined, done: Promise.resolve() };
+    },
     readElementDetails: (_store, expressId) => ({
       expressId,
       globalId: "3vB1mExampleGlobalId",
@@ -419,6 +460,48 @@ describe("IfcViewerController", () => {
     controller.color({ ifcClass: "IfcDoor" }, [0.5, 0.1, 0.8, 1]);
     expect(calls.colorOverridesSet).toBe(1);
     expect(calls.rendererCreated).toBe(1);
+    expect(calls.fitToView).toBe(1);
+    controller.dispose();
+  });
+
+  it("streams a point cloud into the same renderer and updates GPU settings live", async () => {
+    const { calls, controller } = createHarness();
+    await controller.loadIfc({ downloadUrl: "http://storage.local/model.ifc" });
+
+    await controller.loadPointCloud({
+      assetId: "point-cloud-id",
+      fileName: "scan.las",
+      downloadUrl: "http://storage.local/scan.las",
+      maxPointsInMemory: 2_000_000,
+      transform: {
+        position: [0, 0, 0],
+        rotationDegrees: [-90, 0, 0],
+        scale: [1, 1, 1],
+      },
+    });
+
+    expect(controller.getSnapshot().pointClouds).toMatchObject([
+      {
+        assetId: "point-cloud-id",
+        phase: "ready",
+        progress: 1,
+        pointCount: 2,
+      },
+    ]);
+    expect(calls.pointCloudsBegun).toBe(1);
+    expect(calls.pointCloudChunks).toBe(1);
+    expect(calls.pointCloudTransforms).toBe(1);
+    expect(calls.fitToView).toBe(1);
+
+    controller.setPointCloudPointSize(4);
+    controller.setPointCloudTransform("point-cloud-id", {
+      position: [10, 0, 0],
+      rotationDegrees: [-90, 0, 0],
+      scale: [1, 1, 1],
+    });
+
+    expect(calls.pointCloudOptions).toBe(1);
+    expect(calls.pointCloudTransforms).toBe(2);
     expect(calls.fitToView).toBe(1);
     controller.dispose();
   });

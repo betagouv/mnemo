@@ -5,11 +5,16 @@ import {
   type LoadIfcInput,
   type IfcViewerSnapshot,
 } from "@mnemo/ifc-viewer-adapter";
+import type { PointCloudSettings } from "@mnemo/contracts/point-clouds";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { IfcElementProperties } from "@/entities/ifc-element";
 import { BimExplorer } from "@/features/filter-bim-model";
+import {
+  PointCloudPanel,
+  type PointCloudConfiguration,
+} from "@/features/configure-point-cloud";
 import { useTRPCClient } from "@/shared/api/trpc";
 
 import styles from "./ifc-viewer.module.css";
@@ -36,6 +41,19 @@ const initialSnapshot: IfcViewerSnapshot = {
     showContext: true,
     contextOpacity: 0.1,
   },
+  pointClouds: [],
+  pointCloudOptions: {
+    pointSize: 2,
+  },
+};
+
+const initialPointBudget = 2_000_000;
+
+export type ViewerPointCloudSource = {
+  assetId: string;
+  fileName: string;
+  downloadUrl: string;
+  settings: PointCloudSettings;
 };
 
 function hexToRgba(hex: string): [number, number, number, number] {
@@ -63,6 +81,7 @@ export function IfcViewer({
   assetName,
   initialDownloadUrl,
   processing,
+  pointCloudSources,
   projectId,
   projectName,
 }: {
@@ -70,6 +89,7 @@ export function IfcViewer({
   assetName: string;
   initialDownloadUrl: string;
   processing: NonNullable<LoadIfcInput["processing"]>;
+  pointCloudSources: ViewerPointCloudSource[];
   projectId: string;
   projectName: string;
 }) {
@@ -78,6 +98,20 @@ export function IfcViewer({
   const [snapshot, setSnapshot] = useState(initialSnapshot);
   const [retrying, setRetrying] = useState(false);
   const [accessError, setAccessError] = useState<string | null>(null);
+  const [pointBudget, setPointBudget] = useState(initialPointBudget);
+  const [pointCloudConfigurations, setPointCloudConfigurations] = useState<
+    PointCloudConfiguration[]
+  >(() =>
+    pointCloudSources.map((source) => ({
+      assetId: source.assetId,
+      fileName: source.fileName,
+      transform: source.settings.transform,
+      sourceCrs: source.settings.sourceCrs,
+      targetCrs: source.settings.targetCrs,
+    })),
+  );
+  const initialProcessingRef = useRef(processing);
+  const pointCloudSourcesRef = useRef(pointCloudSources);
   const trpcClient = useTRPCClient();
 
   useEffect(() => {
@@ -88,7 +122,23 @@ export function IfcViewer({
     controllerRef.current = controller;
     const unsubscribe = controller.subscribe(setSnapshot);
     void controller
-      .loadIfc({ downloadUrl: initialDownloadUrl, processing })
+      .loadIfc({
+        downloadUrl: initialDownloadUrl,
+        processing: initialProcessingRef.current,
+      })
+      .then(() =>
+        Promise.allSettled(
+          pointCloudSourcesRef.current.map((source) =>
+            controller.loadPointCloud({
+              assetId: source.assetId,
+              fileName: source.fileName,
+              downloadUrl: source.downloadUrl,
+              maxPointsInMemory: initialPointBudget,
+              transform: source.settings.transform,
+            }),
+          ),
+        ),
+      )
       .catch(() => undefined);
 
     return () => {
@@ -96,7 +146,46 @@ export function IfcViewer({
       controller.dispose();
       controllerRef.current = null;
     };
-  }, [initialDownloadUrl, processing]);
+  }, [initialDownloadUrl]);
+
+  function updatePointCloudConfiguration(
+    configuration: PointCloudConfiguration,
+  ) {
+    setPointCloudConfigurations((current) =>
+      current.map((item) =>
+        item.assetId === configuration.assetId ? configuration : item,
+      ),
+    );
+    controllerRef.current?.setPointCloudTransform(
+      configuration.assetId,
+      configuration.transform,
+    );
+  }
+
+  async function reloadPointClouds(maxPointsInMemory: number) {
+    const controller = controllerRef.current;
+    if (!controller) return;
+
+    setPointBudget(maxPointsInMemory);
+    await Promise.allSettled(
+      pointCloudSourcesRef.current.map(async (source) => {
+        const access = await trpcClient.assets.open.query({
+          assetId: source.assetId,
+          projectId,
+        });
+        const configuration = pointCloudConfigurations.find(
+          (item) => item.assetId === source.assetId,
+        );
+        await controller.loadPointCloud({
+          assetId: source.assetId,
+          fileName: source.fileName,
+          downloadUrl: access.downloadUrl,
+          maxPointsInMemory,
+          transform: configuration?.transform ?? source.settings.transform,
+        });
+      }),
+    );
+  }
 
   const retry = useCallback(async () => {
     const controller = controllerRef.current;
@@ -224,7 +313,33 @@ export function IfcViewer({
               <i aria-hidden="true" />
               <strong>{snapshot.meshCount.toLocaleString("fr-FR")}</strong>
               <span>maillages</span>
+              {snapshot.pointClouds.length ? (
+                <>
+                  <i aria-hidden="true" />
+                  <strong>
+                    {snapshot.pointClouds
+                      .reduce((total, cloud) => total + cloud.pointCount, 0)
+                      .toLocaleString("fr-FR")}
+                  </strong>
+                  <span>points</span>
+                </>
+              ) : null}
             </div>
+          ) : null}
+
+          {pointCloudConfigurations.length ? (
+            <PointCloudPanel
+              configurations={pointCloudConfigurations}
+              maxPoints={pointBudget}
+              onConfigurationChange={updatePointCloudConfiguration}
+              onPointSizeChange={(pointSize) =>
+                controllerRef.current?.setPointCloudPointSize(pointSize)
+              }
+              onReload={(maxPoints) => void reloadPointClouds(maxPoints)}
+              pointClouds={snapshot.pointClouds}
+              pointSize={snapshot.pointCloudOptions.pointSize}
+              projectId={projectId}
+            />
           ) : null}
 
           {hasFailed || accessError ? (

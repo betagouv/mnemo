@@ -3,6 +3,7 @@ import { IfcLiteServerProcessor } from "@mnemo/ifc-processing-adapter";
 import { S3ObjectStorage } from "@mnemo/storage";
 
 import { createProcessIfcAssetHandler } from "./application/process-ifc-asset";
+import { createProcessPointCloudAssetHandler } from "./application/process-point-cloud-asset";
 import {
   createDeleteResourceHandler,
   deletionJobTypes,
@@ -18,6 +19,7 @@ import { DrizzleDeletedResourceRepository } from "./infrastructure/drizzle-delet
 import { DrizzleDeletionJobQueue } from "./infrastructure/drizzle-deletion-job-queue";
 import { DrizzleProcessingJobQueue } from "./infrastructure/drizzle-processing-job-queue";
 import { DrizzleIfcProcessingRepository } from "./infrastructure/drizzle-ifc-processing-repository";
+import { DrizzlePointCloudProcessingRepository } from "./infrastructure/drizzle-point-cloud-processing-repository";
 import { getWorkerConfig } from "./runtime-config";
 
 async function main() {
@@ -35,6 +37,10 @@ async function main() {
       repository: new DrizzleIfcProcessingRepository(database.db),
       storage,
       processor: new IfcLiteServerProcessor(config.ifcLiteServerUrl),
+    }),
+    process_point_cloud: createProcessPointCloudAssetHandler({
+      repository: new DrizzlePointCloudProcessingRepository(database.db),
+      storage,
     }),
   };
   const worker = new ProcessingWorker(

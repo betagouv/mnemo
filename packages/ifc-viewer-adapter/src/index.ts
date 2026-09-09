@@ -10,7 +10,12 @@ export {
   type IfcViewerRuntime,
   type IfcViewerSnapshot,
   type LoadIfcInput,
+  type LoadPointCloudInput,
+  type PointCloudOptionsSnapshot,
+  type PointCloudPhase,
+  type PointCloudSnapshot,
 } from "./viewer-controller";
+export type { PointCloudTransform } from "@mnemo/point-cloud-viewer-adapter";
 export {
   createIfcServerGeometryClient,
   toBrowserMeshBatch,

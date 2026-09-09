@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
     "@mnemo/database",
     "@mnemo/domain",
     "@mnemo/ifc-viewer-adapter",
+    "@mnemo/point-cloud-viewer-adapter",
     "@mnemo/storage",
   ],
   headers() {
@@ -25,6 +26,19 @@ const nextConfig: NextConfig = {
           {
             key: "Cross-Origin-Embedder-Policy",
             value: "require-corp",
+          },
+        ],
+      },
+      {
+        source: "/_next/static/:path*",
+        headers: [
+          {
+            key: "Cross-Origin-Embedder-Policy",
+            value: "require-corp",
+          },
+          {
+            key: "Cross-Origin-Resource-Policy",
+            value: "same-origin",
           },
         ],
       },

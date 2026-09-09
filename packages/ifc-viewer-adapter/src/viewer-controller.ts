@@ -10,7 +10,16 @@ import {
   type IfcDataStore,
   type ParseOptions,
 } from "@ifc-lite/parser";
-import { Renderer } from "@ifc-lite/renderer";
+import { Renderer, type PointCloudAssetHandle } from "@ifc-lite/renderer";
+import {
+  composePointCloudTransform,
+  createPointCloudStream,
+  detectPointCloudFormat,
+  type PointCloudFormat,
+  type PointCloudStreamHandle,
+  type PointCloudStreamOptions,
+  type PointCloudTransform,
+} from "@mnemo/point-cloud-viewer-adapter";
 
 import {
   createIfcBimIndex,
@@ -48,6 +57,26 @@ export type IfcViewerSnapshot = {
   catalog: IfcBimCatalog | null;
   processing: IfcProcessingSnapshot;
   visual: IfcVisualSnapshot;
+  pointClouds: PointCloudSnapshot[];
+  pointCloudOptions: PointCloudOptionsSnapshot;
+};
+
+export type PointCloudPhase = "downloading" | "streaming" | "ready" | "error";
+
+export type PointCloudSnapshot = {
+  assetId: string;
+  fileName: string;
+  format: PointCloudFormat;
+  phase: PointCloudPhase;
+  progress: number;
+  pointCount: number;
+  totalPointCount: number | null;
+  sampleStride: number;
+  message: string | null;
+};
+
+export type PointCloudOptionsSnapshot = {
+  pointSize: number;
 };
 
 export type IfcProcessingEngine = "browser" | "rust";
@@ -118,6 +147,14 @@ export type LoadIfcInput = {
     { engine: "browser" } | { engine: "rust"; serverBaseUrl: string };
 };
 
+export type LoadPointCloudInput = {
+  assetId: string;
+  fileName: string;
+  downloadUrl: string;
+  maxPointsInMemory: number;
+  transform: PointCloudTransform;
+};
+
 type FrameRequest = (callback: FrameRequestCallback) => number;
 type FrameCancel = (handle: number) => void;
 
@@ -134,6 +171,9 @@ export type IfcViewerRuntime = {
     store: IfcDataStore,
     renderableIds: Iterable<number>,
   ) => IfcBimIndex;
+  createPointCloudStream: (
+    options: PointCloudStreamOptions,
+  ) => PointCloudStreamHandle;
   fetch: typeof fetch;
   requestFrame: FrameRequest;
   cancelFrame: FrameCancel;
@@ -163,6 +203,10 @@ const defaultSnapshot: IfcViewerSnapshot = {
     matchCount: 0,
     showContext: true,
     contextOpacity: 0.1,
+  },
+  pointClouds: [],
+  pointCloudOptions: {
+    pointSize: 2,
   },
 };
 
@@ -216,6 +260,7 @@ function createDefaultRuntime(): IfcViewerRuntime {
     createServerClient: createIfcServerGeometryClient,
     readElementDetails,
     createBimIndex: createIfcBimIndex,
+    createPointCloudStream,
     fetch: globalThis.fetch.bind(globalThis),
     requestFrame: globalThis.requestAnimationFrame.bind(globalThis),
     cancelFrame: globalThis.cancelAnimationFrame.bind(globalThis),
@@ -273,6 +318,17 @@ export class IfcViewerController {
   private isolatedIds: Set<number> | null = null;
   private ghostExceptIds: Set<number> | null = null;
   private colorOverrides = new Map<number, [number, number, number, number]>();
+  private readonly pointCloudLoads = new Map<
+    string,
+    {
+      abort: AbortController;
+      expressId: number;
+      handle: PointCloudAssetHandle | null;
+      stream: PointCloudStreamHandle | null;
+      transform: PointCloudTransform;
+    }
+  >();
+  private nextPointCloudExpressId = 0xf0000000;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -329,8 +385,168 @@ export class IfcViewerController {
     return run;
   }
 
+  async loadPointCloud(input: LoadPointCloudInput) {
+    await this.init();
+    if (this.disposed) return;
+
+    const format = detectPointCloudFormat(input.fileName);
+    if (!format) {
+      throw new Error(
+        `Format de nuage de points non pris en charge : ${input.fileName}`,
+      );
+    }
+
+    this.removePointCloud(input.assetId);
+    const load = {
+      abort: new AbortController(),
+      expressId: this.nextPointCloudExpressId--,
+      handle: null as PointCloudAssetHandle | null,
+      stream: null as PointCloudStreamHandle | null,
+      transform: input.transform,
+    };
+    this.pointCloudLoads.set(input.assetId, load);
+    this.updatePointCloudSnapshot(input.assetId, {
+      assetId: input.assetId,
+      fileName: input.fileName,
+      format,
+      phase: "downloading",
+      progress: 0,
+      pointCount: 0,
+      totalPointCount: null,
+      sampleStride: 1,
+      message: null,
+    });
+
+    try {
+      const response = await this.runtime.fetch(input.downloadUrl, {
+        signal: load.abort.signal,
+      });
+      if (!response.ok) {
+        throw new Error(`Le stockage a répondu HTTP ${response.status}.`);
+      }
+      const blob = await response.blob();
+      if (this.pointCloudLoads.get(input.assetId) !== load) return;
+
+      this.updatePointCloudSnapshot(input.assetId, { phase: "streaming" });
+      const stream = this.runtime.createPointCloudStream({
+        blob,
+        format,
+        label: input.fileName,
+        maxPointsInMemory: input.maxPointsInMemory,
+        signal: load.abort.signal,
+        onOpen: (info) => {
+          if (this.pointCloudLoads.get(input.assetId) !== load) return;
+          load.handle = this.renderer.beginPointCloudStream({
+            expressId: load.expressId,
+            ifcType: "IfcPointCloud",
+          });
+          this.renderer.setPointCloudTransform(
+            load.handle,
+            composePointCloudTransform(load.transform),
+          );
+          this.updatePointCloudSnapshot(input.assetId, {
+            totalPointCount: info.totalPointCount,
+            sampleStride: info.stride,
+          });
+        },
+        onChunk: (chunk) => {
+          if (
+            this.pointCloudLoads.get(input.assetId) !== load ||
+            !load.handle
+          ) {
+            return;
+          }
+          this.renderer.appendPointCloudChunk(load.handle, chunk);
+          this.renderer.requestRender();
+        },
+        onProgress: (loaded, total) => {
+          if (this.pointCloudLoads.get(input.assetId) !== load) return;
+          this.updatePointCloudSnapshot(input.assetId, {
+            pointCount: loaded,
+            progress: total > 0 ? Math.min(1, loaded / total) : 0,
+          });
+        },
+        onComplete: (_bounds, pointCount) => {
+          if (this.pointCloudLoads.get(input.assetId) !== load) return;
+          if (load.handle) this.renderer.endPointCloudStream(load.handle);
+          this.updatePointCloudSnapshot(input.assetId, {
+            phase: "ready",
+            progress: 1,
+            pointCount,
+            message: null,
+          });
+          this.renderer.requestRender();
+        },
+        onError: (error) => {
+          if (this.pointCloudLoads.get(input.assetId) !== load) return;
+          if (load.handle) {
+            this.renderer.removePointCloudAsset(load.handle);
+            load.handle = null;
+            this.renderer.requestRender();
+          }
+          this.updatePointCloudSnapshot(input.assetId, {
+            phase: "error",
+            message: error.message,
+          });
+        },
+      });
+      load.stream = stream;
+      await stream.done;
+    } catch (error) {
+      if (this.pointCloudLoads.get(input.assetId) !== load) return;
+      this.updatePointCloudSnapshot(input.assetId, {
+        phase: "error",
+        message: errorMessage(error),
+      });
+      throw error;
+    }
+  }
+
+  removePointCloud(assetId: string) {
+    const load = this.pointCloudLoads.get(assetId);
+    if (!load) return;
+
+    load.abort.abort();
+    load.stream?.cancel();
+    if (load.handle) this.renderer.removePointCloudAsset(load.handle);
+    this.pointCloudLoads.delete(assetId);
+    this.updateSnapshot({
+      pointClouds: this.snapshot.pointClouds.filter(
+        (pointCloud) => pointCloud.assetId !== assetId,
+      ),
+    });
+    this.renderer.requestRender();
+  }
+
+  setPointCloudPointSize(pointSize: number) {
+    const normalized = Math.min(12, Math.max(1, pointSize));
+    this.renderer.setPointCloudOptions({ pointSize: normalized });
+    this.updateSnapshot({
+      pointCloudOptions: { pointSize: normalized },
+    });
+    this.renderer.requestRender();
+  }
+
+  setPointCloudTransform(assetId: string, transform: PointCloudTransform) {
+    const load = this.pointCloudLoads.get(assetId);
+    if (!load) return;
+
+    load.transform = transform;
+    if (load.handle) {
+      this.renderer.setPointCloudTransform(
+        load.handle,
+        composePointCloudTransform(transform),
+      );
+      this.renderer.requestRender();
+    }
+  }
+
   fitToView() {
-    if (!this.disposed && this.snapshot.meshCount > 0) {
+    if (
+      !this.disposed &&
+      (this.snapshot.meshCount > 0 ||
+        this.snapshot.pointClouds.some((cloud) => cloud.pointCount > 0))
+    ) {
       this.renderer.fitToView();
       this.renderer.requestRender();
     }
@@ -529,6 +745,11 @@ export class IfcViewerController {
     this.selectionGeneration += 1;
     this.currentDownload?.abort();
     this.currentDownload = null;
+    for (const load of this.pointCloudLoads.values()) {
+      load.abort.abort();
+      load.stream?.cancel();
+    }
+    this.pointCloudLoads.clear();
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
     this.detachInteractions();
@@ -596,7 +817,11 @@ export class IfcViewerController {
     this.renderer.getCamera().setOrbitCenter(null);
     this.renderer.getScene().clear();
     this.renderer.requestRender();
-    this.snapshot = { ...defaultSnapshot };
+    this.snapshot = {
+      ...defaultSnapshot,
+      pointClouds: this.snapshot.pointClouds,
+      pointCloudOptions: this.snapshot.pointCloudOptions,
+    };
     this.updateSnapshot({ phase: "downloading" });
 
     try {
@@ -905,6 +1130,36 @@ export class IfcViewerController {
       visual: { ...this.snapshot.visual, ...update },
     });
     this.renderer.requestRender();
+  }
+
+  private updatePointCloudSnapshot(
+    assetId: string,
+    update: Partial<PointCloudSnapshot> & Pick<PointCloudSnapshot, "assetId">,
+  ): void;
+  private updatePointCloudSnapshot(
+    assetId: string,
+    update: Partial<PointCloudSnapshot>,
+  ): void;
+  private updatePointCloudSnapshot(
+    assetId: string,
+    update: Partial<PointCloudSnapshot>,
+  ) {
+    const existing = this.snapshot.pointClouds.find(
+      (pointCloud) => pointCloud.assetId === assetId,
+    );
+    if (!existing && !update.assetId) return;
+
+    const next = existing
+      ? { ...existing, ...update }
+      : (update as PointCloudSnapshot);
+    this.updateSnapshot({
+      pointClouds: [
+        ...this.snapshot.pointClouds.filter(
+          (pointCloud) => pointCloud.assetId !== assetId,
+        ),
+        next,
+      ],
+    });
   }
 
   private updateSnapshot(update: Partial<IfcViewerSnapshot>) {
