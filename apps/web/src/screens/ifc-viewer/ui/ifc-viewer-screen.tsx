@@ -42,10 +42,21 @@ export async function IfcViewerScreen({
     notFound();
   }
 
-  const [assets, bcfTopics] = await Promise.all([
+  const [assets, bcfTopics, assistantThreads] = await Promise.all([
     caller.assets.list({ projectId: project.id }),
     caller.bcf.list({ projectId: project.id }),
+    caller.assistant.list({
+      projectId: project.id,
+      assetId: result.asset.id,
+    }),
   ]);
+  const initialAssistantHistory = assistantThreads[0]
+    ? await caller.assistant.history({
+        projectId: project.id,
+        assetId: result.asset.id,
+        threadId: assistantThreads[0].id,
+      })
+    : null;
   const pointCloudSources = (
     await Promise.all(
       assets
@@ -82,6 +93,8 @@ export async function IfcViewerScreen({
       assetId={result.asset.id}
       assetName={result.asset.originalFileName}
       assistantConfigured={isAssistantConfigured()}
+      initialAssistantHistory={initialAssistantHistory}
+      initialAssistantThreads={assistantThreads}
       assistantMcpConfigured={isIfcMcpConfigured()}
       initialBcfTopics={bcfTopics}
       initialDownloadUrl={result.downloadUrl}

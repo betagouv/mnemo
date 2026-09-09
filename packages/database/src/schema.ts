@@ -299,6 +299,56 @@ export const bcfViewpoints = pgTable(
   ],
 );
 
+export const assistantThreads = pgTable(
+  "assistant_threads",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    assetId: uuid("asset_id")
+      .notNull()
+      .references(() => assets.id, { onDelete: "cascade" }),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: varchar("title", { length: 160 })
+      .default("Nouvelle conversation")
+      .notNull(),
+    ...timestamps(),
+  },
+  (table) => [
+    index("assistant_threads_context_idx").on(
+      table.createdBy,
+      table.projectId,
+      table.assetId,
+      table.updatedAt,
+    ),
+  ],
+);
+
+export const assistantMessages = pgTable(
+  "assistant_messages",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    threadId: uuid("thread_id")
+      .notNull()
+      .references(() => assistantThreads.id, { onDelete: "cascade" }),
+    ordinal: integer("ordinal").notNull(),
+    payload: jsonb("payload").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("assistant_messages_thread_ordinal_unique").on(
+      table.threadId,
+      table.ordinal,
+    ),
+    index("assistant_messages_thread_id_idx").on(table.threadId),
+  ],
+);
+
 export const assetProcessingResults = pgTable("asset_processing_results", {
   assetId: uuid("asset_id")
     .primaryKey()
@@ -376,6 +426,8 @@ export type BcfTopicRecord = typeof bcfTopics.$inferSelect;
 export type BcfTopicComponentRecord = typeof bcfTopicComponents.$inferSelect;
 export type BcfCommentRecord = typeof bcfComments.$inferSelect;
 export type BcfViewpointRecord = typeof bcfViewpoints.$inferSelect;
+export type AssistantThreadRecord = typeof assistantThreads.$inferSelect;
+export type AssistantMessageRecord = typeof assistantMessages.$inferSelect;
 export type AssetProcessingResultRecord =
   typeof assetProcessingResults.$inferSelect;
 export type PointCloudProcessingResultRecord =

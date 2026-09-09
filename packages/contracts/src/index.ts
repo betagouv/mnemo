@@ -1,4 +1,18 @@
 export {
+  assistantMessageSchema,
+  assistantThreadHistorySchema,
+  assistantThreadIdSchema,
+  assistantThreadListSchema,
+  assistantThreadSummarySchema,
+  createAssistantThreadInputSchema,
+  deleteAssistantThreadInputSchema,
+  getAssistantThreadInputSchema,
+  listAssistantThreadsInputSchema,
+  type AssistantMessage,
+  type AssistantThreadHistory,
+  type AssistantThreadSummary,
+} from "./assistant";
+export {
   assetIdSchema,
   assetKindSchema,
   assetListSchema,

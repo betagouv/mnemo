@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 import {
   assetKindEnum,
   assetProcessingResults,
+  assistantMessages,
+  assistantThreads,
   assets,
   assetStatusEnum,
   bcfComments,
@@ -93,6 +95,11 @@ describe("database schema", () => {
       "high",
       "critical",
     ]);
+  });
+
+  it("persists assistant threads and their ordered messages", () => {
+    expect(getTableName(assistantThreads)).toBe("assistant_threads");
+    expect(getTableName(assistantMessages)).toBe("assistant_messages");
   });
 
   it("keeps cleanup jobs independent from resources being deleted", () => {

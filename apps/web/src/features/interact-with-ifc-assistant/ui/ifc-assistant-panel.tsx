@@ -11,9 +11,16 @@ import {
   type ToolCallMessagePartProps,
 } from "@assistant-ui/react";
 import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
+import type {
+  AssistantThreadHistory,
+  AssistantThreadSummary,
+} from "@mnemo/contracts/assistant";
 import type { IfcViewerController } from "@mnemo/ifc-viewer-adapter";
-import { useMemo } from "react";
+import type { UIMessage } from "ai";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import remarkGfm from "remark-gfm";
+
+import { useTRPCClient } from "@/shared/api/trpc";
 
 import { createViewerToolActions } from "../model/viewer-tool-actions";
 import { createViewerAssistantToolkit } from "../model/viewer-toolkit";
@@ -25,6 +32,21 @@ const suggestions = [
   "Affiche uniquement les murs en bleu.",
   "Sélectionne un élément et explique-moi ses propriétés.",
 ];
+
+function threadTitle(messages: UIMessage[]) {
+  const userMessage = messages.find((message) => message.role === "user");
+  const text = userMessage?.parts
+    .filter(
+      (part): part is typeof part & { text: string } =>
+        part.type === "text" && "text" in part,
+    )
+    .map((part) => part.text)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!text) return "Nouvelle conversation";
+  return text.length <= 160 ? text : `${text.slice(0, 157).trimEnd()}…`;
+}
 
 function MarkdownText() {
   return (
@@ -164,6 +186,8 @@ export function IfcAssistantPanel({
   configured,
   getViewer,
   hidden,
+  initialHistory,
+  initialThreads,
   mcpConfigured,
   projectId,
 }: {
@@ -171,6 +195,8 @@ export function IfcAssistantPanel({
   configured: boolean;
   getViewer: () => IfcViewerController | null;
   hidden: boolean;
+  initialHistory: AssistantThreadHistory | null;
+  initialThreads: AssistantThreadSummary[];
   mcpConfigured: boolean;
   projectId: string;
 }) {
@@ -182,23 +208,184 @@ export function IfcAssistantPanel({
     () => createViewerAssistantToolkit(actions),
     [actions],
   );
-  const transport = useMemo(
-    () =>
-      new AssistantChatTransport({
-        api: `/api/projects/${projectId}/assistant`,
-        body: { assetId },
-      }),
-    [assetId, projectId],
-  );
-  const runtime = useChatRuntime({ transport });
   const config = AuiConfig({ tools: Tools({ toolkit }) });
+  const trpcClient = useTRPCClient();
+  const [threads, setThreads] = useState(initialThreads);
+  const [history, setHistory] = useState(initialHistory);
+  const [loading, setLoading] = useState(false);
+  const [threadError, setThreadError] = useState<string | null>(null);
+  const creatingInitialThread = useRef(false);
+
+  const openThread = useCallback(
+    async (threadId: string) => {
+      setLoading(true);
+      setThreadError(null);
+      try {
+        const nextHistory = await trpcClient.assistant.history.query({
+          projectId,
+          assetId,
+          threadId,
+        });
+        setHistory(nextHistory);
+      } catch {
+        setThreadError("La conversation n’a pas pu être chargée.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [assetId, projectId, trpcClient],
+  );
+
+  const createThread = useCallback(async () => {
+    setLoading(true);
+    setThreadError(null);
+    try {
+      const thread = await trpcClient.assistant.create.mutate({
+        projectId,
+        assetId,
+      });
+      setThreads((current) => [thread, ...current]);
+      setHistory({ thread, messages: [] });
+    } catch {
+      setThreadError("La conversation n’a pas pu être créée.");
+    } finally {
+      setLoading(false);
+    }
+  }, [assetId, projectId, trpcClient]);
+
+  useEffect(() => {
+    if (
+      !configured ||
+      !mcpConfigured ||
+      threads.length > 0 ||
+      history ||
+      creatingInitialThread.current
+    ) {
+      return;
+    }
+    creatingInitialThread.current = true;
+    void createThread();
+  }, [configured, createThread, history, mcpConfigured, threads.length]);
+
+  const deleteThread = useCallback(async () => {
+    if (!history || !window.confirm("Supprimer cette conversation ?")) return;
+    setLoading(true);
+    setThreadError(null);
+    try {
+      await trpcClient.assistant.delete.mutate({
+        projectId,
+        assetId,
+        threadId: history.thread.id,
+      });
+      const remaining = threads.filter(
+        (thread) => thread.id !== history.thread.id,
+      );
+      setThreads(remaining);
+      if (remaining[0]) {
+        const nextHistory = await trpcClient.assistant.history.query({
+          projectId,
+          assetId,
+          threadId: remaining[0].id,
+        });
+        setHistory(nextHistory);
+      } else {
+        setHistory(null);
+        creatingInitialThread.current = false;
+      }
+    } catch {
+      setThreadError("La conversation n’a pas pu être supprimée.");
+    } finally {
+      setLoading(false);
+    }
+  }, [assetId, history, projectId, threads, trpcClient]);
+
+  const updateCurrentThreadTitle = useCallback(
+    (messages: UIMessage[]) => {
+      const title = threadTitle(messages);
+      const updatedAt = new Date().toISOString();
+      setThreads((current) =>
+        current
+          .map((thread) =>
+            thread.id === history?.thread.id
+              ? { ...thread, title, updatedAt }
+              : thread,
+          )
+          .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)),
+      );
+      setHistory((current) =>
+        current
+          ? {
+              ...current,
+              thread: { ...current.thread, title, updatedAt },
+            }
+          : current,
+      );
+    },
+    [history?.thread.id],
+  );
 
   return (
     <section className={styles.panel} hidden={hidden}>
       {configured && mcpConfigured ? (
-        <AssistantRuntimeProvider config={config} runtime={runtime}>
-          <AssistantThread />
-        </AssistantRuntimeProvider>
+        <>
+          <div className={styles.threadToolbar}>
+            <label>
+              <span className="fr-sr-only">Conversation active</span>
+              <select
+                aria-label="Conversation active"
+                disabled={loading || !history}
+                onChange={(event) => void openThread(event.target.value)}
+                value={history?.thread.id ?? ""}
+              >
+                {!history ? <option value="">Chargement…</option> : null}
+                {threads.map((thread) => (
+                  <option key={thread.id} value={thread.id}>
+                    {thread.id === history?.thread.id
+                      ? history.thread.title
+                      : thread.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              aria-label="Nouvelle conversation"
+              disabled={loading}
+              onClick={() => void createThread()}
+              title="Nouvelle conversation"
+              type="button"
+            >
+              <span className="fr-icon-add-line" aria-hidden="true" />
+            </button>
+            <button
+              aria-label="Supprimer la conversation"
+              disabled={loading || !history}
+              onClick={() => void deleteThread()}
+              title="Supprimer la conversation"
+              type="button"
+            >
+              <span className="fr-icon-delete-line" aria-hidden="true" />
+            </button>
+          </div>
+          {threadError ? (
+            <p className={styles.threadError} role="alert">
+              {threadError}
+            </p>
+          ) : null}
+          {history ? (
+            <AssistantSession
+              assetId={assetId}
+              config={config}
+              history={history}
+              key={history.thread.id}
+              onFinish={updateCurrentThreadTitle}
+              projectId={projectId}
+            />
+          ) : (
+            <div className={styles.threadLoading} role="status">
+              Préparation de la conversation…
+            </div>
+          )}
+        </>
       ) : !configured ? (
         <div className={styles.notConfigured} role="status">
           <span className="fr-icon-lock-line" aria-hidden="true" />
@@ -220,5 +407,42 @@ export function IfcAssistantPanel({
         </div>
       )}
     </section>
+  );
+}
+
+function AssistantSession({
+  assetId,
+  config,
+  history,
+  onFinish,
+  projectId,
+}: {
+  assetId: string;
+  config: ReturnType<typeof AuiConfig>;
+  history: AssistantThreadHistory;
+  onFinish: (messages: UIMessage[]) => void;
+  projectId: string;
+}) {
+  const transport = useMemo(
+    () =>
+      new AssistantChatTransport({
+        api: `/api/projects/${projectId}/assistant`,
+        body: { assetId, threadId: history.thread.id },
+      }),
+    [assetId, history.thread.id, projectId],
+  );
+  const runtime = useChatRuntime({
+    id: history.thread.id,
+    messages: history.messages as unknown as UIMessage[],
+    onFinish: ({ isError, messages }) => {
+      if (!isError) onFinish(messages);
+    },
+    transport,
+  });
+
+  return (
+    <AssistantRuntimeProvider config={config} runtime={runtime}>
+      <AssistantThread />
+    </AssistantRuntimeProvider>
   );
 }

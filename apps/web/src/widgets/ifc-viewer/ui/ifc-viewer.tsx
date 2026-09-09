@@ -9,6 +9,10 @@ import {
 import type { PointCloudSettings } from "@mnemo/contracts/point-clouds";
 import type { PointCloudSource } from "@mnemo/contracts/point-clouds";
 import type { BcfTopic } from "@mnemo/contracts/bcf";
+import type {
+  AssistantThreadHistory,
+  AssistantThreadSummary,
+} from "@mnemo/contracts/assistant";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -86,6 +90,8 @@ export function IfcViewer({
   assetName,
   assistantConfigured,
   assistantMcpConfigured,
+  initialAssistantHistory,
+  initialAssistantThreads,
   initialBcfTopics,
   initialDownloadUrl,
   processing,
@@ -97,6 +103,8 @@ export function IfcViewer({
   assetName: string;
   assistantConfigured: boolean;
   assistantMcpConfigured: boolean;
+  initialAssistantHistory: AssistantThreadHistory | null;
+  initialAssistantThreads: AssistantThreadSummary[];
   initialBcfTopics: BcfTopic[];
   initialDownloadUrl: string;
   processing: NonNullable<LoadIfcInput["processing"]>;
@@ -485,6 +493,8 @@ export function IfcViewer({
               configured={assistantConfigured}
               getViewer={getViewer}
               hidden={inspectorMode !== "assistant"}
+              initialHistory={initialAssistantHistory}
+              initialThreads={initialAssistantThreads}
               mcpConfigured={assistantMcpConfigured}
               projectId={projectId}
             />
