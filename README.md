@@ -43,6 +43,8 @@ The default local endpoints are:
 
 Ports can be changed through the variables documented in [`.env.example`](./.env.example).
 
+The standalone browser parser handles IFC files below 25 MiB by default. Larger files use the IFC-Lite Rust server and progressive Parquet batches. Docker Compose sets the threshold to zero so the server path is exercised for every local IFC; change `IFC_BROWSER_PROCESSING_MAX_BYTES` to test the browser path.
+
 ## Repository
 
 ```text

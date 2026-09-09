@@ -5,10 +5,18 @@ export {
   type IfcValueItem,
   type IfcValueSet,
   type IfcViewerPhase,
+  type IfcProcessingEngine,
+  type IfcProcessingSnapshot,
   type IfcViewerRuntime,
   type IfcViewerSnapshot,
   type LoadIfcInput,
 } from "./viewer-controller";
+export {
+  createIfcServerGeometryClient,
+  toBrowserMeshBatch,
+  toBrowserMeshData,
+  type IfcServerGeometryClient,
+} from "./server-geometry";
 export {
   createIfcBimIndex,
   type IfcBimCatalog,

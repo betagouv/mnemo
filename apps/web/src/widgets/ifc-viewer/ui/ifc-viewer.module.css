@@ -108,6 +108,16 @@
   white-space: nowrap;
 }
 
+.engine {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid rgb(133 133 246 / 42%);
+  color: #ceceff;
+  background: rgb(0 0 145 / 24%);
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .phase i {
   width: 0.45rem;
   height: 0.45rem;

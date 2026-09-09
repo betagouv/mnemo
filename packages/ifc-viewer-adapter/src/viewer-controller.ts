@@ -19,6 +19,11 @@ import {
   type IfcBimQuery,
   type IfcElementSummary,
 } from "./bim-index";
+import {
+  createIfcServerGeometryClient,
+  type IfcServerGeometryClient,
+  toBrowserMeshBatch,
+} from "./server-geometry";
 
 const maxCanvasDimension = 8_192;
 
@@ -41,7 +46,16 @@ export type IfcViewerSnapshot = {
   selectionPhase: "idle" | "loading" | "ready" | "error";
   selectionMessage: string | null;
   catalog: IfcBimCatalog | null;
+  processing: IfcProcessingSnapshot;
   visual: IfcVisualSnapshot;
+};
+
+export type IfcProcessingEngine = "browser" | "rust";
+
+export type IfcProcessingSnapshot = {
+  engine: IfcProcessingEngine | null;
+  cacheKey: string | null;
+  cacheHit: boolean | null;
 };
 
 export type IfcVisualMode = "all" | "isolate" | "hide" | "color";
@@ -100,6 +114,8 @@ export type IfcElementDetails = {
 
 export type LoadIfcInput = {
   downloadUrl: string;
+  processing?:
+    { engine: "browser" } | { engine: "rust"; serverBaseUrl: string };
 };
 
 type FrameRequest = (callback: FrameRequestCallback) => number;
@@ -109,6 +125,7 @@ export type IfcViewerRuntime = {
   createRenderer: (canvas: HTMLCanvasElement) => Renderer;
   createGeometryProcessor: () => GeometryProcessor;
   createParser: () => IfcParser;
+  createServerClient: (serverBaseUrl: string) => IfcServerGeometryClient;
   readElementDetails: (
     store: IfcDataStore,
     expressId: number,
@@ -135,6 +152,11 @@ const defaultSnapshot: IfcViewerSnapshot = {
   selectionPhase: "idle",
   selectionMessage: null,
   catalog: null,
+  processing: {
+    engine: null,
+    cacheKey: null,
+    cacheHit: null,
+  },
   visual: {
     mode: "all",
     label: null,
@@ -191,6 +213,7 @@ function createDefaultRuntime(): IfcViewerRuntime {
     createRenderer: (canvas) => new Renderer(canvas),
     createGeometryProcessor: () => new GeometryProcessor(),
     createParser: () => new IfcParser(),
+    createServerClient: createIfcServerGeometryClient,
     readElementDetails,
     createBimIndex: createIfcBimIndex,
     fetch: globalThis.fetch.bind(globalThis),
@@ -597,10 +620,25 @@ export class IfcViewerController {
         },
       };
       const parse = this.parser.parseColumnar(source, parserOptions);
-      const geometry = this.streamGeometry(
-        new Uint8Array(source.slice(0)),
-        generation,
-      );
+      const processing = input.processing ?? { engine: "browser" };
+      this.updateSnapshot({
+        processing: {
+          engine: processing.engine,
+          cacheKey: null,
+          cacheHit: null,
+        },
+      });
+      const geometry =
+        processing.engine === "rust"
+          ? this.streamServerGeometry(
+              source.slice(0),
+              processing.serverBaseUrl,
+              generation,
+            )
+          : this.streamBrowserGeometry(
+              new Uint8Array(source.slice(0)),
+              generation,
+            );
       const [store] = await Promise.all([parse, geometry]);
 
       if (!this.isCurrentLoad(generation)) return;
@@ -631,11 +669,41 @@ export class IfcViewerController {
     }
   }
 
-  private async streamGeometry(source: Uint8Array, generation: number) {
+  private async streamBrowserGeometry(source: Uint8Array, generation: number) {
     for await (const event of this.geometry.processAdaptive(source)) {
       if (!this.isCurrentLoad(generation)) return;
       this.applyGeometryEvent(event);
     }
+  }
+
+  private async streamServerGeometry(
+    source: ArrayBuffer,
+    serverBaseUrl: string,
+    generation: number,
+  ) {
+    const client = this.runtime.createServerClient(serverBaseUrl);
+    let meshCount = 0;
+    const result = await client.parseParquetStream(source, (batch) => {
+      if (!this.isCurrentLoad(generation)) return;
+
+      const meshes = toBrowserMeshBatch(batch.meshes);
+      if (!meshes.length) return;
+
+      meshCount += meshes.length;
+      this.renderer.addMeshes(meshes, true);
+      this.renderer.requestRender();
+      this.updateSnapshot({ meshCount });
+    });
+
+    if (!this.isCurrentLoad(generation)) return;
+
+    this.updateSnapshot({
+      processing: {
+        engine: "rust",
+        cacheKey: result.cache_key,
+        cacheHit: result.stats.from_cache,
+      },
+    });
   }
 
   private applyGeometryEvent(event: StreamingGeometryEvent) {
