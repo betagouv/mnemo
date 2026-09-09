@@ -115,8 +115,10 @@ Potree remains a possible conversion format, not a second renderer layered over
 the IFC canvas.
 
 LAZ requires a custom worker URL: the package's default Blob worker cannot
-resolve the laz-perf WASM URL. This must be solved in the point-cloud adapter and
-tested through the production Next.js build.
+resolve the laz-perf WASM URL. Mnemo supplies a bundled worker asset through the
+documented `createSource` / custom `spawn` seams, so webpack owns the WASM asset
+URL. Next.js' webpack output uses a classic worker bootstrap for its split
+chunks. This path must be tested through the production Next.js build.
 
 ### BCF
 
@@ -133,7 +135,12 @@ headers on the viewer and worker resources:
 ```text
 Cross-Origin-Opener-Policy: same-origin
 Cross-Origin-Embedder-Policy: require-corp
+Cross-Origin-Resource-Policy: same-origin # generated worker resources
 ```
+
+The generated `/_next/static` worker, split chunks and WASM responses also carry
+the embedder/resource headers; otherwise Chromium blocks the decoder worker
+before it can report an application error.
 
 The viewer must present explicit states for WebGPU unavailability, device loss,
 download, parsing, geometry production, ready state and load failure.

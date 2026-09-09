@@ -12,7 +12,7 @@ This repository is a clean rewrite of the validated prototype. Features are rein
 - S3-compatible storage with MinIO locally
 - IFC-Lite browser packages and Rust server
 - IFC-Lite MCP and OpenRouter
-- IFC-Lite WebGPU renderer with streamed point-cloud LOD
+- IFC-Lite WebGPU renderer with native point-cloud overlays
 
 See [`AGENTS.md`](./AGENTS.md) for engineering rules and `docs/adr` for architecture decisions.
 
@@ -45,6 +45,8 @@ Ports can be changed through the variables documented in [`.env.example`](./.env
 
 The standalone browser parser handles IFC files below 25 MiB by default. Larger files use the IFC-Lite Rust server and progressive Parquet batches. Docker Compose sets the threshold to zero so the server path is exercised for every local IFC; change `IFC_BROWSER_PROCESSING_MAX_BYTES` to test the browser path.
 
+LAS, LAZ, PLY, and E57 point clouds can be attached to a project and overlaid in the IFC viewer. The current browser preview decodes in a worker, limits the number of uploaded points through sampling, and keeps alignment in PostgreSQL. It still downloads the complete original object before decoding; true camera-driven octree/LOD streaming for very large scans is the next point-cloud milestone.
+
 ## Repository
 
 ```text
@@ -56,6 +58,7 @@ packages/
   database/            Drizzle schema and PostgreSQL adapter
   domain/              framework-independent business rules and ports
   ifc-viewer-adapter/  stable bridge to the IFC-Lite WebGPU runtime
+  point-cloud-viewer-adapter/ worker decoding and transform boundary
   storage/             S3-compatible object-storage adapter
 docs/adr/              durable architecture decisions
 ```

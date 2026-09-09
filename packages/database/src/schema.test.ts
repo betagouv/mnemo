@@ -9,6 +9,7 @@ import {
   deletionJobs,
   deletionJobTypeEnum,
   processingJobs,
+  pointCloudSettings,
   processingJobStatusEnum,
   processingJobTypeEnum,
   projectMembers,
@@ -53,6 +54,10 @@ describe("database schema", () => {
     expect(getTableName(assetProcessingResults)).toBe(
       "asset_processing_results",
     );
+  });
+
+  it("persists point-cloud alignment independently from render controls", () => {
+    expect(getTableName(pointCloudSettings)).toBe("point_cloud_settings");
   });
 
   it("keeps cleanup jobs independent from resources being deleted", () => {

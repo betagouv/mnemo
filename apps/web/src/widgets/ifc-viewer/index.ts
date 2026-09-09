@@ -1,1 +1,1 @@
-export { IfcViewer } from "./ui/ifc-viewer";
+export { IfcViewer, type ViewerPointCloudSource } from "./ui/ifc-viewer";

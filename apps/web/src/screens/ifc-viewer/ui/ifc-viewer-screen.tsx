@@ -40,11 +40,45 @@ export async function IfcViewerScreen({
     notFound();
   }
 
+  const assets = await caller.assets.list({ projectId: project.id });
+  const pointCloudSources = (
+    await Promise.all(
+      assets
+        .filter(
+          (asset) =>
+            asset.kind === "point_cloud" &&
+            asset.status !== "upload_pending" &&
+            asset.status !== "failed",
+        )
+        .map(async (asset) => {
+          try {
+            const [access, settings] = await Promise.all([
+              caller.assets.open({ projectId: project.id, assetId: asset.id }),
+              caller.pointClouds.settings({
+                projectId: project.id,
+                assetId: asset.id,
+              }),
+            ]);
+            return {
+              assetId: asset.id,
+              fileName: asset.originalFileName,
+              downloadUrl: access.downloadUrl,
+              settings,
+            };
+          } catch {
+            return null;
+          }
+        }),
+    )
+  ).filter((source) => source !== null);
+
   return (
     <IfcViewer
       assetId={result.asset.id}
       assetName={result.asset.originalFileName}
       initialDownloadUrl={result.downloadUrl}
+      key={result.asset.id}
+      pointCloudSources={pointCloudSources}
       processing={selectIfcProcessing(result.asset.sizeBytes)}
       projectId={project.id}
       projectName={project.name}

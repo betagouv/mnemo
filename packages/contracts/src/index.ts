@@ -36,3 +36,13 @@ export {
   type ProjectSummary,
 } from "./projects";
 export { systemInfoSchema, type SystemInfo } from "./system";
+export {
+  pointCloudSettingsInputSchema,
+  pointCloudSettingsSchema,
+  pointCloudTransformSchema,
+  updatePointCloudSettingsInputSchema,
+  type PointCloudSettings,
+  type PointCloudSettingsInput,
+  type PointCloudTransform,
+  type UpdatePointCloudSettingsInput,
+} from "./point-clouds";

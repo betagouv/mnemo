@@ -13,6 +13,7 @@ export {
   deletionJobTypeEnum,
   projectMembers,
   processingJobs,
+  pointCloudSettings,
   processingJobStatusEnum,
   processingJobTypeEnum,
   projects,
@@ -22,6 +23,7 @@ export {
   type DeletionJobRecord,
   type ProjectMemberRecord,
   type ProcessingJobRecord,
+  type PointCloudSettingsRecord,
   type ProjectRecord,
   type UserRecord,
 } from "./schema";

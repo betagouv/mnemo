@@ -7,6 +7,7 @@ import { projectRoles } from "@mnemo/domain/project";
 import {
   bigint,
   boolean,
+  doublePrecision,
   index,
   integer,
   pgEnum,
@@ -153,6 +154,27 @@ export const processingJobs = pgTable(
   ],
 );
 
+export const pointCloudSettings = pgTable("point_cloud_settings", {
+  assetId: uuid("asset_id")
+    .primaryKey()
+    .references(() => assets.id, { onDelete: "cascade" }),
+  positionX: doublePrecision("position_x").default(0).notNull(),
+  positionY: doublePrecision("position_y").default(0).notNull(),
+  positionZ: doublePrecision("position_z").default(0).notNull(),
+  rotationX: doublePrecision("rotation_x").default(-90).notNull(),
+  rotationY: doublePrecision("rotation_y").default(0).notNull(),
+  rotationZ: doublePrecision("rotation_z").default(0).notNull(),
+  scaleX: doublePrecision("scale_x").default(1).notNull(),
+  scaleY: doublePrecision("scale_y").default(1).notNull(),
+  scaleZ: doublePrecision("scale_z").default(1).notNull(),
+  sourceCrs: varchar("source_crs", { length: 160 }),
+  targetCrs: varchar("target_crs", { length: 160 }),
+  updatedBy: uuid("updated_by")
+    .notNull()
+    .references(() => users.id, { onDelete: "restrict" }),
+  ...timestamps(),
+});
+
 export const assetProcessingResults = pgTable("asset_processing_results", {
   assetId: uuid("asset_id")
     .primaryKey()
@@ -203,6 +225,7 @@ export type ProjectRecord = typeof projects.$inferSelect;
 export type ProjectMemberRecord = typeof projectMembers.$inferSelect;
 export type AssetRecord = typeof assets.$inferSelect;
 export type ProcessingJobRecord = typeof processingJobs.$inferSelect;
+export type PointCloudSettingsRecord = typeof pointCloudSettings.$inferSelect;
 export type AssetProcessingResultRecord =
   typeof assetProcessingResults.$inferSelect;
 export type DeletionJobRecord = typeof deletionJobs.$inferSelect;
