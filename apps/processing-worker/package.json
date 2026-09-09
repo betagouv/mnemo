@@ -4,15 +4,24 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsup",
     "dev": "tsx watch src/index.ts",
-    "lint": "eslint src",
-    "start": "node dist/index.js",
+    "lint": "eslint src tsup.config.ts vitest.integration.config.ts",
+    "start": "node dist/index.cjs",
+    "test": "vitest run --exclude '**/*.integration.test.ts'",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
     "@types/node": "^22.19.15",
+    "tsup": "8.5.1",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "5.0.0"
+  },
+  "dependencies": {
+    "@mnemo/database": "workspace:*",
+    "@mnemo/domain": "workspace:*",
+    "drizzle-orm": "0.45.2"
   }
 }
