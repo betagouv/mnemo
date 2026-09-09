@@ -108,4 +108,3 @@ docker compose config
 - Examples: `🎉 Initialize Mnemo repository`, `🏗️ Add typed API boundary`, `✨ Add project creation flow`, `✅ Test project permissions`.
 - Do not mix unrelated cleanup with a feature branch.
 - Do not merge a branch until its acceptance criteria are verified.
-
