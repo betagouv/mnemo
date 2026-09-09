@@ -1,7 +1,7 @@
 import { handleAssistantHttpRequest } from "@/server/assistant/transport/assistant-http";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 900;
 
 export async function POST(
   request: Request,

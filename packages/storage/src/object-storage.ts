@@ -26,6 +26,7 @@ export interface ObjectStorage {
   createDownloadUrl(input: CreateDownloadUrlInput): Promise<string>;
   statObject(objectKey: string): Promise<StoredObject | null>;
   readObject(objectKey: string): Promise<Uint8Array>;
+  readObjectStream(objectKey: string): Promise<AsyncIterable<Uint8Array>>;
   writeObject(input: WriteObjectInput): Promise<void>;
   deleteObject(objectKey: string): Promise<void>;
 }

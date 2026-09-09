@@ -28,6 +28,7 @@
     "@mnemo/database": "workspace:*",
     "@mnemo/domain": "workspace:*",
     "@mnemo/ifc-viewer-adapter": "workspace:*",
+    "@mnemo/ifc-mcp-adapter": "workspace:*",
     "@mnemo/storage": "workspace:*",
     "@openrouter/ai-sdk-provider": "3.0.0",
     "@tanstack/react-query": "5.102.8",

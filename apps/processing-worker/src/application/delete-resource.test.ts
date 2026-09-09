@@ -16,6 +16,11 @@ describe("delete resource", () => {
           operations.push("record");
         }),
       },
+      workingCopies: {
+        deleteWorkingCopies: vi.fn(async () => {
+          operations.push("working-copies");
+        }),
+      },
     });
 
     await handler({
@@ -30,6 +35,7 @@ describe("delete resource", () => {
     expect(operations).toEqual([
       "object:original.ifc",
       "object:octree/metadata.json",
+      "working-copies",
       "record",
     ]);
   });

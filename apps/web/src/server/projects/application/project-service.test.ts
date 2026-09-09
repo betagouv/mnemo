@@ -33,6 +33,7 @@ class InMemoryProjectRepository implements ProjectRepository {
 
   async requestDeletion(projectId: string) {
     this.deletionRequests.push(projectId);
+    return [];
   }
 }
 
@@ -77,6 +78,7 @@ describe("ProjectService", () => {
 
     await expect(service.delete("actor-id", project.id)).resolves.toEqual({
       accepted: true,
+      assetIds: [],
     });
     expect(repository.deletionRequests).toEqual([project.id]);
 

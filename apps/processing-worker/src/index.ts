@@ -20,6 +20,7 @@ import { DrizzleDeletionJobQueue } from "./infrastructure/drizzle-deletion-job-q
 import { DrizzleProcessingJobQueue } from "./infrastructure/drizzle-processing-job-queue";
 import { DrizzleIfcProcessingRepository } from "./infrastructure/drizzle-ifc-processing-repository";
 import { DrizzlePointCloudProcessingRepository } from "./infrastructure/drizzle-point-cloud-processing-repository";
+import { LocalIfcMcpCacheCleaner } from "./infrastructure/local-ifc-mcp-cache-cleaner";
 import { getWorkerConfig } from "./runtime-config";
 
 async function main() {
@@ -51,6 +52,7 @@ async function main() {
   const deletionHandler = createDeleteResourceHandler({
     resources: new DrizzleDeletedResourceRepository(database.db),
     storage,
+    workingCopies: new LocalIfcMcpCacheCleaner(config.ifcMcpCacheDirectory),
   });
   const deletionWorker = new BackgroundWorker<
     DeletionJobType,

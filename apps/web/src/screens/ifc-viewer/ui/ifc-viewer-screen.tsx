@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { getServerCaller } from "@/server/trpc/server-caller";
 import { isAssistantConfigured } from "@/shared/config/assistant/server-only";
 import { selectIfcProcessing } from "@/shared/config/ifc-processing/server-only";
+import { isIfcMcpConfigured } from "@/shared/config/ifc-mcp/server-only";
 import { IfcViewer } from "@/widgets/ifc-viewer";
 
 export async function IfcViewerScreen({
@@ -81,6 +82,7 @@ export async function IfcViewerScreen({
       assetId={result.asset.id}
       assetName={result.asset.originalFileName}
       assistantConfigured={isAssistantConfigured()}
+      assistantMcpConfigured={isIfcMcpConfigured()}
       initialBcfTopics={bcfTopics}
       initialDownloadUrl={result.downloadUrl}
       key={result.asset.id}

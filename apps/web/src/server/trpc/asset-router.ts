@@ -18,6 +18,7 @@ import {
   UnsupportedAssetFileError,
 } from "@/server/assets/application/asset-errors";
 import { getAssetService } from "@/server/assets/asset-service-factory";
+import { disposeIfcMcpAsset } from "@/server/assistant/infrastructure/ifc-mcp-runtime";
 
 import { createTrpcRouter, publicProcedure } from "./init";
 
@@ -76,7 +77,16 @@ export const assetRouter = createTrpcRouter({
   delete: publicProcedure
     .input(deleteAssetInputSchema)
     .output(deletionAcceptedSchema)
-    .mutation(({ ctx, input }) =>
-      mapAssetError(() => getAssetService().delete(ctx.actor.id, input)),
-    ),
+    .mutation(async ({ ctx, input }) => {
+      const result = await mapAssetError(() =>
+        getAssetService().delete(ctx.actor.id, input),
+      );
+      await disposeIfcMcpAsset(input.assetId).catch((error) => {
+        console.error("Failed to dispose IFC MCP asset cache", {
+          assetId: input.assetId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+      return result;
+    }),
 });

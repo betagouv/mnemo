@@ -99,14 +99,14 @@ export class DrizzleProjectRepository implements ProjectRepository {
   }
 
   async requestDeletion(projectId: string, requestedAt: Date) {
-    await this.database.transaction(async (transaction) => {
+    return this.database.transaction(async (transaction) => {
       const [project] = await transaction
         .update(projects)
         .set({ archivedAt: requestedAt, updatedAt: requestedAt })
         .where(eq(projects.id, projectId))
         .returning({ id: projects.id });
 
-      if (!project) return;
+      if (!project) return [];
 
       const projectAssets = await transaction
         .select({
@@ -139,6 +139,8 @@ export class DrizzleProjectRepository implements ProjectRepository {
           availableAt: requestedAt,
         })
         .onConflictDoNothing();
+
+      return projectAssets.map((asset) => asset.id);
     });
   }
 }

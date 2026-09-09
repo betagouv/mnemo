@@ -83,6 +83,7 @@ export function IfcViewer({
   assetId,
   assetName,
   assistantConfigured,
+  assistantMcpConfigured,
   initialBcfTopics,
   initialDownloadUrl,
   processing,
@@ -93,6 +94,7 @@ export function IfcViewer({
   assetId: string;
   assetName: string;
   assistantConfigured: boolean;
+  assistantMcpConfigured: boolean;
   initialBcfTopics: BcfTopic[];
   initialDownloadUrl: string;
   processing: NonNullable<LoadIfcInput["processing"]>;
@@ -426,6 +428,7 @@ export function IfcViewer({
               configured={assistantConfigured}
               getViewer={getViewer}
               hidden={inspectorMode !== "assistant"}
+              mcpConfigured={assistantMcpConfigured}
               projectId={projectId}
             />
             {inspectorMode === "assistant" ? null : inspectorMode === "bcf" ? (

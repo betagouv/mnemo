@@ -53,7 +53,7 @@ export class ProjectService {
       return { accepted: false as const };
     }
 
-    await this.projects.requestDeletion(projectId, this.now());
-    return { accepted: true as const };
+    const assetIds = await this.projects.requestDeletion(projectId, this.now());
+    return { accepted: true as const, assetIds };
   }
 }

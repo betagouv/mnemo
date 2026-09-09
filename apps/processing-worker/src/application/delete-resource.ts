@@ -16,14 +16,21 @@ export interface ObjectDeleter {
   deleteObject(objectKey: string): Promise<void>;
 }
 
+export interface WorkingCopyCleaner {
+  deleteWorkingCopies(job: DeletionJobLease): Promise<void>;
+}
+
 export function createDeleteResourceHandler(input: {
   resources: DeletedResourceRepository;
   storage: ObjectDeleter;
+  workingCopies?: WorkingCopyCleaner;
 }) {
   return async (job: DeletionJobLease) => {
     for (const objectKey of job.objectKeys) {
       await input.storage.deleteObject(objectKey);
     }
+
+    await input.workingCopies?.deleteWorkingCopies(job);
 
     await input.resources.deleteRecord(job.type, job.resourceId);
   };

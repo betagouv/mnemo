@@ -7,6 +7,7 @@ import {
   streamText,
   toUIMessageStream,
   type UIMessage,
+  type ToolSet,
 } from "ai";
 
 import type { AssistantConfiguration } from "@/shared/config/assistant/server-only";
@@ -25,18 +26,25 @@ Règles d’utilisation de la visionneuse :
 - utilise des couleurs hexadécimales explicites ;
 - réponds en français sauf demande contraire, de façon concise, et confirme les actions réellement exécutées.
 
-Les tools MCP IFC-Lite de requête avancée peuvent compléter ces tools de scène lorsqu’ils sont disponibles.`;
+Règles d’utilisation des tools IFC-Lite MCP :
+- utilise-les pour les questions sémantiques précises : propriétés/Psets, quantités, relations, structure spatiale, matériaux, classification, géoréférencement et mesures géométriques ;
+- commence par model_info ou spatial_hierarchy si la structure utile n’est pas encore connue ;
+- le serveur MCP contient exactement une maquette autorisée : tu peux omettre model_id, ou employer l’identifiant renvoyé par model_info ;
+- les tools MCP sont en lecture seule. Les actions visuelles doivent toujours passer par les tools de scène ;
+- limite les listes, résume les résultats volumineux et indique lorsqu’un résultat est tronqué.`;
 
 export type StreamAssistantChatInput = {
   configuration: AssistantConfiguration;
   messages: UIMessage[];
   tools: FrontendTools;
+  mcpTools?: ToolSet;
 };
 
 export async function streamAssistantChat({
   configuration,
   messages,
   tools,
+  mcpTools = {},
 }: StreamAssistantChatInput) {
   const openrouter = createOpenRouter({
     apiKey: configuration.apiKey,
@@ -44,7 +52,10 @@ export async function streamAssistantChat({
     ...(configuration.appUrl ? { appUrl: configuration.appUrl } : {}),
     compatibility: "strict",
   });
-  const registeredTools = frontendTools(tools);
+  const registeredTools: ToolSet = {
+    ...frontendTools(tools),
+    ...mcpTools,
+  };
   const result = streamText({
     model: openrouter(configuration.model),
     system: mnemoAssistantInstructions,
