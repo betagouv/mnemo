@@ -57,6 +57,15 @@ exports bounded BCF 2.1/3.0 archives through `@ifc-lite/bcf`; imported topic,
 comment, and viewpoint GUIDs remain stable, duplicate imports are ignored, and
 snapshot binaries are extracted back to MinIO.
 
+The IFC viewer also embeds a streaming assistant built with assistant-ui and AI
+SDK v7. It uses OpenRouter with `google/gemini-3.7-flash` by default and keeps
+the API key on the Next.js server. Its frontend tool registry can inspect and
+query the loaded BIM index, apply one atomic multi-group style, hide or select
+elements, frame the camera, and reset the scene. Configure
+`OPENROUTER_API_KEY` in `.env`; the assistant remains visibly disabled when the
+key is absent. Chat persistence and advanced IFC-Lite MCP queries are separate
+incremental milestones.
+
 ## Repository
 
 ```text

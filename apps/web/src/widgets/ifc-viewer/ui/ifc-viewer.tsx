@@ -12,6 +12,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { IfcElementProperties } from "@/entities/ifc-element";
 import { BimExplorer } from "@/features/filter-bim-model";
+import { IfcAssistantPanel } from "@/features/interact-with-ifc-assistant";
 import { BcfTopicsPanel } from "@/features/manage-bcf-topics";
 import {
   PointCloudPanel,
@@ -81,6 +82,7 @@ const phaseLabels = {
 export function IfcViewer({
   assetId,
   assetName,
+  assistantConfigured,
   initialBcfTopics,
   initialDownloadUrl,
   processing,
@@ -90,6 +92,7 @@ export function IfcViewer({
 }: {
   assetId: string;
   assetName: string;
+  assistantConfigured: boolean;
   initialBcfTopics: BcfTopic[];
   initialDownloadUrl: string;
   processing: NonNullable<LoadIfcInput["processing"]>;
@@ -102,9 +105,9 @@ export function IfcViewer({
   const [snapshot, setSnapshot] = useState(initialSnapshot);
   const [retrying, setRetrying] = useState(false);
   const [accessError, setAccessError] = useState<string | null>(null);
-  const [inspectorMode, setInspectorMode] = useState<"properties" | "bcf">(
-    "properties",
-  );
+  const [inspectorMode, setInspectorMode] = useState<
+    "properties" | "bcf" | "assistant"
+  >("properties");
   const [bcfTopicCount, setBcfTopicCount] = useState(initialBcfTopics.length);
   const [pointBudget, setPointBudget] = useState(initialPointBudget);
   const [pointCloudConfigurations, setPointCloudConfigurations] = useState<
@@ -121,6 +124,7 @@ export function IfcViewer({
   const initialProcessingRef = useRef(processing);
   const pointCloudSourcesRef = useRef(pointCloudSources);
   const trpcClient = useTRPCClient();
+  const getViewer = useCallback(() => controllerRef.current, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -394,6 +398,14 @@ export function IfcViewer({
               >
                 BCF <span>{bcfTopicCount}</span>
               </button>
+              <button
+                aria-selected={inspectorMode === "assistant"}
+                onClick={() => setInspectorMode("assistant")}
+                role="tab"
+                type="button"
+              >
+                Assistant
+              </button>
             </div>
             {inspectorMode === "properties" && snapshot.selection ? (
               <button
@@ -408,8 +420,15 @@ export function IfcViewer({
             ) : null}
           </header>
 
-          <div className={styles.inspectorBody}>
-            {inspectorMode === "bcf" ? (
+          <div className={styles.inspectorBody} data-mode={inspectorMode}>
+            <IfcAssistantPanel
+              assetId={assetId}
+              configured={assistantConfigured}
+              getViewer={getViewer}
+              hidden={inspectorMode !== "assistant"}
+              projectId={projectId}
+            />
+            {inspectorMode === "assistant" ? null : inspectorMode === "bcf" ? (
               <BcfTopicsPanel
                 assetId={assetId}
                 canCaptureViewpoint={snapshot.phase === "ready"}
