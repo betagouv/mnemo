@@ -10,8 +10,40 @@ const nextConfig: NextConfig = {
     "@mnemo/contracts",
     "@mnemo/database",
     "@mnemo/domain",
+    "@mnemo/ifc-viewer-adapter",
     "@mnemo/storage",
   ],
+  headers() {
+    return [
+      {
+        source: "/projets/:projectId/viewer/:path*",
+        headers: [
+          {
+            key: "Cross-Origin-Opener-Policy",
+            value: "same-origin",
+          },
+          {
+            key: "Cross-Origin-Embedder-Policy",
+            value: "require-corp",
+          },
+        ],
+      },
+    ];
+  },
+  webpack(config) {
+    config.module.rules.push(
+      {
+        test: /\.wasm$/,
+        type: "asset/resource",
+      },
+      {
+        test: /\.woff2?$/,
+        type: "asset/resource",
+      },
+    );
+
+    return config;
+  },
 };
 
 export default nextConfig;

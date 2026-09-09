@@ -4,6 +4,7 @@ import type { AssetSummary } from "@mnemo/contracts/assets";
 import { useState } from "react";
 
 import { AssetCard } from "@/entities/asset";
+import { OpenIfcViewerLink } from "@/features/open-ifc-viewer";
 import { UploadAssetControls } from "@/features/upload-asset";
 
 import styles from "./project-assets.module.css";
@@ -58,7 +59,18 @@ export function ProjectAssets({
         ) : (
           <div className={styles.assetList}>
             {assets.map((asset) => (
-              <AssetCard asset={asset} key={asset.id} />
+              <AssetCard
+                action={
+                  asset.kind === "ifc" && asset.status !== "upload_pending" ? (
+                    <OpenIfcViewerLink
+                      assetId={asset.id}
+                      projectId={projectId}
+                    />
+                  ) : undefined
+                }
+                asset={asset}
+                key={asset.id}
+              />
             ))}
           </div>
         )}

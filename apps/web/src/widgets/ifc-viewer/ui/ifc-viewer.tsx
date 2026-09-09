@@ -1,0 +1,191 @@
+"use client";
+
+import {
+  IfcViewerController,
+  type IfcViewerSnapshot,
+} from "@mnemo/ifc-viewer-adapter";
+import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import { useTRPCClient } from "@/shared/api/trpc";
+
+import styles from "./ifc-viewer.module.css";
+
+const initialSnapshot: IfcViewerSnapshot = {
+  phase: "idle",
+  parserPercent: null,
+  meshCount: 0,
+  entityCount: null,
+  message: null,
+};
+
+const phaseLabels = {
+  idle: "En attente",
+  initializing: "Initialisation WebGPU",
+  downloading: "Téléchargement de l’IFC",
+  processing: "Construction de la scène",
+  ready: "Maquette prête",
+  error: "Chargement impossible",
+  device_lost: "Périphérique WebGPU perdu",
+} as const;
+
+export function IfcViewer({
+  assetId,
+  assetName,
+  initialDownloadUrl,
+  projectId,
+  projectName,
+}: {
+  assetId: string;
+  assetName: string;
+  initialDownloadUrl: string;
+  projectId: string;
+  projectName: string;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const controllerRef = useRef<IfcViewerController>(null);
+  const [snapshot, setSnapshot] = useState(initialSnapshot);
+  const [retrying, setRetrying] = useState(false);
+  const [accessError, setAccessError] = useState<string | null>(null);
+  const trpcClient = useTRPCClient();
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const controller = new IfcViewerController(canvas);
+    controllerRef.current = controller;
+    const unsubscribe = controller.subscribe(setSnapshot);
+    void controller
+      .loadIfc({ downloadUrl: initialDownloadUrl })
+      .catch(() => undefined);
+
+    return () => {
+      unsubscribe();
+      controller.dispose();
+      controllerRef.current = null;
+    };
+  }, [initialDownloadUrl]);
+
+  const retry = useCallback(async () => {
+    const controller = controllerRef.current;
+    if (!controller) return;
+
+    setRetrying(true);
+    setAccessError(null);
+
+    try {
+      const access = await trpcClient.assets.open.query({ assetId, projectId });
+      await controller.loadIfc({ downloadUrl: access.downloadUrl });
+    } catch {
+      if (controller.getSnapshot().phase !== "error") {
+        setAccessError(
+          "Impossible d’obtenir un nouvel accès au fichier original.",
+        );
+      }
+    } finally {
+      setRetrying(false);
+    }
+  }, [assetId, projectId, trpcClient]);
+
+  const isBusy =
+    snapshot.phase === "initializing" ||
+    snapshot.phase === "downloading" ||
+    snapshot.phase === "processing";
+  const hasFailed =
+    snapshot.phase === "error" || snapshot.phase === "device_lost";
+
+  return (
+    <main className={styles.shell}>
+      <header className={styles.toolbar}>
+        <div className={styles.identity}>
+          <Link
+            aria-label={`Retour au projet ${projectName}`}
+            className={styles.back}
+            href={`/projets/${projectId}`}
+          >
+            <span className="fr-icon-arrow-left-line" aria-hidden="true" />
+          </Link>
+          <div>
+            <small>{projectName}</small>
+            <h1 title={assetName}>{assetName}</h1>
+          </div>
+        </div>
+
+        <div className={styles.actions}>
+          <span className={styles.phase} data-phase={snapshot.phase}>
+            <i aria-hidden="true" />
+            {phaseLabels[snapshot.phase]}
+          </span>
+          <button
+            className={styles.actionButton}
+            disabled={snapshot.phase !== "ready"}
+            onClick={() => controllerRef.current?.fitToView()}
+            type="button"
+          >
+            <span className="fr-icon-focus-3-line" aria-hidden="true" />
+            Tout cadrer
+          </button>
+        </div>
+      </header>
+
+      <section className={styles.viewport} aria-label="Visionneuse IFC 3D">
+        <canvas
+          aria-label={`Vue 3D de ${assetName}`}
+          className={styles.canvas}
+          ref={canvasRef}
+        />
+
+        {isBusy ? (
+          <div className={styles.loadCard} role="status" aria-live="polite">
+            <span className={styles.spinner} aria-hidden="true" />
+            <div>
+              <strong>{phaseLabels[snapshot.phase]}</strong>
+              <p>
+                {snapshot.phase === "processing"
+                  ? `${snapshot.meshCount.toLocaleString("fr-FR")} maillages reçus`
+                  : "Préparation de la maquette…"}
+              </p>
+              {snapshot.parserPercent !== null ? (
+                <progress max={100} value={snapshot.parserPercent} />
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+
+        {snapshot.phase === "ready" ? (
+          <div className={styles.modelStats} role="status">
+            <strong>{snapshot.entityCount?.toLocaleString("fr-FR")}</strong>
+            <span>entités IFC</span>
+            <i aria-hidden="true" />
+            <strong>{snapshot.meshCount.toLocaleString("fr-FR")}</strong>
+            <span>maillages</span>
+          </div>
+        ) : null}
+
+        {hasFailed || accessError ? (
+          <div className={styles.errorCard} role="alert">
+            <span className="fr-icon-error-warning-fill" aria-hidden="true" />
+            <div>
+              <strong>{phaseLabels[snapshot.phase]}</strong>
+              <p>{accessError ?? snapshot.message}</p>
+              <button
+                disabled={retrying}
+                onClick={() => void retry()}
+                type="button"
+              >
+                {retrying ? "Nouvel essai…" : "Réessayer"}
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        <div className={styles.help}>
+          <span>Souris gauche : orbiter</span>
+          <span>Maj ou clic milieu : déplacer</span>
+          <span>Molette : zoomer</span>
+        </div>
+      </section>
+    </main>
+  );
+}
