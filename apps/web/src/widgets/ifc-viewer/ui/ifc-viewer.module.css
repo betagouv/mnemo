@@ -1,4 +1,7 @@
 .shell {
+  --viewer-border: rgb(255 255 255 / 14%);
+  --viewer-muted: #b9b9b9;
+
   display: grid;
   grid-template-rows: 4rem minmax(0, 1fr);
   width: 100vw;
@@ -6,6 +9,13 @@
   overflow: hidden;
   color: #fff;
   background: #161616;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 21rem;
+  min-width: 0;
+  min-height: 0;
 }
 
 .toolbar {
@@ -115,6 +125,110 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+}
+
+.inspector {
+  z-index: 2;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  border-left: 1px solid var(--viewer-border);
+  background: #1e1e1e;
+}
+
+.inspectorHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 3.75rem;
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--viewer-border);
+}
+
+.inspectorHeader > div {
+  display: grid;
+  gap: 0.05rem;
+}
+
+.inspectorHeader small {
+  color: #8585f6;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.inspectorHeader strong {
+  color: #fff;
+  font-size: 0.85rem;
+}
+
+.inspectorHeader button {
+  display: inline-grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 22%);
+  color: #fff;
+  background: transparent;
+  cursor: pointer;
+}
+
+.inspectorHeader button:hover {
+  background: rgb(255 255 255 / 9%);
+}
+
+.inspectorBody {
+  min-height: 0;
+  overflow: auto;
+  scrollbar-color: #666 transparent;
+  scrollbar-width: thin;
+}
+
+.inspectorEmpty {
+  display: grid;
+  max-width: 16rem;
+  min-height: 100%;
+  align-content: center;
+  justify-items: center;
+  margin: auto;
+  padding: 2rem 1rem;
+  color: var(--viewer-muted);
+  text-align: center;
+}
+
+.inspectorEmpty > span {
+  margin-bottom: 0.75rem;
+  color: #8585f6;
+  font-size: 1.75rem;
+}
+
+.inspectorEmpty strong {
+  color: #fff;
+  font-size: 0.85rem;
+}
+
+.inspectorEmpty p,
+.inspectorState,
+.inspectorError {
+  color: var(--viewer-muted);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.inspectorEmpty p {
+  margin: 0.4rem 0 0;
+}
+
+.inspectorState,
+.inspectorError {
+  margin: 0;
+  padding: 1rem;
+}
+
+.inspectorError {
+  color: #ffbdbd;
 }
 
 .canvas {
@@ -269,5 +383,29 @@
     top: auto;
     right: 0.5rem;
     bottom: 0.5rem;
+  }
+
+  .workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .inspector {
+    position: absolute;
+    right: 0.5rem;
+    bottom: 0.5rem;
+    left: 0.5rem;
+    max-height: min(46dvh, 25rem);
+    border: 1px solid var(--viewer-border);
+    box-shadow: 0 0.75rem 2rem rgb(0 0 0 / 35%);
+  }
+
+  .inspector:has(.inspectorEmpty) {
+    display: none;
+  }
+}
+
+@media (width > 48rem) and (width <= 70rem) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr) 18rem;
   }
 }

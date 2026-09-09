@@ -3,6 +3,9 @@ import {
   type StreamingGeometryEvent,
 } from "@ifc-lite/geometry";
 import {
+  extractEntityAttributesOnDemand,
+  extractPropertiesOnDemand,
+  extractQuantitiesOnDemand,
   IfcParser,
   type IfcDataStore,
   type ParseOptions,
@@ -26,6 +29,39 @@ export type IfcViewerSnapshot = {
   meshCount: number;
   entityCount: number | null;
   message: string | null;
+  selection: IfcElementDetails | null;
+  selectionPhase: "idle" | "loading" | "ready" | "error";
+  selectionMessage: string | null;
+};
+
+export type IfcPropertyValue =
+  string | number | boolean | null | IfcPropertyValue[];
+
+export type IfcValueItem = {
+  name: string;
+  type: number;
+  value: IfcPropertyValue;
+  values?: string[];
+  unit?: string;
+  dataType?: string;
+};
+
+export type IfcValueSet = {
+  name: string;
+  globalId?: string;
+  values: IfcValueItem[];
+};
+
+export type IfcElementDetails = {
+  expressId: number;
+  globalId: string;
+  ifcClass: string;
+  name: string;
+  description: string;
+  objectType: string;
+  tag: string;
+  propertySets: IfcValueSet[];
+  quantitySets: IfcValueSet[];
 };
 
 export type LoadIfcInput = {
@@ -39,6 +75,10 @@ export type IfcViewerRuntime = {
   createRenderer: (canvas: HTMLCanvasElement) => Renderer;
   createGeometryProcessor: () => GeometryProcessor;
   createParser: () => IfcParser;
+  readElementDetails: (
+    store: IfcDataStore,
+    expressId: number,
+  ) => IfcElementDetails | null;
   fetch: typeof fetch;
   requestFrame: FrameRequest;
   cancelFrame: FrameCancel;
@@ -53,13 +93,59 @@ const defaultSnapshot: IfcViewerSnapshot = {
   meshCount: 0,
   entityCount: null,
   message: null,
+  selection: null,
+  selectionPhase: "idle",
+  selectionMessage: null,
 };
+
+function readElementDetails(
+  store: IfcDataStore,
+  expressId: number,
+): IfcElementDetails | null {
+  if (!store.entityIndex.byId.has(expressId)) return null;
+
+  const attributes = extractEntityAttributesOnDemand(store, expressId);
+
+  return {
+    expressId,
+    globalId: attributes.globalId || store.entities.getGlobalId(expressId),
+    ifcClass:
+      store.entities.getTypeName(expressId) ||
+      store.getEntity(expressId)?.type ||
+      "IfcEntity",
+    name: attributes.name || store.entities.getName(expressId),
+    description: attributes.description,
+    objectType: attributes.objectType,
+    tag: attributes.tag,
+    propertySets: extractPropertiesOnDemand(store, expressId).map((set) => ({
+      name: set.name,
+      globalId: set.globalId,
+      values: set.properties.map((property) => ({
+        name: property.name,
+        type: property.type,
+        value: property.value,
+        values: property.values,
+        dataType: property.dataType,
+      })),
+    })),
+    quantitySets: extractQuantitiesOnDemand(store, expressId).map((set) => ({
+      name: set.name,
+      globalId: set.globalId,
+      values: set.quantities.map((quantity) => ({
+        name: quantity.name,
+        type: quantity.type,
+        value: quantity.value,
+      })),
+    })),
+  };
+}
 
 function createDefaultRuntime(): IfcViewerRuntime {
   return {
     createRenderer: (canvas) => new Renderer(canvas),
     createGeometryProcessor: () => new GeometryProcessor(),
     createParser: () => new IfcParser(),
+    readElementDetails,
     fetch: globalThis.fetch.bind(globalThis),
     requestFrame: globalThis.requestAnimationFrame.bind(globalThis),
     cancelFrame: globalThis.cancelAnimationFrame.bind(globalThis),
@@ -105,8 +191,13 @@ export class IfcViewerController {
   private unsubscribeDeviceLoss: (() => void) | null = null;
   private disposed = false;
   private pointerMode: "orbit" | "pan" | null = null;
+  private pointerId: number | null = null;
+  private pointerMoved = false;
+  private pointerStartX = 0;
+  private pointerStartY = 0;
   private pointerX = 0;
   private pointerY = 0;
+  private selectionGeneration = 0;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -162,11 +253,85 @@ export class IfcViewerController {
     }
   }
 
+  frameSelection() {
+    const expressId = this.snapshot.selection?.expressId;
+    if (this.disposed || expressId === undefined) return;
+
+    const bounds = this.renderer.getScene().getEntityBoundingBox(expressId);
+    if (!bounds) return;
+
+    void this.renderer.getCamera().frameBounds(bounds.min, bounds.max);
+    this.renderer.requestRender();
+  }
+
+  selectEntity(
+    expressId: number | null,
+    orbitCenter?: { x: number; y: number; z: number },
+  ) {
+    const generation = ++this.selectionGeneration;
+
+    if (expressId === null) {
+      this.renderer.getCamera().setOrbitCenter(null);
+      this.updateSnapshot({
+        selection: null,
+        selectionPhase: "idle",
+        selectionMessage: null,
+      });
+      this.renderer.requestRender();
+      return;
+    }
+
+    const store = this.store;
+    if (!store) return;
+
+    this.updateSnapshot({
+      selectionPhase: "loading",
+      selectionMessage: null,
+    });
+
+    try {
+      const selection = this.runtime.readElementDetails(store, expressId);
+      if (generation !== this.selectionGeneration || this.disposed) return;
+
+      if (!selection) {
+        this.selectEntity(null);
+        return;
+      }
+
+      const bounds = this.renderer.getScene().getEntityBoundingBox(expressId);
+      const center =
+        orbitCenter ??
+        (bounds
+          ? {
+              x: (bounds.min.x + bounds.max.x) / 2,
+              y: (bounds.min.y + bounds.max.y) / 2,
+              z: (bounds.min.z + bounds.max.z) / 2,
+            }
+          : undefined);
+      this.renderer.getCamera().setOrbitCenter(center ?? null);
+      this.updateSnapshot({
+        selection,
+        selectionPhase: "ready",
+        selectionMessage: null,
+      });
+      this.renderer.requestRender();
+    } catch (error) {
+      if (generation !== this.selectionGeneration || this.disposed) return;
+      this.updateSnapshot({
+        selection: null,
+        selectionPhase: "error",
+        selectionMessage: errorMessage(error),
+      });
+      this.renderer.requestRender();
+    }
+  }
+
   dispose() {
     if (this.disposed) return;
 
     this.disposed = true;
     this.loadGeneration += 1;
+    this.selectionGeneration += 1;
     this.currentDownload?.abort();
     this.currentDownload = null;
     this.resizeObserver?.disconnect();
@@ -226,9 +391,11 @@ export class IfcViewerController {
 
     this.currentDownload = new AbortController();
     this.store = null;
+    this.selectionGeneration += 1;
+    this.renderer.getCamera().setOrbitCenter(null);
     this.renderer.getScene().clear();
     this.renderer.requestRender();
-    this.snapshot = defaultSnapshot;
+    this.snapshot = { ...defaultSnapshot };
     this.updateSnapshot({ phase: "downloading" });
 
     try {
@@ -322,7 +489,10 @@ export class IfcViewerController {
         this.renderer.peekRenderRequest()
       ) {
         this.renderer.consumeRenderRequest();
-        this.renderer.render({ isInteracting: this.pointerMode !== null });
+        this.renderer.render({
+          isInteracting: this.pointerMode !== null,
+          selectedId: this.snapshot.selection?.expressId ?? null,
+        });
       }
 
       this.frameHandle = this.runtime.requestFrame(frame);
@@ -358,21 +528,34 @@ export class IfcViewerController {
   }
 
   private readonly onPointerDown = (event: PointerEvent) => {
+    if (event.button !== 0 && event.button !== 1 && event.button !== 2) return;
+
+    this.pointerId = event.pointerId;
     this.pointerMode =
       event.button === 1 || event.button === 2 || event.shiftKey
         ? "pan"
         : "orbit";
     this.pointerX = event.clientX;
     this.pointerY = event.clientY;
+    this.pointerStartX = event.clientX;
+    this.pointerStartY = event.clientY;
+    this.pointerMoved = false;
     this.canvas.setPointerCapture(event.pointerId);
     this.canvas.style.cursor = "grabbing";
   };
 
   private readonly onPointerMove = (event: PointerEvent) => {
-    if (!this.pointerMode) return;
+    if (!this.pointerMode || event.pointerId !== this.pointerId) return;
 
     const deltaX = event.clientX - this.pointerX;
     const deltaY = event.clientY - this.pointerY;
+    if (
+      Math.abs(event.clientX - this.pointerStartX) +
+        Math.abs(event.clientY - this.pointerStartY) >
+      4
+    ) {
+      this.pointerMoved = true;
+    }
     const camera = this.renderer.getCamera();
 
     if (this.pointerMode === "pan") {
@@ -387,12 +570,37 @@ export class IfcViewerController {
   };
 
   private readonly onPointerUp = (event: PointerEvent) => {
+    if (event.pointerId !== this.pointerId) return;
+
+    const shouldPick =
+      event.type !== "pointercancel" &&
+      event.button === 0 &&
+      this.pointerMode === "orbit" &&
+      !this.pointerMoved;
     if (this.canvas.hasPointerCapture(event.pointerId)) {
       this.canvas.releasePointerCapture(event.pointerId);
     }
+    this.pointerId = null;
     this.pointerMode = null;
     this.canvas.style.cursor = "grab";
     this.renderer.requestRender();
+
+    if (shouldPick) {
+      const bounds = this.canvas.getBoundingClientRect();
+      const x = event.clientX - bounds.left;
+      const y = event.clientY - bounds.top;
+      const loadGeneration = this.loadGeneration;
+      void this.renderer
+        .pick(x, y)
+        .then((hit) => {
+          if (!this.isCurrentLoad(loadGeneration)) return;
+          this.selectEntity(
+            hit && hit.expressId > 0 ? hit.expressId : null,
+            hit?.worldXYZ,
+          );
+        })
+        .catch(() => undefined);
+    }
   };
 
   private readonly onWheel = (event: WheelEvent) => {

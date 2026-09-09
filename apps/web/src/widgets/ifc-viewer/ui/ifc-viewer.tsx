@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useTRPCClient } from "@/shared/api/trpc";
+import { IfcElementProperties } from "@/entities/ifc-element";
 
 import styles from "./ifc-viewer.module.css";
 
@@ -17,6 +18,9 @@ const initialSnapshot: IfcViewerSnapshot = {
   meshCount: 0,
   entityCount: null,
   message: null,
+  selection: null,
+  selectionPhase: "idle",
+  selectionMessage: null,
 };
 
 const phaseLabels = {
@@ -129,63 +133,107 @@ export function IfcViewer({
         </div>
       </header>
 
-      <section className={styles.viewport} aria-label="Visionneuse IFC 3D">
-        <canvas
-          aria-label={`Vue 3D de ${assetName}`}
-          className={styles.canvas}
-          ref={canvasRef}
-        />
+      <div className={styles.workspace}>
+        <section className={styles.viewport} aria-label="Visionneuse IFC 3D">
+          <canvas
+            aria-label={`Vue 3D de ${assetName}`}
+            className={styles.canvas}
+            ref={canvasRef}
+          />
 
-        {isBusy ? (
-          <div className={styles.loadCard} role="status" aria-live="polite">
-            <span className={styles.spinner} aria-hidden="true" />
-            <div>
-              <strong>{phaseLabels[snapshot.phase]}</strong>
-              <p>
-                {snapshot.phase === "processing"
-                  ? `${snapshot.meshCount.toLocaleString("fr-FR")} maillages reçus`
-                  : "Préparation de la maquette…"}
-              </p>
-              {snapshot.parserPercent !== null ? (
-                <progress max={100} value={snapshot.parserPercent} />
-              ) : null}
+          {isBusy ? (
+            <div className={styles.loadCard} role="status" aria-live="polite">
+              <span className={styles.spinner} aria-hidden="true" />
+              <div>
+                <strong>{phaseLabels[snapshot.phase]}</strong>
+                <p>
+                  {snapshot.phase === "processing"
+                    ? `${snapshot.meshCount.toLocaleString("fr-FR")} maillages reçus`
+                    : "Préparation de la maquette…"}
+                </p>
+                {snapshot.parserPercent !== null ? (
+                  <progress max={100} value={snapshot.parserPercent} />
+                ) : null}
+              </div>
             </div>
-          </div>
-        ) : null}
+          ) : null}
 
-        {snapshot.phase === "ready" ? (
-          <div className={styles.modelStats} role="status">
-            <strong>{snapshot.entityCount?.toLocaleString("fr-FR")}</strong>
-            <span>entités IFC</span>
-            <i aria-hidden="true" />
-            <strong>{snapshot.meshCount.toLocaleString("fr-FR")}</strong>
-            <span>maillages</span>
-          </div>
-        ) : null}
+          {snapshot.phase === "ready" ? (
+            <div className={styles.modelStats} role="status">
+              <strong>{snapshot.entityCount?.toLocaleString("fr-FR")}</strong>
+              <span>entités IFC</span>
+              <i aria-hidden="true" />
+              <strong>{snapshot.meshCount.toLocaleString("fr-FR")}</strong>
+              <span>maillages</span>
+            </div>
+          ) : null}
 
-        {hasFailed || accessError ? (
-          <div className={styles.errorCard} role="alert">
-            <span className="fr-icon-error-warning-fill" aria-hidden="true" />
+          {hasFailed || accessError ? (
+            <div className={styles.errorCard} role="alert">
+              <span className="fr-icon-error-warning-fill" aria-hidden="true" />
+              <div>
+                <strong>{phaseLabels[snapshot.phase]}</strong>
+                <p>{accessError ?? snapshot.message}</p>
+                <button
+                  disabled={retrying}
+                  onClick={() => void retry()}
+                  type="button"
+                >
+                  {retrying ? "Nouvel essai…" : "Réessayer"}
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          <div className={styles.help}>
+            <span>Clic : sélectionner</span>
+            <span>Glisser : orbiter</span>
+            <span>Maj ou clic milieu : déplacer</span>
+            <span>Molette : zoomer</span>
+          </div>
+        </section>
+
+        <aside className={styles.inspector} aria-label="Propriétés IFC">
+          <header className={styles.inspectorHeader}>
             <div>
-              <strong>{phaseLabels[snapshot.phase]}</strong>
-              <p>{accessError ?? snapshot.message}</p>
+              <small>Inspecteur</small>
+              <strong>Propriétés IFC</strong>
+            </div>
+            {snapshot.selection ? (
               <button
-                disabled={retrying}
-                onClick={() => void retry()}
+                aria-label="Cadrer l’élément sélectionné"
+                onClick={() => controllerRef.current?.frameSelection()}
+                title="Cadrer l’élément"
                 type="button"
               >
-                {retrying ? "Nouvel essai…" : "Réessayer"}
+                <span className="fr-icon-focus-3-line" aria-hidden="true" />
               </button>
-            </div>
-          </div>
-        ) : null}
+            ) : null}
+          </header>
 
-        <div className={styles.help}>
-          <span>Souris gauche : orbiter</span>
-          <span>Maj ou clic milieu : déplacer</span>
-          <span>Molette : zoomer</span>
-        </div>
-      </section>
+          <div className={styles.inspectorBody}>
+            {snapshot.selectionPhase === "loading" ? (
+              <p className={styles.inspectorState}>Lecture des propriétés…</p>
+            ) : snapshot.selectionPhase === "error" ? (
+              <p className={styles.inspectorError}>
+                {snapshot.selectionMessage ??
+                  "Les propriétés n’ont pas pu être lues."}
+              </p>
+            ) : snapshot.selection ? (
+              <IfcElementProperties element={snapshot.selection} />
+            ) : (
+              <div className={styles.inspectorEmpty}>
+                <span className="fr-icon-cursor-line" aria-hidden="true" />
+                <strong>Sélectionnez un élément</strong>
+                <p>
+                  Cliquez sur la maquette pour afficher son identité IFC et ses
+                  jeux de propriétés.
+                </p>
+              </div>
+            )}
+          </div>
+        </aside>
+      </div>
     </main>
   );
 }
