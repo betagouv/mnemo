@@ -6,7 +6,11 @@ import type {
   BcfTopicStatus,
   BcfTopicType,
 } from "@mnemo/contracts/bcf";
-import type { IfcElementDetails } from "@mnemo/ifc-viewer-adapter";
+import type {
+  CapturedBcfViewpoint,
+  IfcElementDetails,
+} from "@mnemo/ifc-viewer-adapter";
+import Image from "next/image";
 import { useMemo, useState, type FormEvent } from "react";
 
 import { useTRPCClient } from "@/shared/api/trpc";
@@ -29,14 +33,23 @@ const priorityLabels: Record<BcfPriority, string> = {
 
 export function BcfTopicsPanel({
   assetId,
+  canCaptureViewpoint,
   initialTopics,
+  onApplyViewpoint,
+  onCaptureViewpoint,
   onFocusComponent,
   onTopicCountChange,
   projectId,
   selection,
 }: {
   assetId: string;
+  canCaptureViewpoint: boolean;
   initialTopics: BcfTopic[];
+  onApplyViewpoint: (
+    data: BcfTopic["viewpoints"][number]["data"],
+    targetDistance: number,
+  ) => void;
+  onCaptureViewpoint: () => Promise<CapturedBcfViewpoint>;
   onFocusComponent: (expressId: number) => void;
   onTopicCountChange: (count: number) => void;
   projectId: string;
@@ -52,9 +65,9 @@ export function BcfTopicsPanel({
   const [type, setType] = useState<BcfTopicType>("issue");
   const [priority, setPriority] = useState<BcfPriority>("normal");
   const [comment, setComment] = useState("");
-  const [pending, setPending] = useState<"topic" | "comment" | "status" | null>(
-    null,
-  );
+  const [pending, setPending] = useState<
+    "topic" | "comment" | "status" | "viewpoint" | null
+  >(null);
   const [message, setMessage] = useState<string | null>(null);
   const activeTopic = useMemo(
     () => topics.find((topic) => topic.id === activeTopicId) ?? null,
@@ -138,6 +151,65 @@ export function BcfTopicsPanel({
       );
     } catch {
       setMessage("Le statut n’a pas pu être modifié.");
+    } finally {
+      setPending(null);
+    }
+  }
+
+  async function captureViewpoint() {
+    if (!activeTopic) return;
+    setPending("viewpoint");
+    setMessage(null);
+    let viewpointCreated = false;
+
+    try {
+      const capture = await onCaptureViewpoint();
+      const result = await client.bcf.beginViewpointCapture.mutate({
+        projectId,
+        topicId: activeTopic.id,
+        data: capture.data,
+        targetDistance: capture.targetDistance,
+        snapshot: capture.snapshot
+          ? {
+              mediaType:
+                capture.snapshot.type === "image/jpeg"
+                  ? "image/jpeg"
+                  : "image/png",
+              sizeBytes: capture.snapshot.size,
+            }
+          : undefined,
+      });
+      replaceTopic(result.topic);
+      viewpointCreated = true;
+
+      if (result.snapshotUpload && capture.snapshot) {
+        const response = await fetch(result.snapshotUpload.uploadUrl, {
+          method: "PUT",
+          headers: result.snapshotUpload.requiredHeaders,
+          body: capture.snapshot,
+        });
+        if (!response.ok) {
+          throw new Error(`Snapshot upload returned HTTP ${response.status}`);
+        }
+        replaceTopic(
+          await client.bcf.completeViewpointCapture.mutate({
+            projectId,
+            topicId: activeTopic.id,
+            viewpointId: result.viewpointId,
+          }),
+        );
+      }
+      setMessage(
+        capture.snapshot
+          ? "Vue et capture enregistrées"
+          : "Vue enregistrée sans capture d’écran",
+      );
+    } catch {
+      setMessage(
+        viewpointCreated
+          ? "La vue est enregistrée, mais pas sa capture d’écran."
+          : "La vue n’a pas pu être enregistrée.",
+      );
     } finally {
       setPending(null);
     }
@@ -281,6 +353,52 @@ export function BcfTopicsPanel({
               Élément IFC #{component.expressId ?? "—"}
             </button>
           ))}
+          <div className={styles.viewpointHeader}>
+            <strong>Points de vue</strong>
+            <button
+              disabled={
+                pending !== null || !canCaptureViewpoint || !activeTopic
+              }
+              onClick={() => void captureViewpoint()}
+              type="button"
+            >
+              <span className="fr-icon-camera-line" aria-hidden="true" />
+              {pending === "viewpoint" ? "Capture…" : "Capturer la vue"}
+            </button>
+          </div>
+          {activeTopic.viewpoints.length ? (
+            <div className={styles.viewpointList}>
+              {activeTopic.viewpoints.map((viewpoint, index) => (
+                <button
+                  key={viewpoint.id}
+                  onClick={() =>
+                    onApplyViewpoint(viewpoint.data, viewpoint.targetDistance)
+                  }
+                  type="button"
+                >
+                  {viewpoint.snapshotUrl ? (
+                    <Image
+                      alt=""
+                      crossOrigin="anonymous"
+                      height={60}
+                      loading="lazy"
+                      src={viewpoint.snapshotUrl}
+                      unoptimized
+                      width={180}
+                    />
+                  ) : (
+                    <span className="fr-icon-image-line" aria-hidden="true" />
+                  )}
+                  <span>
+                    <strong>Vue {index + 1}</strong>
+                    <small>{viewpoint.authorName}</small>
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className={styles.empty}>Aucun point de vue enregistré.</p>
+          )}
           <div className={styles.comments}>
             {activeTopic.comments.map((item) => (
               <article key={item.id}>

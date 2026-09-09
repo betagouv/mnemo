@@ -412,7 +412,24 @@ export function IfcViewer({
             {inspectorMode === "bcf" ? (
               <BcfTopicsPanel
                 assetId={assetId}
+                canCaptureViewpoint={snapshot.phase === "ready"}
                 initialTopics={initialBcfTopics}
+                onApplyViewpoint={(data, targetDistance) => {
+                  controllerRef.current?.applyBcfViewpoint(
+                    data,
+                    targetDistance,
+                  );
+                  setInspectorMode("properties");
+                }}
+                onCaptureViewpoint={() => {
+                  const controller = controllerRef.current;
+                  if (!controller) {
+                    return Promise.reject(
+                      new Error("La visionneuse n’est pas prête."),
+                    );
+                  }
+                  return controller.captureBcfViewpoint();
+                }}
                 onFocusComponent={(expressId) => {
                   controllerRef.current?.selectEntity(expressId);
                   controllerRef.current?.frameSelection();

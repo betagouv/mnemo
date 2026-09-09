@@ -11,6 +11,7 @@ import {
   bcfTopicComponents,
   bcfTopics,
   bcfTopicStatusEnum,
+  bcfViewpoints,
   deletionJobs,
   deletionJobTypeEnum,
   processingJobs,
@@ -69,6 +70,7 @@ describe("database schema", () => {
     expect(getTableName(bcfTopics)).toBe("bcf_topics");
     expect(getTableName(bcfComments)).toBe("bcf_comments");
     expect(getTableName(bcfTopicComponents)).toBe("bcf_topic_components");
+    expect(getTableName(bcfViewpoints)).toBe("bcf_viewpoints");
     expect(bcfTopicStatusEnum.enumValues).toEqual([
       "open",
       "in_progress",

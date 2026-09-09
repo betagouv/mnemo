@@ -1,4 +1,8 @@
 export {
+  buildBcfViewpointSnapshotKey,
+  type BcfViewpointSnapshotKeyInput,
+} from "./bcf-object-key";
+export {
   buildOriginalObjectKey,
   type OriginalObjectKeyInput,
 } from "./object-key";

@@ -1,6 +1,8 @@
 import type { CreateProjectInput } from "@mnemo/contracts/projects";
 import {
   assets,
+  bcfTopics,
+  bcfViewpoints,
   deletionJobs,
   projectMembers,
   projects,
@@ -113,6 +115,11 @@ export class DrizzleProjectRepository implements ProjectRepository {
         })
         .from(assets)
         .where(eq(assets.projectId, projectId));
+      const viewpointSnapshots = await transaction
+        .select({ objectKey: bcfViewpoints.snapshotObjectKey })
+        .from(bcfViewpoints)
+        .innerJoin(bcfTopics, eq(bcfTopics.id, bcfViewpoints.topicId))
+        .where(eq(bcfTopics.projectId, projectId));
 
       await transaction
         .update(assets)
@@ -123,7 +130,12 @@ export class DrizzleProjectRepository implements ProjectRepository {
         .values({
           resourceId: project.id,
           type: "delete_project",
-          objectKeys: projectAssets.map((asset) => asset.objectKey),
+          objectKeys: [
+            ...projectAssets.map((asset) => asset.objectKey),
+            ...viewpointSnapshots.flatMap((viewpoint) =>
+              viewpoint.objectKey ? [viewpoint.objectKey] : [],
+            ),
+          ],
           availableAt: requestedAt,
         })
         .onConflictDoNothing();

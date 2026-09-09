@@ -1,4 +1,12 @@
 import {
+  createViewpoint,
+  extractViewpointState,
+  parseARGBColor,
+  toARGBColor,
+  type BCFViewpoint,
+  type ViewerCameraState,
+} from "@ifc-lite/bcf";
+import {
   GeometryProcessor,
   type StreamingGeometryEvent,
 } from "@ifc-lite/geometry";
@@ -11,6 +19,7 @@ import {
   type ParseOptions,
 } from "@ifc-lite/parser";
 import { Renderer, type PointCloudAssetHandle } from "@ifc-lite/renderer";
+import type { BcfViewpointPayload } from "@mnemo/contracts/bcf";
 import {
   composePointCloudTransform,
   createPointCloudStream,
@@ -155,6 +164,12 @@ export type LoadPointCloudInput = {
   transform: PointCloudTransform;
 };
 
+export type CapturedBcfViewpoint = {
+  data: BcfViewpointPayload;
+  targetDistance: number;
+  snapshot: Blob | null;
+};
+
 type FrameRequest = (callback: FrameRequestCallback) => number;
 type FrameCancel = (handle: number) => void;
 
@@ -283,6 +298,22 @@ function errorMessage(error: unknown) {
   return error instanceof Error
     ? error.message
     : "Le chargement de la maquette a échoué.";
+}
+
+function screenshotDataUrlToBlob(dataUrl: string) {
+  const separator = dataUrl.indexOf(",");
+  if (separator < 0 || !dataUrl.slice(0, separator).includes(";base64")) {
+    return null;
+  }
+
+  const mediaType =
+    /^data:([^;,]+)/.exec(dataUrl.slice(0, separator))?.[1] ?? "image/png";
+  const decoded = atob(dataUrl.slice(separator + 1));
+  const bytes = new Uint8Array(decoded.length);
+  for (let index = 0; index < decoded.length; index += 1) {
+    bytes[index] = decoded.charCodeAt(index);
+  }
+  return new Blob([bytes], { type: mediaType });
 }
 
 export class IfcViewerController {
@@ -539,6 +570,121 @@ export class IfcViewerController {
       );
       this.renderer.requestRender();
     }
+  }
+
+  async captureBcfViewpoint(): Promise<CapturedBcfViewpoint> {
+    if (this.disposed || !this.bimIndex) {
+      throw new Error("La maquette doit être prête avant de capturer une vue.");
+    }
+
+    const camera = this.renderer.getCamera();
+    const cameraState: ViewerCameraState = {
+      position: camera.getPosition(),
+      target: camera.getTarget(),
+      up: camera.getUp(),
+      fov: camera.getFOV(),
+      aspectRatio: camera.getAspect(),
+      isOrthographic: camera.getProjectionMode() === "orthographic",
+      orthoScale: camera.getOrthoSize(),
+    };
+    const visibleIds = this.ghostExceptIds ?? this.isolatedIds;
+    const colorsByArgb = new Map<string, number[]>();
+    for (const [expressId, color] of this.colorOverrides) {
+      const argb = toARGBColor(
+        color[0] * 255,
+        color[1] * 255,
+        color[2] * 255,
+        color[3] * 255,
+      );
+      const ids = colorsByArgb.get(argb) ?? [];
+      ids.push(expressId);
+      colorsByArgb.set(argb, ids);
+    }
+
+    const created = createViewpoint({
+      camera: cameraState,
+      selectedGuids: this.globalIdsFor(
+        this.snapshot.selection ? [this.snapshot.selection.expressId] : [],
+      ),
+      hiddenGuids: this.globalIdsFor(this.hiddenIds),
+      visibleGuids: visibleIds ? this.globalIdsFor(visibleIds) : [],
+      coloredGuids: [...colorsByArgb].map(([color, ids]) => ({
+        color,
+        guids: this.globalIdsFor(ids),
+      })),
+    });
+    const screenshot = await this.renderer.captureScreenshot();
+
+    return {
+      data: {
+        guid: created.guid,
+        perspectiveCamera: created.perspectiveCamera,
+        orthogonalCamera: created.orthogonalCamera,
+        components: created.components,
+      },
+      targetDistance: Math.max(camera.getDistance(), 0.001),
+      snapshot: screenshot ? screenshotDataUrlToBlob(screenshot) : null,
+    };
+  }
+
+  applyBcfViewpoint(data: BcfViewpointPayload, targetDistance: number) {
+    if (this.disposed || !this.bimIndex) return;
+
+    const state = extractViewpointState(
+      data as BCFViewpoint,
+      undefined,
+      targetDistance,
+    );
+    const visibleIds = this.expressIdsFor(state.visibleGuids);
+    const hiddenIds = this.expressIdsFor(state.hiddenGuids);
+    const colors = state.coloredGuids.map(({ color, guids }) => {
+      const rgba = parseARGBColor(color);
+      return {
+        ids: this.expressIdsFor(guids),
+        color: [
+          rgba.r / 255,
+          rgba.g / 255,
+          rgba.b / 255,
+          rgba.a / 255,
+        ] as const,
+      };
+    });
+
+    this.applyVisualPlan({
+      focusIds: visibleIds.length ? visibleIds : null,
+      hiddenIds,
+      colors,
+      showContext: this.snapshot.visual.showContext,
+      contextOpacity: this.snapshot.visual.contextOpacity,
+      label: "Viewpoint BCF",
+    });
+
+    if (state.camera) {
+      const camera = this.renderer.getCamera();
+      camera.stopInertia();
+      camera.setProjectionMode(
+        state.camera.isOrthographic ? "orthographic" : "perspective",
+      );
+      camera.setPosition(
+        state.camera.position.x,
+        state.camera.position.y,
+        state.camera.position.z,
+      );
+      camera.setTarget(
+        state.camera.target.x,
+        state.camera.target.y,
+        state.camera.target.z,
+      );
+      camera.setUp(state.camera.up.x, state.camera.up.y, state.camera.up.z);
+      camera.setFOV(state.camera.fov);
+      if (state.camera.isOrthographic && state.camera.orthoScale) {
+        camera.setOrthoSize(state.camera.orthoScale);
+      }
+    }
+
+    const selectedId = this.expressIdsFor(state.selectedGuids)[0] ?? null;
+    this.selectEntity(selectedId);
+    this.renderer.requestRender();
   }
 
   fitToView() {
@@ -1123,6 +1269,20 @@ export class IfcViewerController {
     if (device && pipeline) {
       scene.setColorOverrides(this.colorOverrides, device, pipeline);
     }
+  }
+
+  private globalIdsFor(expressIds: Iterable<number>) {
+    const ids = new Set(expressIds);
+    return (this.bimIndex?.query({}) ?? [])
+      .filter((entity) => ids.has(entity.expressId) && entity.globalId)
+      .map((entity) => entity.globalId);
+  }
+
+  private expressIdsFor(globalIds: Iterable<string>) {
+    const ids = new Set(globalIds);
+    return (this.bimIndex?.query({}) ?? [])
+      .filter((entity) => ids.has(entity.globalId))
+      .map((entity) => entity.expressId);
   }
 
   private updateVisualSnapshot(update: Partial<IfcVisualSnapshot>) {

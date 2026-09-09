@@ -50,6 +50,13 @@
       "when": 1788972916947,
       "tag": "0006_new_leader",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788973968528,
+      "tag": "0007_glorious_silver_samurai",
+      "breakpoints": true
     }
   ]
 }
