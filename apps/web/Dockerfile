@@ -2,18 +2,23 @@ FROM node:22-bookworm-slim AS base
 
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
+ENV NEXT_TELEMETRY_DISABLED=1
 RUN corepack enable && corepack prepare pnpm@10.32.1 --activate
+
+FROM base AS pruner
+WORKDIR /workspace
+COPY . .
+RUN pnpm dlx turbo@2.10.12 prune @mnemo/web --docker
 
 FROM base AS dependencies
 WORKDIR /workspace
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
-COPY apps/web/package.json apps/web/package.json
-RUN pnpm install --frozen-lockfile --filter @mnemo/web...
+COPY --from=pruner /workspace/out/json/ ./
+RUN pnpm install --frozen-lockfile
 
 FROM dependencies AS build
 WORKDIR /workspace
-COPY turbo.json tsconfig.base.json ./
-COPY apps/web apps/web
+COPY --from=pruner /workspace/out/full/ ./
+COPY tsconfig.base.json ./tsconfig.base.json
 RUN pnpm --filter @mnemo/web build
 
 FROM node:22-bookworm-slim AS runtime
