@@ -3,6 +3,7 @@ import { projectIdSchema } from "@mnemo/contracts/projects";
 import { notFound } from "next/navigation";
 
 import { getServerCaller } from "@/server/trpc/server-caller";
+import { isAssistantConfigured } from "@/shared/config/assistant/server-only";
 import { selectIfcProcessing } from "@/shared/config/ifc-processing/server-only";
 import { IfcViewer } from "@/widgets/ifc-viewer";
 
@@ -79,6 +80,7 @@ export async function IfcViewerScreen({
     <IfcViewer
       assetId={result.asset.id}
       assetName={result.asset.originalFileName}
+      assistantConfigured={isAssistantConfigured()}
       initialBcfTopics={bcfTopics}
       initialDownloadUrl={result.downloadUrl}
       key={result.asset.id}

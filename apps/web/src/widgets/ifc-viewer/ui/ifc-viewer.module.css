@@ -231,6 +231,10 @@
   scrollbar-width: thin;
 }
 
+.inspectorBody[data-mode="assistant"] {
+  overflow: hidden;
+}
+
 .inspectorEmpty {
   display: grid;
   max-width: 16rem;

@@ -18,6 +18,9 @@ services:
       S3_SECRET_KEY: mnemo-local-password
       IFC_LITE_PUBLIC_URL: http://localhost:3301
       IFC_BROWSER_PROCESSING_MAX_BYTES: 0
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-google/gemini-3.7-flash}
+      OPENROUTER_APP_URL: ${OPENROUTER_APP_URL:-http://localhost:3200}
     depends_on:
       postgres:
         condition: service_healthy
