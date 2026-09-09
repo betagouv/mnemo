@@ -46,4 +46,13 @@ test("creates a persistent project from the workspace", async ({ page }) => {
 
   await page.reload();
   await expect(page.getByRole("heading", { name: projectName })).toBeVisible();
+
+  await page.getByRole("link", { name: new RegExp(projectName) }).click();
+  await expect(page).toHaveURL(/\/projets\/[0-9a-f-]+$/);
+  await expect(
+    page.getByRole("heading", { name: projectName, level: 1 }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Fichiers du projet" }),
+  ).toBeVisible();
 });

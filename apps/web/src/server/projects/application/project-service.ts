@@ -22,6 +22,14 @@ export class ProjectService {
     return projects.map(toProjectSummary);
   }
 
+  async find(
+    actorId: string,
+    projectId: string,
+  ): Promise<ProjectSummary | null> {
+    const project = await this.projects.findForActor(actorId, projectId);
+    return project ? toProjectSummary(project) : null;
+  }
+
   async create(
     actorId: string,
     input: CreateProjectInput,
