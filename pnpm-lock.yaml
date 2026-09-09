@@ -198,6 +198,9 @@ importers:
       '@ifc-lite/parser':
         specifier: 5.2.0
         version: 5.2.0
+      '@ifc-lite/query':
+        specifier: 2.2.0
+        version: 2.2.0
       '@ifc-lite/renderer':
         specifier: 2.0.1
         version: 2.0.1
@@ -1086,6 +1089,9 @@ packages:
 
   '@ifc-lite/pointcloud@0.7.2':
     resolution: {integrity: sha512-Du/2d+go3fqJMgz7NLT4nZPbDw8p8TkucUNrEUY3wEgr7r/1xbHPx9uhqeePCOQK8BNfYaIIkclil98Tp+0AEw==}
+
+  '@ifc-lite/query@2.2.0':
+    resolution: {integrity: sha512-XevuSkAZWNr3reUkCziEk4I5M2NDR63d8v+KV7fI33+mzQwCNaWjRXQ1ksjq87WfPjvm+Ht/u4PTygMpWPoFmA==}
 
   '@ifc-lite/renderer@2.0.1':
     resolution: {integrity: sha512-GM38K372dT0N8CTgQ1wqvIsRmxUV+E+EshlnJdrGAB8bWZ3+P+/FUC3jG0roSjgJoMnNm2AkXYaWHj+jOC1yKA==}
@@ -4541,6 +4547,13 @@ snapshots:
   '@ifc-lite/pointcloud@0.7.2':
     dependencies:
       laz-perf: 0.0.7
+
+  '@ifc-lite/query@2.2.0':
+    dependencies:
+      '@ifc-lite/data': 4.0.0
+      '@ifc-lite/geometry': 4.3.0
+      '@ifc-lite/parser': 5.2.0
+      '@ifc-lite/spatial': 1.14.16
 
   '@ifc-lite/renderer@2.0.1':
     dependencies:

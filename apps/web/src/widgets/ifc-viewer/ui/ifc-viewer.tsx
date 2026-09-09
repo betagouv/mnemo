@@ -7,8 +7,9 @@ import {
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { useTRPCClient } from "@/shared/api/trpc";
 import { IfcElementProperties } from "@/entities/ifc-element";
+import { BimExplorer } from "@/features/filter-bim-model";
+import { useTRPCClient } from "@/shared/api/trpc";
 
 import styles from "./ifc-viewer.module.css";
 
@@ -21,7 +22,25 @@ const initialSnapshot: IfcViewerSnapshot = {
   selection: null,
   selectionPhase: "idle",
   selectionMessage: null,
+  catalog: null,
+  visual: {
+    mode: "all",
+    label: null,
+    matchCount: 0,
+    showContext: true,
+    contextOpacity: 0.1,
+  },
 };
+
+function hexToRgba(hex: string): [number, number, number, number] {
+  const normalized = hex.replace("#", "");
+  return [
+    Number.parseInt(normalized.slice(0, 2), 16) / 255,
+    Number.parseInt(normalized.slice(2, 4), 16) / 255,
+    Number.parseInt(normalized.slice(4, 6), 16) / 255,
+    1,
+  ];
+}
 
 const phaseLabels = {
   idle: "En attente",
@@ -134,6 +153,27 @@ export function IfcViewer({
       </header>
 
       <div className={styles.workspace}>
+        {snapshot.catalog ? (
+          <BimExplorer
+            catalog={snapshot.catalog}
+            onColor={(query, color, label) =>
+              controllerRef.current?.color(query, hexToRgba(color), label)
+            }
+            onColorByStorey={() => controllerRef.current?.colorByStorey()}
+            onHide={(query, label) => controllerRef.current?.hide(query, label)}
+            onIsolate={(query, label) =>
+              controllerRef.current?.isolate(query, label)
+            }
+            onReset={() => controllerRef.current?.resetVisuals()}
+            onSetContext={(show, opacity) =>
+              controllerRef.current?.setIsolationContext(show, opacity)
+            }
+            visual={snapshot.visual}
+          />
+        ) : (
+          <aside className={styles.explorerPlaceholder} aria-hidden="true" />
+        )}
+
         <section className={styles.viewport} aria-label="Visionneuse IFC 3D">
           <canvas
             aria-label={`Vue 3D de ${assetName}`}

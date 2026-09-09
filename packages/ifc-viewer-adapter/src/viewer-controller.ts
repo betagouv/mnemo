@@ -12,6 +12,14 @@ import {
 } from "@ifc-lite/parser";
 import { Renderer } from "@ifc-lite/renderer";
 
+import {
+  createIfcBimIndex,
+  type IfcBimCatalog,
+  type IfcBimIndex,
+  type IfcBimQuery,
+  type IfcElementSummary,
+} from "./bim-index";
+
 const maxCanvasDimension = 8_192;
 
 export type IfcViewerPhase =
@@ -32,6 +40,32 @@ export type IfcViewerSnapshot = {
   selection: IfcElementDetails | null;
   selectionPhase: "idle" | "loading" | "ready" | "error";
   selectionMessage: string | null;
+  catalog: IfcBimCatalog | null;
+  visual: IfcVisualSnapshot;
+};
+
+export type IfcVisualMode = "all" | "isolate" | "hide" | "color";
+
+export type IfcVisualSnapshot = {
+  mode: IfcVisualMode;
+  label: string | null;
+  matchCount: number;
+  showContext: boolean;
+  contextOpacity: number;
+};
+
+export type IfcVisualColorGroup = {
+  ids: Iterable<number>;
+  color: readonly [number, number, number, number];
+};
+
+export type IfcVisualPlan = {
+  focusIds?: Iterable<number> | null;
+  hiddenIds?: Iterable<number>;
+  colors?: Iterable<IfcVisualColorGroup>;
+  showContext?: boolean;
+  contextOpacity?: number;
+  label?: string | null;
 };
 
 export type IfcPropertyValue =
@@ -79,6 +113,10 @@ export type IfcViewerRuntime = {
     store: IfcDataStore,
     expressId: number,
   ) => IfcElementDetails | null;
+  createBimIndex: (
+    store: IfcDataStore,
+    renderableIds: Iterable<number>,
+  ) => IfcBimIndex;
   fetch: typeof fetch;
   requestFrame: FrameRequest;
   cancelFrame: FrameCancel;
@@ -96,6 +134,14 @@ const defaultSnapshot: IfcViewerSnapshot = {
   selection: null,
   selectionPhase: "idle",
   selectionMessage: null,
+  catalog: null,
+  visual: {
+    mode: "all",
+    label: null,
+    matchCount: 0,
+    showContext: true,
+    contextOpacity: 0.1,
+  },
 };
 
 function readElementDetails(
@@ -146,6 +192,7 @@ function createDefaultRuntime(): IfcViewerRuntime {
     createGeometryProcessor: () => new GeometryProcessor(),
     createParser: () => new IfcParser(),
     readElementDetails,
+    createBimIndex: createIfcBimIndex,
     fetch: globalThis.fetch.bind(globalThis),
     requestFrame: globalThis.requestAnimationFrame.bind(globalThis),
     cancelFrame: globalThis.cancelAnimationFrame.bind(globalThis),
@@ -178,6 +225,7 @@ export class IfcViewerController {
   private readonly runtime: IfcViewerRuntime;
   private snapshot: IfcViewerSnapshot = defaultSnapshot;
   private store: IfcDataStore | null = null;
+  private bimIndex: IfcBimIndex | null = null;
   private initialization: Promise<void> | null = null;
   private loadQueue: Promise<void> = Promise.resolve();
   private loadGeneration = 0;
@@ -198,6 +246,10 @@ export class IfcViewerController {
   private pointerX = 0;
   private pointerY = 0;
   private selectionGeneration = 0;
+  private hiddenIds = new Set<number>();
+  private isolatedIds: Set<number> | null = null;
+  private ghostExceptIds: Set<number> | null = null;
+  private colorOverrides = new Map<number, [number, number, number, number]>();
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -224,6 +276,14 @@ export class IfcViewerController {
 
   getStore() {
     return this.store;
+  }
+
+  queryBim(query: IfcBimQuery): IfcElementSummary[] {
+    return this.bimIndex?.query(query) ?? [];
+  }
+
+  findBimIds(query: IfcBimQuery): number[] {
+    return this.bimIndex?.findIds(query) ?? [];
   }
 
   init() {
@@ -326,6 +386,118 @@ export class IfcViewerController {
     }
   }
 
+  isolate(query: IfcBimQuery, label?: string) {
+    const ids = this.findBimIds(query);
+    const visual = this.snapshot.visual;
+    this.applyVisualPlan({
+      focusIds: ids,
+      showContext: visual.showContext,
+      contextOpacity: visual.contextOpacity,
+      label: label ?? "Isolation BIM",
+    });
+  }
+
+  hide(query: IfcBimQuery, label?: string) {
+    const ids = this.findBimIds(query);
+    this.applyVisualPlan({
+      hiddenIds: ids,
+      label: label ?? "Éléments masqués",
+    });
+    this.updateVisualSnapshot({ mode: "hide", matchCount: ids.length });
+  }
+
+  color(
+    query: IfcBimQuery,
+    color: readonly [number, number, number, number],
+    label?: string,
+  ) {
+    const ids = this.findBimIds(query);
+    this.applyVisualPlan({
+      colors: [{ ids, color }],
+      label: label ?? "Coloration BIM",
+    });
+    this.updateVisualSnapshot({ mode: "color", matchCount: ids.length });
+  }
+
+  colorByStorey() {
+    const storeys = this.snapshot.catalog?.storeys ?? [];
+    const palette = [
+      [0.24, 0.62, 0.98, 1],
+      [0.93, 0.32, 0.3, 1],
+      [0.55, 0.36, 0.96, 1],
+      [0.12, 0.72, 0.48, 1],
+      [0.96, 0.65, 0.18, 1],
+      [0.91, 0.3, 0.66, 1],
+    ] as const;
+    const groups = storeys.map((storey, index) => ({
+      ids: this.findBimIds({ storeyId: storey.expressId }),
+      color: palette[index % palette.length],
+    }));
+    this.applyVisualPlan({ colors: groups, label: "Palette par niveau" });
+    this.updateVisualSnapshot({
+      mode: "color",
+      matchCount: groups.reduce((count, group) => count + group.ids.length, 0),
+    });
+  }
+
+  setIsolationContext(showContext: boolean, contextOpacity: number) {
+    const opacity = Math.min(0.9, Math.max(0.02, contextOpacity));
+    const focusIds = this.ghostExceptIds ?? this.isolatedIds;
+    this.updateVisualSnapshot({ showContext, contextOpacity: opacity });
+
+    if (this.snapshot.visual.mode === "isolate" && focusIds) {
+      this.isolatedIds = showContext ? null : new Set(focusIds);
+      this.ghostExceptIds = showContext ? new Set(focusIds) : null;
+      this.renderer.requestRender();
+    }
+  }
+
+  applyVisualPlan(plan: IfcVisualPlan) {
+    this.hiddenIds = new Set(plan.hiddenIds ?? []);
+    const focusIds = plan.focusIds ? new Set(plan.focusIds) : null;
+    const showContext = plan.showContext ?? this.snapshot.visual.showContext;
+    const contextOpacity = Math.min(
+      0.9,
+      Math.max(
+        0.02,
+        plan.contextOpacity ?? this.snapshot.visual.contextOpacity,
+      ),
+    );
+    this.isolatedIds = focusIds && !showContext ? focusIds : null;
+    this.ghostExceptIds = focusIds && showContext ? focusIds : null;
+    this.colorOverrides = new Map();
+
+    for (const group of plan.colors ?? []) {
+      const color = [...group.color] as [number, number, number, number];
+      for (const expressId of group.ids) {
+        this.colorOverrides.set(expressId, color);
+      }
+    }
+
+    this.syncColorOverrides();
+    this.updateSnapshot({
+      visual: {
+        mode: focusIds
+          ? "isolate"
+          : this.hiddenIds.size
+            ? "hide"
+            : this.colorOverrides.size
+              ? "color"
+              : "all",
+        label: plan.label ?? null,
+        matchCount:
+          focusIds?.size ?? (this.hiddenIds.size || this.colorOverrides.size),
+        showContext,
+        contextOpacity,
+      },
+    });
+    this.renderer.requestRender();
+  }
+
+  resetVisuals() {
+    this.applyVisualPlan({ label: null });
+  }
+
   dispose() {
     if (this.disposed) return;
 
@@ -348,6 +520,7 @@ export class IfcViewerController {
     this.geometry.dispose();
     this.renderer.destroy();
     this.store = null;
+    this.bimIndex = null;
     this.listeners.clear();
   }
 
@@ -391,6 +564,11 @@ export class IfcViewerController {
 
     this.currentDownload = new AbortController();
     this.store = null;
+    this.bimIndex = null;
+    this.hiddenIds = new Set();
+    this.isolatedIds = null;
+    this.ghostExceptIds = null;
+    this.colorOverrides = new Map();
     this.selectionGeneration += 1;
     this.renderer.getCamera().setOrbitCenter(null);
     this.renderer.getScene().clear();
@@ -428,12 +606,17 @@ export class IfcViewerController {
       if (!this.isCurrentLoad(generation)) return;
 
       this.store = store;
+      this.bimIndex = this.runtime.createBimIndex(
+        store,
+        this.renderer.getScene().getAllMeshDataExpressIds(),
+      );
       this.renderer.fitToView();
       this.renderer.requestRender();
       this.updateSnapshot({
         phase: "ready",
         parserPercent: 100,
         entityCount: store.entityCount,
+        catalog: this.bimIndex.catalog,
         message: null,
       });
     } catch (error) {
@@ -492,6 +675,10 @@ export class IfcViewerController {
         this.renderer.render({
           isInteracting: this.pointerMode !== null,
           selectedId: this.snapshot.selection?.expressId ?? null,
+          hiddenIds: this.hiddenIds,
+          isolatedIds: this.isolatedIds,
+          ghostExceptIds: this.ghostExceptIds,
+          ghostAlpha: this.snapshot.visual.contextOpacity,
         });
       }
 
@@ -591,7 +778,10 @@ export class IfcViewerController {
       const y = event.clientY - bounds.top;
       const loadGeneration = this.loadGeneration;
       void this.renderer
-        .pick(x, y)
+        .pick(x, y, {
+          hiddenIds: this.hiddenIds,
+          isolatedIds: this.isolatedIds,
+        })
         .then((hit) => {
           if (!this.isCurrentLoad(loadGeneration)) return;
           this.selectEntity(
@@ -626,6 +816,27 @@ export class IfcViewerController {
 
   private isCurrentLoad(generation: number) {
     return !this.disposed && generation === this.loadGeneration;
+  }
+
+  private syncColorOverrides() {
+    const scene = this.renderer.getScene();
+    if (this.colorOverrides.size === 0) {
+      scene.clearColorOverrides();
+      return;
+    }
+
+    const device = this.renderer.getGPUDevice();
+    const pipeline = this.renderer.getPipeline();
+    if (device && pipeline) {
+      scene.setColorOverrides(this.colorOverrides, device, pipeline);
+    }
+  }
+
+  private updateVisualSnapshot(update: Partial<IfcVisualSnapshot>) {
+    this.updateSnapshot({
+      visual: { ...this.snapshot.visual, ...update },
+    });
+    this.renderer.requestRender();
   }
 
   private updateSnapshot(update: Partial<IfcViewerSnapshot>) {
