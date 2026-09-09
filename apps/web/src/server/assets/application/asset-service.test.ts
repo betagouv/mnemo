@@ -40,6 +40,7 @@ class ProjectRepositoryStub implements ProjectRepository {
 
 class AssetRepositoryStub implements AssetRepository {
   private asset: AssetForActor | undefined;
+  enqueuedAssetIds: string[] = [];
 
   async listForActor() {
     return this.asset ? [this.asset] : [];
@@ -63,11 +64,12 @@ class AssetRepositoryStub implements AssetRepository {
     return this.asset;
   }
 
-  async markUploaded(_assetId: string, uploadedAt: Date) {
+  async markUploadedAndEnqueue(assetId: string, uploadedAt: Date) {
     if (!this.asset) {
       throw new Error("Missing test asset");
     }
 
+    this.enqueuedAssetIds.push(assetId);
     this.asset = {
       ...this.asset,
       status: "uploaded",
@@ -97,8 +99,9 @@ class ObjectStorageStub implements ObjectStorage {
 }
 
 function createService() {
-  return new AssetService(
-    new AssetRepositoryStub(),
+  const assets = new AssetRepositoryStub();
+  const service = new AssetService(
+    assets,
     new ProjectRepositoryStub(),
     new ObjectStorageStub(),
     {
@@ -106,12 +109,14 @@ function createService() {
       now: () => now,
     },
   );
+
+  return { assets, service };
 }
 
 describe("AssetService", () => {
   it("creates a short-lived server-owned upload target", async () => {
     await expect(
-      createService().beginUpload("actor-id", {
+      createService().service.beginUpload("actor-id", {
         projectId: project.id,
         kind: "point_cloud",
         fileName: "releve.laz",
@@ -130,7 +135,7 @@ describe("AssetService", () => {
 
   it("rejects a file whose extension does not match its kind", async () => {
     await expect(
-      createService().beginUpload("actor-id", {
+      createService().service.beginUpload("actor-id", {
         projectId: project.id,
         kind: "ifc",
         fileName: "releve.laz",
@@ -141,7 +146,7 @@ describe("AssetService", () => {
   });
 
   it("marks the upload received only after checking the stored size", async () => {
-    const service = createService();
+    const { assets, service } = createService();
     const started = await service.beginUpload("actor-id", {
       projectId: project.id,
       kind: "ifc",
@@ -156,5 +161,6 @@ describe("AssetService", () => {
         assetId: started.asset.id,
       }),
     ).resolves.toMatchObject({ status: "uploaded" });
+    expect(assets.enqueuedAssetIds).toEqual([started.asset.id]);
   });
 });

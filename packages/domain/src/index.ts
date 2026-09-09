@@ -14,3 +14,10 @@ export {
   type ProjectPermission,
   type ProjectRole,
 } from "./project";
+export {
+  processingJobStatuses,
+  processingJobTypeForAsset,
+  processingJobTypes,
+  type ProcessingJobStatus,
+  type ProcessingJobType,
+} from "./processing-job";
