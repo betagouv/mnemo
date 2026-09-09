@@ -10,6 +10,10 @@ class InMemoryProjectRepository implements ProjectRepository {
     return this.projects;
   }
 
+  async findForActor(_actorId: string, projectId: string) {
+    return this.projects.find((project) => project.id === projectId);
+  }
+
   async createForActor(
     _actorId: string,
     input: { name: string; description?: string },
@@ -51,5 +55,13 @@ describe("ProjectService", () => {
     await service.create("actor-id", { name: "Projet partagé" });
 
     await expect(service.list("actor-id")).resolves.toHaveLength(1);
+  });
+
+  it("does not expose a project missing from the actor repository view", async () => {
+    const service = new ProjectService(new InMemoryProjectRepository());
+
+    await expect(
+      service.find("actor-id", "e4891586-f3d9-4d60-9f22-e16be897cb6b"),
+    ).resolves.toBeNull();
   });
 });

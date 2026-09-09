@@ -1,3 +1,13 @@
+.link {
+  display: block;
+  color: inherit;
+  background-image: none;
+}
+
+.link:hover {
+  background: transparent;
+}
+
 .card {
   display: grid;
   grid-template-columns: 8rem minmax(0, 1fr);

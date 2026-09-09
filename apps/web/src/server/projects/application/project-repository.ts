@@ -12,6 +12,10 @@ export type ProjectForActor = {
 
 export interface ProjectRepository {
   listForActor(actorId: string): Promise<ProjectForActor[]>;
+  findForActor(
+    actorId: string,
+    projectId: string,
+  ): Promise<ProjectForActor | undefined>;
   createForActor(
     actorId: string,
     input: CreateProjectInput,

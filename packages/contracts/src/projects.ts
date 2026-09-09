@@ -3,6 +3,12 @@ import { z } from "zod";
 export const projectIdSchema = z.uuid();
 export type ProjectId = z.infer<typeof projectIdSchema>;
 
+export const getProjectInputSchema = z.object({
+  projectId: projectIdSchema,
+});
+
+export type GetProjectInput = z.infer<typeof getProjectInputSchema>;
+
 export const projectRoleSchema = z.enum(["owner", "editor", "viewer"]);
 
 export const createProjectInputSchema = z.object({

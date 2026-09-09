@@ -17,19 +17,28 @@ const database = createDatabase({
   maxConnections: 1,
 });
 const actorId = randomUUID();
+const otherActorId = randomUUID();
 
 describe("DrizzleProjectRepository", () => {
   beforeAll(async () => {
-    await database.db.insert(users).values({
-      id: actorId,
-      email: `${actorId}@test.mnemo.local`,
-      displayName: "Repository test actor",
-    });
+    await database.db.insert(users).values([
+      {
+        id: actorId,
+        email: `${actorId}@test.mnemo.local`,
+        displayName: "Repository test actor",
+      },
+      {
+        id: otherActorId,
+        email: `${otherActorId}@test.mnemo.local`,
+        displayName: "Unrelated actor",
+      },
+    ]);
   });
 
   afterAll(async () => {
     await database.db.delete(projects).where(eq(projects.createdBy, actorId));
     await database.db.delete(users).where(eq(users.id, actorId));
+    await database.db.delete(users).where(eq(users.id, otherActorId));
     await database.close();
   });
 
@@ -45,5 +54,11 @@ describe("DrizzleProjectRepository", () => {
     await expect(repository.listForActor(actorId)).resolves.toContainEqual(
       created,
     );
+    await expect(repository.findForActor(actorId, created.id)).resolves.toEqual(
+      created,
+    );
+    await expect(
+      repository.findForActor(otherActorId, created.id),
+    ).resolves.toBeUndefined();
   });
 });

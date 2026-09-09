@@ -28,6 +28,33 @@ export class DrizzleProjectRepository implements ProjectRepository {
       .orderBy(desc(projects.updatedAt));
   }
 
+  async findForActor(
+    actorId: string,
+    projectId: string,
+  ): Promise<ProjectForActor | undefined> {
+    const [project] = await this.database
+      .select({
+        id: projects.id,
+        name: projects.name,
+        description: projects.description,
+        role: projectMembers.role,
+        createdAt: projects.createdAt,
+        updatedAt: projects.updatedAt,
+      })
+      .from(projectMembers)
+      .innerJoin(projects, eq(projects.id, projectMembers.projectId))
+      .where(
+        and(
+          eq(projectMembers.userId, actorId),
+          eq(projects.id, projectId),
+          isNull(projects.archivedAt),
+        ),
+      )
+      .limit(1);
+
+    return project;
+  }
+
   async createForActor(
     actorId: string,
     input: CreateProjectInput,
