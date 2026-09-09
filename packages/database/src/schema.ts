@@ -1,5 +1,7 @@
+import { assetKinds, assetStatuses } from "@mnemo/domain/asset";
 import { projectRoles } from "@mnemo/domain/project";
 import {
+  bigint,
   index,
   pgEnum,
   pgTable,
@@ -22,6 +24,8 @@ const timestamps = () => ({
 });
 
 export const projectRoleEnum = pgEnum("project_role", projectRoles);
+export const assetKindEnum = pgEnum("asset_kind", assetKinds);
+export const assetStatusEnum = pgEnum("asset_status", assetStatuses);
 
 export const users = pgTable(
   "users",
@@ -70,6 +74,39 @@ export const projectMembers = pgTable(
   ],
 );
 
+export const assets = pgTable(
+  "assets",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    kind: assetKindEnum("kind").notNull(),
+    originalFileName: varchar("original_file_name", { length: 512 }).notNull(),
+    mediaType: varchar("media_type", { length: 255 }).notNull(),
+    sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(),
+    originalObjectKey: text("original_object_key").notNull(),
+    status: assetStatusEnum("status").default("upload_pending").notNull(),
+    errorMessage: text("error_message"),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    uploadExpiresAt: timestamp("upload_expires_at", {
+      withTimezone: true,
+    }).notNull(),
+    uploadedAt: timestamp("uploaded_at", { withTimezone: true }),
+    ...timestamps(),
+  },
+  (table) => [
+    index("assets_project_id_idx").on(table.projectId),
+    index("assets_status_idx").on(table.status),
+    uniqueIndex("assets_original_object_key_unique").on(
+      table.originalObjectKey,
+    ),
+  ],
+);
+
 export type UserRecord = typeof users.$inferSelect;
 export type ProjectRecord = typeof projects.$inferSelect;
 export type ProjectMemberRecord = typeof projectMembers.$inferSelect;
+export type AssetRecord = typeof assets.$inferSelect;

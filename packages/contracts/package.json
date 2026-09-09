@@ -6,6 +6,7 @@
   "sideEffects": false,
   "exports": {
     ".": "./src/index.ts",
+    "./assets": "./src/assets.ts",
     "./projects": "./src/projects.ts",
     "./system": "./src/system.ts"
   },
