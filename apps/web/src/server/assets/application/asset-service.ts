@@ -6,6 +6,8 @@ import type {
   BeginAssetUploadInput,
   BeginAssetUploadResult,
   CompleteAssetUploadInput,
+  OpenAssetInput,
+  OpenAssetResult,
 } from "@mnemo/contracts/assets";
 import { canUploadAsset, supportsAssetFile } from "@mnemo/domain/asset";
 import { buildOriginalObjectKey, type ObjectStorage } from "@mnemo/storage";
@@ -20,6 +22,7 @@ import {
 import type { AssetForActor, AssetRepository } from "./asset-repository";
 
 const uploadTtlSeconds = 15 * 60;
+const downloadTtlSeconds = 5 * 60;
 
 function toAssetSummary(asset: AssetForActor): AssetSummary {
   return {
@@ -155,5 +158,32 @@ export class AssetService {
     return toAssetSummary(
       await this.assets.markUploadedAndEnqueue(match.asset.id, this.now()),
     );
+  }
+
+  async open(actorId: string, input: OpenAssetInput): Promise<OpenAssetResult> {
+    const match = await this.assets.findForActor(
+      actorId,
+      input.projectId,
+      input.assetId,
+    );
+
+    if (!match || match.asset.status === "upload_pending") {
+      throw new AssetAccessDeniedError(
+        "The asset is not available to this actor",
+      );
+    }
+
+    const now = this.now();
+    const expiresAt = new Date(now.getTime() + downloadTtlSeconds * 1_000);
+    const downloadUrl = await this.storage.createDownloadUrl({
+      objectKey: match.asset.originalObjectKey,
+      expiresInSeconds: downloadTtlSeconds,
+    });
+
+    return {
+      asset: toAssetSummary(match.asset),
+      downloadUrl,
+      expiresAt: expiresAt.toISOString(),
+    };
   }
 }

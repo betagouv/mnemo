@@ -8,6 +8,8 @@ export {
   beginAssetUploadResultSchema,
   completeAssetUploadInputSchema,
   listAssetsInputSchema,
+  openAssetInputSchema,
+  openAssetResultSchema,
   type AssetId,
   type AssetKind,
   type AssetList,
@@ -17,6 +19,8 @@ export {
   type BeginAssetUploadResult,
   type CompleteAssetUploadInput,
   type ListAssetsInput,
+  type OpenAssetInput,
+  type OpenAssetResult,
 } from "./assets";
 export {
   createProjectInputSchema,

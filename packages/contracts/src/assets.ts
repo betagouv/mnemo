@@ -36,6 +36,11 @@ export const completeAssetUploadInputSchema = z.object({
   assetId: assetIdSchema,
 });
 
+export const openAssetInputSchema = z.object({
+  projectId: projectIdSchema,
+  assetId: assetIdSchema,
+});
+
 export const assetSummarySchema = z.object({
   id: assetIdSchema,
   projectId: projectIdSchema,
@@ -58,6 +63,12 @@ export const beginAssetUploadResultSchema = z.object({
   expiresAt: z.iso.datetime(),
 });
 
+export const openAssetResultSchema = z.object({
+  asset: assetSummarySchema,
+  downloadUrl: z.url(),
+  expiresAt: z.iso.datetime(),
+});
+
 export type AssetSummary = z.infer<typeof assetSummarySchema>;
 export type AssetList = z.infer<typeof assetListSchema>;
 export type ListAssetsInput = z.infer<typeof listAssetsInputSchema>;
@@ -68,3 +79,5 @@ export type BeginAssetUploadResult = z.infer<
 export type CompleteAssetUploadInput = z.infer<
   typeof completeAssetUploadInputSchema
 >;
+export type OpenAssetInput = z.infer<typeof openAssetInputSchema>;
+export type OpenAssetResult = z.infer<typeof openAssetResultSchema>;

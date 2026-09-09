@@ -3,6 +3,7 @@ export {
   type OriginalObjectKeyInput,
 } from "./object-key";
 export {
+  type CreateDownloadUrlInput,
   type CreateUploadUrlInput,
   type ObjectStorage,
   type StoredObject,

@@ -5,6 +5,8 @@ import {
   beginAssetUploadResultSchema,
   completeAssetUploadInputSchema,
   listAssetsInputSchema,
+  openAssetInputSchema,
+  openAssetResultSchema,
 } from "@mnemo/contracts/assets";
 import { TRPCError } from "@trpc/server";
 
@@ -62,5 +64,11 @@ export const assetRouter = createTrpcRouter({
       mapAssetError(() =>
         getAssetService().completeUpload(ctx.actor.id, input),
       ),
+    ),
+  open: publicProcedure
+    .input(openAssetInputSchema)
+    .output(openAssetResultSchema)
+    .query(({ ctx, input }) =>
+      mapAssetError(() => getAssetService().open(ctx.actor.id, input)),
     ),
 });

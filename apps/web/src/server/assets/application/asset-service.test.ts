@@ -81,6 +81,7 @@ class AssetRepositoryStub implements AssetRepository {
 }
 
 class ObjectStorageStub implements ObjectStorage {
+  downloadRequests: Array<{ objectKey: string; expiresInSeconds: number }> = [];
   storedObject: StoredObject | null = {
     contentLength: 42,
     contentType: "application/octet-stream",
@@ -89,6 +90,14 @@ class ObjectStorageStub implements ObjectStorage {
 
   async createUploadUrl() {
     return "http://storage.local/upload";
+  }
+
+  async createDownloadUrl(input: {
+    objectKey: string;
+    expiresInSeconds: number;
+  }) {
+    this.downloadRequests.push(input);
+    return "http://storage.local/download";
   }
 
   async statObject() {
@@ -100,17 +109,18 @@ class ObjectStorageStub implements ObjectStorage {
 
 function createService() {
   const assets = new AssetRepositoryStub();
+  const storage = new ObjectStorageStub();
   const service = new AssetService(
     assets,
     new ProjectRepositoryStub(),
-    new ObjectStorageStub(),
+    storage,
     {
       createId: () => "2dc84044-62d6-4e2d-99ae-a8db4446b271",
       now: () => now,
     },
   );
 
-  return { assets, service };
+  return { assets, service, storage };
 }
 
 describe("AssetService", () => {
@@ -162,5 +172,39 @@ describe("AssetService", () => {
       }),
     ).resolves.toMatchObject({ status: "uploaded" });
     expect(assets.enqueuedAssetIds).toEqual([started.asset.id]);
+  });
+
+  it("opens an uploaded original through a short-lived authorized URL", async () => {
+    const { service, storage } = createService();
+    const started = await service.beginUpload("actor-id", {
+      projectId: project.id,
+      kind: "ifc",
+      fileName: "model.ifc",
+      mediaType: "application/x-step",
+      sizeBytes: 42,
+    });
+    await service.completeUpload("actor-id", {
+      projectId: project.id,
+      assetId: started.asset.id,
+    });
+
+    await expect(
+      service.open("actor-id", {
+        projectId: project.id,
+        assetId: started.asset.id,
+      }),
+    ).resolves.toMatchObject({
+      asset: { id: started.asset.id, status: "uploaded" },
+      downloadUrl: "http://storage.local/download",
+      expiresAt: "2026-09-09T10:05:00.000Z",
+    });
+    expect(storage.downloadRequests).toEqual([
+      {
+        objectKey: expect.stringContaining(
+          `/assets/${started.asset.id}/original.ifc`,
+        ),
+        expiresInSeconds: 300,
+      },
+    ]);
   });
 });
