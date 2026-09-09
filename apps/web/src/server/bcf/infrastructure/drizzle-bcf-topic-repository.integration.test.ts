@@ -26,6 +26,7 @@ const projectId = randomUUID();
 const assetId = randomUUID();
 const topicId = randomUUID();
 const commentId = randomUUID();
+const viewpointId = randomUUID();
 const createdAt = new Date("2026-09-09T19:30:00.000Z");
 
 describe("DrizzleBcfTopicRepository", () => {
@@ -122,6 +123,57 @@ describe("DrizzleBcfTopicRepository", () => {
         updatedAt: new Date("2026-09-09T19:32:00.000Z"),
       }),
     ).resolves.toMatchObject({ status: "resolved" });
+
+    await expect(
+      repository.createViewpoint({
+        id: viewpointId,
+        projectId,
+        topicId,
+        data: {
+          guid: viewpointId,
+          perspectiveCamera: {
+            cameraViewPoint: { x: 1, y: 2, z: 3 },
+            cameraDirection: { x: 0, y: 0, z: -1 },
+            cameraUpVector: { x: 0, y: 1, z: 0 },
+            fieldOfView: 50,
+            aspectRatio: 16 / 9,
+          },
+          components: {
+            selection: [{ ifcGuid: "0YvctA6Hn0pgmBdv0cPwH6" }],
+          },
+        },
+        targetDistance: 12,
+        snapshotObjectKey: `projects/${projectId}/bcf/${topicId}/viewpoints/${viewpointId}/snapshot.png`,
+        snapshotMediaType: "image/png",
+        snapshotExpectedSize: 42,
+        createdBy: actorId,
+        createdAt: new Date("2026-09-09T19:33:00.000Z"),
+      }),
+    ).resolves.toMatchObject({
+      viewpoints: [
+        {
+          id: viewpointId,
+          snapshotUploadedAt: null,
+          targetDistance: 12,
+        },
+      ],
+    });
+
+    await expect(
+      repository.markViewpointSnapshotUploaded({
+        projectId,
+        topicId,
+        viewpointId,
+        uploadedAt: new Date("2026-09-09T19:34:00.000Z"),
+      }),
+    ).resolves.toMatchObject({
+      viewpoints: [
+        {
+          id: viewpointId,
+          snapshotUploadedAt: "2026-09-09T19:34:00.000Z",
+        },
+      ],
+    });
 
     await database.db.delete(assets).where(eq(assets.id, assetId));
     await expect(repository.list(projectId)).resolves.toMatchObject([

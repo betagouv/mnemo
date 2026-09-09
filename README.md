@@ -50,8 +50,10 @@ LAS, LAZ, PLY, and E57 point clouds can be attached to a project and overlaid in
 BCF topics are persisted per project in PostgreSQL. A topic can carry a status,
 priority, description, comments, and a durable IFC component reference by
 `GlobalId`; when created from the viewer it also keeps the asset and Express ID
-needed to focus the element immediately. Viewpoints, screenshots, and BCF ZIP
-import/export are intentionally kept for the next collaboration slice.
+needed to focus the element immediately. Viewpoints capture and restore the
+IFC-Lite camera, selection, visibility, and coloring; screenshots are uploaded
+directly to S3/MinIO and cleaned with their project. BCF ZIP import/export is the
+next interoperability slice.
 
 ## Repository
 

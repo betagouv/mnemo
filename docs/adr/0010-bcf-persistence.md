@@ -2,8 +2,8 @@
 
 ## Status
 
-Accepted for the topic and comment foundation. Viewpoints and BCF ZIP exchange
-are a separate feature.
+Accepted for persistent topics, comments, and viewpoints. BCF ZIP exchange is a
+separate feature.
 
 ## Context
 
@@ -25,9 +25,14 @@ snapshots, and archive import/export.
   key but preserves the BCF component and its `GlobalId`.
 - Topic writes pass through application services and project permissions, not
   directly from tRPC procedures or React components.
-- Viewpoint metadata will be stored in PostgreSQL and snapshot binaries in
-  S3/MinIO. Project and topic deletion must clean those objects through an
-  idempotent background job.
+- Viewpoint camera, selection, visibility, and coloring are normalized through
+  `@ifc-lite/bcf` and stored in PostgreSQL. Snapshot binaries are uploaded
+  directly to S3/MinIO through short-lived signed URLs.
+- Renderer-specific target distance is retained beside the standard BCF camera
+  so restored orbit controls feel identical. It remains an application hint and
+  is not written as a non-standard BCF field.
+- Project deletion snapshots all viewpoint object keys and cleans them through
+  the existing idempotent background job.
 - `@ifc-lite/bcf` will be used at the interoperability boundary to create and
   parse standard BCF archives and to map viewer camera/visibility state. It does
   not own Mnemo's database schema or UI.
@@ -36,6 +41,6 @@ snapshots, and archive import/export.
 
 Topics and comments are queryable and immediately collaborative while remaining
 exportable to BCF. A component link remains meaningful after source-file
-cleanup. The first slice does not yet claim viewpoint, screenshot, or `.bcfzip`
-support; those require object-storage lifecycle handling and viewer-state
-capture before they can be added safely.
+cleanup. Captured viewpoints restore camera, selection, visibility, and colors
+without recreating the WebGPU renderer or reframing the model. `.bcfzip`
+import/export remains explicit future work.

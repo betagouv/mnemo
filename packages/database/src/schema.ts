@@ -15,6 +15,7 @@ import {
   doublePrecision,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   primaryKey,
@@ -247,6 +248,36 @@ export const bcfComments = pgTable(
   (table) => [index("bcf_comments_topic_id_idx").on(table.topicId)],
 );
 
+export const bcfViewpoints = pgTable(
+  "bcf_viewpoints",
+  {
+    id: uuid("id").primaryKey(),
+    topicId: uuid("topic_id")
+      .notNull()
+      .references(() => bcfTopics.id, { onDelete: "cascade" }),
+    data: jsonb("data").notNull(),
+    targetDistance: doublePrecision("target_distance").notNull(),
+    snapshotObjectKey: text("snapshot_object_key"),
+    snapshotMediaType: varchar("snapshot_media_type", { length: 64 }),
+    snapshotExpectedSize: bigint("snapshot_expected_size", {
+      mode: "number",
+    }),
+    snapshotUploadedAt: timestamp("snapshot_uploaded_at", {
+      withTimezone: true,
+    }),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("bcf_viewpoints_topic_id_idx").on(table.topicId),
+    index("bcf_viewpoints_created_by_idx").on(table.createdBy),
+  ],
+);
+
 export const assetProcessingResults = pgTable("asset_processing_results", {
   assetId: uuid("asset_id")
     .primaryKey()
@@ -301,6 +332,7 @@ export type PointCloudSettingsRecord = typeof pointCloudSettings.$inferSelect;
 export type BcfTopicRecord = typeof bcfTopics.$inferSelect;
 export type BcfTopicComponentRecord = typeof bcfTopicComponents.$inferSelect;
 export type BcfCommentRecord = typeof bcfComments.$inferSelect;
+export type BcfViewpointRecord = typeof bcfViewpoints.$inferSelect;
 export type AssetProcessingResultRecord =
   typeof assetProcessingResults.$inferSelect;
 export type DeletionJobRecord = typeof deletionJobs.$inferSelect;

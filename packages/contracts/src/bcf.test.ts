@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  bcfViewpointPayloadSchema,
   createBcfTopicInputSchema,
   updateBcfTopicStatusInputSchema,
 } from "./bcf";
@@ -27,5 +28,27 @@ describe("BCF contracts", () => {
         status: "done",
       }),
     ).toThrow();
+  });
+
+  it("requires exactly one finite camera in a BCF viewpoint", () => {
+    const perspective = {
+      cameraViewPoint: { x: 1, y: 2, z: 3 },
+      cameraDirection: { x: 0, y: 0, z: -1 },
+      cameraUpVector: { x: 0, y: 1, z: 0 },
+      fieldOfView: 50,
+      aspectRatio: 16 / 9,
+    };
+
+    expect(
+      bcfViewpointPayloadSchema.parse({
+        guid: "02609803-f2a6-4a1a-971c-bc579e28ea98",
+        perspectiveCamera: perspective,
+      }),
+    ).toMatchObject({ perspectiveCamera: perspective });
+    expect(() =>
+      bcfViewpointPayloadSchema.parse({
+        guid: "02609803-f2a6-4a1a-971c-bc579e28ea98",
+      }),
+    ).toThrow("exactly one camera");
   });
 });

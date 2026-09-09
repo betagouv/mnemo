@@ -83,12 +83,8 @@
           "name": "asset_processing_results_asset_id_assets_id_fk",
           "tableFrom": "asset_processing_results",
           "tableTo": "assets",
-          "columnsFrom": [
-            "asset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["asset_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -246,12 +242,8 @@
           "name": "assets_project_id_projects_id_fk",
           "tableFrom": "assets",
           "tableTo": "projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -259,12 +251,8 @@
           "name": "assets_created_by_users_id_fk",
           "tableFrom": "assets",
           "tableTo": "users",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -334,12 +322,8 @@
           "name": "bcf_comments_topic_id_bcf_topics_id_fk",
           "tableFrom": "bcf_comments",
           "tableTo": "bcf_topics",
-          "columnsFrom": [
-            "topic_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["topic_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -347,12 +331,8 @@
           "name": "bcf_comments_author_id_users_id_fk",
           "tableFrom": "bcf_comments",
           "tableTo": "users",
-          "columnsFrom": [
-            "author_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["author_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -458,12 +438,8 @@
           "name": "bcf_topic_components_topic_id_bcf_topics_id_fk",
           "tableFrom": "bcf_topic_components",
           "tableTo": "bcf_topics",
-          "columnsFrom": [
-            "topic_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["topic_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -471,12 +447,8 @@
           "name": "bcf_topic_components_asset_id_assets_id_fk",
           "tableFrom": "bcf_topic_components",
           "tableTo": "assets",
-          "columnsFrom": [
-            "asset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["asset_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -598,12 +570,8 @@
           "name": "bcf_topics_project_id_projects_id_fk",
           "tableFrom": "bcf_topics",
           "tableTo": "projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -611,12 +579,8 @@
           "name": "bcf_topics_created_by_users_id_fk",
           "tableFrom": "bcf_topics",
           "tableTo": "users",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -888,12 +852,8 @@
           "name": "point_cloud_settings_asset_id_assets_id_fk",
           "tableFrom": "point_cloud_settings",
           "tableTo": "assets",
-          "columnsFrom": [
-            "asset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["asset_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -901,12 +861,8 @@
           "name": "point_cloud_settings_updated_by_users_id_fk",
           "tableFrom": "point_cloud_settings",
           "tableTo": "users",
-          "columnsFrom": [
-            "updated_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["updated_by"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -1058,12 +1014,8 @@
           "name": "processing_jobs_asset_id_assets_id_fk",
           "tableFrom": "processing_jobs",
           "tableTo": "assets",
-          "columnsFrom": [
-            "asset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["asset_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1143,12 +1095,8 @@
           "name": "project_members_project_id_projects_id_fk",
           "tableFrom": "project_members",
           "tableTo": "projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1156,12 +1104,8 @@
           "name": "project_members_user_id_users_id_fk",
           "tableFrom": "project_members",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1169,10 +1113,7 @@
       "compositePrimaryKeys": {
         "project_members_project_id_user_id_pk": {
           "name": "project_members_project_id_user_id_pk",
-          "columns": [
-            "project_id",
-            "user_id"
-          ]
+          "columns": ["project_id", "user_id"]
         }
       },
       "uniqueConstraints": {},
@@ -1252,12 +1193,8 @@
           "name": "projects_created_by_users_id_fk",
           "tableFrom": "projects",
           "tableTo": "users",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -1335,10 +1272,7 @@
     "public.asset_kind": {
       "name": "asset_kind",
       "schema": "public",
-      "values": [
-        "ifc",
-        "point_cloud"
-      ]
+      "values": ["ifc", "point_cloud"]
     },
     "public.asset_status": {
       "name": "asset_status",
@@ -1355,66 +1289,37 @@
     "public.bcf_priority": {
       "name": "bcf_priority",
       "schema": "public",
-      "values": [
-        "low",
-        "normal",
-        "high",
-        "critical"
-      ]
+      "values": ["low", "normal", "high", "critical"]
     },
     "public.bcf_topic_status": {
       "name": "bcf_topic_status",
       "schema": "public",
-      "values": [
-        "open",
-        "in_progress",
-        "resolved",
-        "closed"
-      ]
+      "values": ["open", "in_progress", "resolved", "closed"]
     },
     "public.bcf_topic_type": {
       "name": "bcf_topic_type",
       "schema": "public",
-      "values": [
-        "issue",
-        "request",
-        "comment"
-      ]
+      "values": ["issue", "request", "comment"]
     },
     "public.deletion_job_type": {
       "name": "deletion_job_type",
       "schema": "public",
-      "values": [
-        "delete_asset",
-        "delete_project"
-      ]
+      "values": ["delete_asset", "delete_project"]
     },
     "public.processing_job_status": {
       "name": "processing_job_status",
       "schema": "public",
-      "values": [
-        "queued",
-        "running",
-        "succeeded",
-        "failed"
-      ]
+      "values": ["queued", "running", "succeeded", "failed"]
     },
     "public.processing_job_type": {
       "name": "processing_job_type",
       "schema": "public",
-      "values": [
-        "process_ifc",
-        "process_point_cloud"
-      ]
+      "values": ["process_ifc", "process_point_cloud"]
     },
     "public.project_role": {
       "name": "project_role",
       "schema": "public",
-      "values": [
-        "owner",
-        "editor",
-        "viewer"
-      ]
+      "values": ["owner", "editor", "viewer"]
     }
   },
   "schemas": {},

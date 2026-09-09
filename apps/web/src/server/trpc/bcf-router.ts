@@ -1,7 +1,10 @@
 import {
   addBcfCommentInputSchema,
+  beginBcfViewpointCaptureInputSchema,
+  beginBcfViewpointCaptureResultSchema,
   bcfTopicListSchema,
   bcfTopicSchema,
+  completeBcfViewpointCaptureInputSchema,
   createBcfTopicInputSchema,
   listBcfTopicsInputSchema,
   updateBcfTopicStatusInputSchema,
@@ -10,6 +13,7 @@ import { TRPCError } from "@trpc/server";
 
 import {
   BcfComponentNotFoundError,
+  BcfSnapshotVerificationError,
   BcfTopicAccessDeniedError,
   BcfTopicNotFoundError,
 } from "@/server/bcf/application/bcf-topic-errors";
@@ -27,7 +31,10 @@ async function mapBcfError<T>(operation: () => Promise<T>) {
     ) {
       throw new TRPCError({ code: "NOT_FOUND", cause: error });
     }
-    if (error instanceof BcfComponentNotFoundError) {
+    if (
+      error instanceof BcfComponentNotFoundError ||
+      error instanceof BcfSnapshotVerificationError
+    ) {
       throw new TRPCError({
         code: "BAD_REQUEST",
         message: error.message,
@@ -64,5 +71,21 @@ export const bcfRouter = createTrpcRouter({
     .output(bcfTopicSchema)
     .mutation(({ ctx, input }) =>
       mapBcfError(() => getBcfTopicService().updateStatus(ctx.actor.id, input)),
+    ),
+  beginViewpointCapture: publicProcedure
+    .input(beginBcfViewpointCaptureInputSchema)
+    .output(beginBcfViewpointCaptureResultSchema)
+    .mutation(({ ctx, input }) =>
+      mapBcfError(() =>
+        getBcfTopicService().beginViewpointCapture(ctx.actor.id, input),
+      ),
+    ),
+  completeViewpointCapture: publicProcedure
+    .input(completeBcfViewpointCaptureInputSchema)
+    .output(bcfTopicSchema)
+    .mutation(({ ctx, input }) =>
+      mapBcfError(() =>
+        getBcfTopicService().completeViewpointCapture(ctx.actor.id, input),
+      ),
     ),
 });

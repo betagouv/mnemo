@@ -1,5 +1,6 @@
 export {
   IfcViewerController,
+  type CapturedBcfViewpoint,
   type IfcElementDetails,
   type IfcPropertyValue,
   type IfcValueItem,

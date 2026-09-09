@@ -6,6 +6,7 @@
   "sideEffects": false,
   "exports": {
     ".": "./src/index.ts",
+    "./bcf-object-key": "./src/bcf-object-key.ts",
     "./object-key": "./src/object-key.ts"
   },
   "scripts": {

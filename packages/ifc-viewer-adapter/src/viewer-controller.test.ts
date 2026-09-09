@@ -39,8 +39,13 @@ function createHarness() {
     pointCloudTransforms: 0,
     pointCloudOptions: 0,
     pointCloudsRemoved: 0,
+    cameraPosesApplied: 0,
   };
   let renderRequested = false;
+  let cameraPosition = { x: 12, y: 8, z: 20 };
+  let cameraTarget = { x: 2, y: 3, z: 4 };
+  let cameraUp = { x: 0, y: 1, z: 0 };
+  let projection: "perspective" | "orthographic" = "perspective";
   const camera = {
     update: () => false,
     orbit: () => {
@@ -54,6 +59,37 @@ function createHarness() {
     },
     setOrbitCenter: (center: { x: number; y: number; z: number } | null) => {
       calls.orbitCenter = center;
+    },
+    getPosition: () => cameraPosition,
+    getTarget: () => cameraTarget,
+    getUp: () => cameraUp,
+    getFOV: () => Math.PI / 3,
+    getAspect: () => 16 / 9,
+    getDistance: () => 20,
+    getProjectionMode: () => projection,
+    getOrthoSize: () => 10,
+    stopInertia: () => undefined,
+    setProjectionMode: (value: "perspective" | "orthographic") => {
+      projection = value;
+      calls.cameraPosesApplied += 1;
+    },
+    setPosition: (x: number, y: number, z: number) => {
+      cameraPosition = { x, y, z };
+      calls.cameraPosesApplied += 1;
+    },
+    setTarget: (x: number, y: number, z: number) => {
+      cameraTarget = { x, y, z };
+      calls.cameraPosesApplied += 1;
+    },
+    setUp: (x: number, y: number, z: number) => {
+      cameraUp = { x, y, z };
+      calls.cameraPosesApplied += 1;
+    },
+    setFOV: () => {
+      calls.cameraPosesApplied += 1;
+    },
+    setOrthoSize: () => {
+      calls.cameraPosesApplied += 1;
     },
   };
   const scene = {
@@ -124,6 +160,7 @@ function createHarness() {
     setPointCloudOptions: () => {
       calls.pointCloudOptions += 1;
     },
+    captureScreenshot: async () => "data:image/png;base64,iVBORw0KGgo=",
     destroy: () => {
       calls.rendererDestroyed += 1;
     },
@@ -233,7 +270,22 @@ function createHarness() {
           : query.ifcClass === "IfcWall"
             ? [42]
             : [42, 84],
-      query: () => [],
+      query: () => [
+        {
+          expressId: 42,
+          globalId: "3vB1mExampleGlobalId",
+          ifcClass: "IfcWall",
+          name: "Mur test",
+          storeyId: 10,
+        },
+        {
+          expressId: 84,
+          globalId: "0YvctA6Hn0pgmBdv0cPwH6",
+          ifcClass: "IfcDoor",
+          name: "Porte test",
+          storeyId: 10,
+        },
+      ],
     }),
     createPointCloudStream: (options) => {
       options.onOpen?.({
@@ -502,6 +554,45 @@ describe("IfcViewerController", () => {
 
     expect(calls.pointCloudOptions).toBe(1);
     expect(calls.pointCloudTransforms).toBe(2);
+    expect(calls.fitToView).toBe(1);
+    controller.dispose();
+  });
+
+  it("round-trips a BCF viewpoint without recreating or reframing the renderer", async () => {
+    const { calls, controller } = createHarness();
+    await controller.loadIfc({ downloadUrl: "http://storage.local/model.ifc" });
+    controller.selectEntity(42);
+    controller.applyVisualPlan({
+      focusIds: [42],
+      colors: [{ ids: [84], color: [0.5, 0.1, 0.8, 1] }],
+      label: "Capture BCF",
+    });
+
+    const capture = await controller.captureBcfViewpoint();
+
+    expect(capture.targetDistance).toBe(20);
+    expect(capture.snapshot).toMatchObject({ type: "image/png" });
+    expect(capture.data).toMatchObject({
+      perspectiveCamera: { aspectRatio: 16 / 9 },
+      components: {
+        selection: [{ ifcGuid: "3vB1mExampleGlobalId" }],
+        visibility: {
+          defaultVisibility: false,
+          exceptions: [{ ifcGuid: "3vB1mExampleGlobalId" }],
+        },
+      },
+    });
+
+    controller.resetVisuals();
+    controller.selectEntity(null);
+    controller.applyBcfViewpoint(capture.data, capture.targetDistance);
+
+    expect(controller.getSnapshot()).toMatchObject({
+      selection: { expressId: 42 },
+      visual: { mode: "isolate", label: "Viewpoint BCF" },
+    });
+    expect(calls.cameraPosesApplied).toBeGreaterThanOrEqual(5);
+    expect(calls.rendererCreated).toBe(1);
     expect(calls.fitToView).toBe(1);
     controller.dispose();
   });

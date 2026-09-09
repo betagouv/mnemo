@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 
 import {
   assets,
+  bcfTopics,
+  bcfViewpoints,
   createDatabase,
   deletionJobs,
   projects,
@@ -82,6 +84,9 @@ describe("DrizzleProjectRepository", () => {
     deletionResourceIds.push(created.id);
     const assetId = randomUUID();
     const objectKey = `projects/${created.id}/assets/${assetId}/original.ifc`;
+    const topicId = randomUUID();
+    const viewpointId = randomUUID();
+    const snapshotObjectKey = `projects/${created.id}/bcf/${topicId}/viewpoints/${viewpointId}/snapshot.png`;
     await database.db.insert(assets).values({
       id: assetId,
       projectId: created.id,
@@ -94,6 +99,30 @@ describe("DrizzleProjectRepository", () => {
       createdBy: actorId,
       uploadExpiresAt: new Date("2030-01-01T00:00:00.000Z"),
     });
+    await database.db.insert(bcfTopics).values({
+      id: topicId,
+      projectId: created.id,
+      title: "Vue à nettoyer",
+      createdBy: actorId,
+    });
+    await database.db.insert(bcfViewpoints).values({
+      id: viewpointId,
+      topicId,
+      data: {
+        guid: viewpointId,
+        perspectiveCamera: {
+          cameraViewPoint: { x: 1, y: 2, z: 3 },
+          cameraDirection: { x: 0, y: 0, z: -1 },
+          cameraUpVector: { x: 0, y: 1, z: 0 },
+          fieldOfView: 50,
+        },
+      },
+      targetDistance: 10,
+      snapshotObjectKey,
+      snapshotMediaType: "image/png",
+      snapshotExpectedSize: 42,
+      createdBy: actorId,
+    });
 
     await repository.requestDeletion(created.id, new Date());
 
@@ -105,6 +134,6 @@ describe("DrizzleProjectRepository", () => {
         .select({ objectKeys: deletionJobs.objectKeys })
         .from(deletionJobs)
         .where(eq(deletionJobs.resourceId, created.id)),
-    ).resolves.toEqual([{ objectKeys: [objectKey] }]);
+    ).resolves.toEqual([{ objectKeys: [objectKey, snapshotObjectKey] }]);
   });
 });
