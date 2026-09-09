@@ -38,6 +38,7 @@ The default local endpoints are:
 - health check: <http://localhost:3200/api/health>
 - MinIO API: <http://localhost:9200>
 - MinIO console: <http://localhost:9201>
+- IFC-Lite Rust server: <http://localhost:3301>
 - PostgreSQL: `localhost:5436`
 
 Ports can be changed through the variables documented in [`.env.example`](./.env.example).
