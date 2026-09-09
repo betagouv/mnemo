@@ -1,0 +1,145 @@
+.page {
+  padding-top: clamp(2.5rem, 6vw, 5rem);
+  padding-bottom: 5rem;
+}
+
+.heading {
+  display: flex;
+  gap: 3rem;
+  align-items: end;
+  justify-content: space-between;
+  margin-bottom: 3rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--border-default-grey);
+}
+
+.heading > div:first-child {
+  max-width: 46rem;
+}
+
+.eyebrow {
+  margin: 0 0 0.75rem;
+  color: var(--mnemo-blue);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.heading h1 {
+  margin: 0 0 0.75rem;
+  font-size: clamp(2.4rem, 5vw, 4rem);
+  line-height: 1;
+  letter-spacing: -0.035em;
+}
+
+.heading p:last-child {
+  margin: 0;
+  color: var(--text-mention-grey);
+  font-size: 1.05rem;
+  line-height: 1.55;
+}
+
+.count {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  min-width: 7rem;
+  padding-left: 1.25rem;
+  border-left: 0.3rem solid var(--mnemo-blue);
+}
+
+.count strong {
+  color: var(--mnemo-blue);
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.count span {
+  color: var(--text-mention-grey);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(18rem, 23rem);
+  gap: clamp(2rem, 5vw, 5rem);
+  align-items: start;
+}
+
+.listHeading {
+  display: flex;
+  gap: 1rem;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+
+.listHeading h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.listHeading span {
+  color: var(--text-mention-grey);
+  font-size: 0.78rem;
+}
+
+.list {
+  display: grid;
+  gap: 1rem;
+}
+
+.empty {
+  display: grid;
+  justify-items: center;
+  min-height: 20rem;
+  padding: 4rem 2rem;
+  border: 1px dashed var(--border-default-grey);
+  text-align: center;
+  background: #fff;
+}
+
+.empty > span {
+  margin-bottom: 1.25rem;
+  color: var(--mnemo-blue);
+}
+
+.empty > span::before {
+  --icon-size: 2.5rem;
+}
+
+.empty h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+}
+
+.empty p {
+  max-width: 28rem;
+  margin: 0;
+  color: var(--text-mention-grey);
+}
+
+@media (width <= 62rem) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .layout aside {
+    grid-row: 1;
+  }
+}
+
+@media (width <= 36rem) {
+  .heading {
+    align-items: start;
+  }
+
+  .count {
+    display: none;
+  }
+
+  .listHeading span {
+    display: none;
+  }
+}
