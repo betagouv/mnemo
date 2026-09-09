@@ -28,9 +28,9 @@ applied atomically. Isolation delegates context visibility and opacity to the
 current UI setting and exposes no opacity parameter to the model.
 
 The assistant is kept mounted when the inspector tab changes so local
-conversation state is not lost. Durable threads and messages will be added in a
-separate database slice. The IFC-Lite MCP runtime and adapter remain a separate
-runtime milestone rather than being embedded into this HTTP handler.
+conversation state is not lost. Durable threads and messages are specified by
+ADR 0013. The IFC-Lite MCP runtime and adapter remain a separate runtime
+milestone rather than being embedded into this HTTP handler.
 
 ## Consequences
 

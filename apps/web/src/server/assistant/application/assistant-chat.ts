@@ -38,6 +38,7 @@ export type StreamAssistantChatInput = {
   messages: UIMessage[];
   tools: FrontendTools;
   mcpTools?: ToolSet;
+  persistMessages?: (messages: UIMessage[]) => Promise<void> | void;
 };
 
 export async function streamAssistantChat({
@@ -45,6 +46,7 @@ export async function streamAssistantChat({
   messages,
   tools,
   mcpTools = {},
+  persistMessages,
 }: StreamAssistantChatInput) {
   const openrouter = createOpenRouter({
     apiKey: configuration.apiKey,
@@ -70,6 +72,10 @@ export async function streamAssistantChat({
     stream: toUIMessageStream({
       stream: result.stream,
       tools: registeredTools,
+      originalMessages: messages,
+      onEnd: async ({ messages: completedMessages }) => {
+        await persistMessages?.(completedMessages);
+      },
       onError: () =>
         "Le fournisseur IA n’a pas pu répondre. Vérifiez la clé OpenRouter et réessayez.",
       messageMetadata: ({ part }) =>

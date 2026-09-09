@@ -1,4 +1,8 @@
 import type { FrontendTools } from "@assistant-ui/ai-sdk";
+import {
+  assistantMessageSchema,
+  assistantThreadIdSchema,
+} from "@mnemo/contracts/assistant";
 import { assetIdSchema } from "@mnemo/contracts/assets";
 import type { AssetKind, AssetStatus } from "@mnemo/domain";
 import { projectIdSchema } from "@mnemo/contracts/projects";
@@ -10,6 +14,8 @@ import { AssetAccessDeniedError } from "@/server/assets/application/asset-errors
 import { resolveActor } from "@/server/auth/resolve-actor";
 import { getAssistantConfiguration } from "@/shared/config/assistant/server-only";
 import { getIfcMcpTools } from "@/server/assistant/infrastructure/ifc-mcp-runtime";
+import { AssistantThreadAccessDeniedError } from "@/server/assistant/application/assistant-thread-errors";
+import { getAssistantThreadService } from "@/server/assistant/assistant-thread-service-factory";
 
 import { streamAssistantChat } from "../application/assistant-chat";
 
@@ -19,6 +25,7 @@ const maxFrontendTools = 32;
 
 const requestEnvelopeSchema = z.looseObject({
   assetId: assetIdSchema,
+  threadId: assistantThreadIdSchema,
   messages: z.array(z.unknown()).max(maxMessages),
   tools: z.record(z.string().min(1).max(80), z.unknown()).optional(),
 });
@@ -38,11 +45,14 @@ export type AuthorizedAssistantAsset = {
 
 type ValidatedAssistantRequest = {
   assetId: string;
+  threadId: string;
   messages: UIMessage[];
   tools: FrontendTools;
 };
 
 type AuthorizedAssistantRequest = ValidatedAssistantRequest & {
+  actorId: string;
+  projectId: string;
   source: {
     assetId: string;
     objectKey: string;
@@ -56,6 +66,10 @@ export type AssistantHttpDependencies = {
     input: { projectId: string; assetId: string },
   ) => Promise<AuthorizedAssistantAsset>;
   resolveActorId: () => string;
+  requireThread: (
+    actorId: string,
+    input: { projectId: string; assetId: string; threadId: string },
+  ) => Promise<{ id: string }>;
   stream: (input: AuthorizedAssistantRequest) => Response | Promise<Response>;
 };
 
@@ -148,6 +162,7 @@ export async function parseAssistantRequest(
 
   return {
     assetId: envelope.data.assetId,
+    threadId: envelope.data.threadId,
     messages: validatedMessages.data,
     tools: validateFrontendTools(envelope.data.tools),
   };
@@ -161,6 +176,8 @@ const defaultDependencies: AssistantHttpDependencies = {
   authorize: (actorId, input) =>
     getAssetService().locateOriginal(actorId, input),
   resolveActorId: () => resolveActor().id,
+  requireThread: (actorId, input) =>
+    getAssistantThreadService().requireForChat(actorId, input),
   stream: async (input) => {
     let configuration;
     try {
@@ -187,6 +204,24 @@ const defaultDependencies: AssistantHttpDependencies = {
       messages: input.messages,
       tools: input.tools,
       mcpTools: mcpSession.tools,
+      persistMessages: async (messages) => {
+        try {
+          await getAssistantThreadService().save(input.actorId, {
+            projectId: input.projectId,
+            assetId: input.assetId,
+            threadId: input.threadId,
+            messages: messages.map((message) =>
+              assistantMessageSchema.parse(message),
+            ),
+          });
+        } catch (error) {
+          console.error("Assistant conversation could not be persisted", {
+            assetId: input.assetId,
+            threadId: input.threadId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      },
     });
   },
 };
@@ -203,15 +238,23 @@ export async function handleAssistantHttpRequest(
 
   try {
     const input = await parseAssistantRequest(request);
-    const access = await dependencies.authorize(dependencies.resolveActorId(), {
+    const actorId = dependencies.resolveActorId();
+    const access = await dependencies.authorize(actorId, {
       projectId: projectId.data,
       assetId: input.assetId,
     });
     if (access.kind !== "ifc") {
       return jsonError(400, "L’assistant doit être lié à une maquette IFC.");
     }
+    await dependencies.requireThread(actorId, {
+      projectId: projectId.data,
+      assetId: input.assetId,
+      threadId: input.threadId,
+    });
     return await dependencies.stream({
       ...input,
+      actorId,
+      projectId: projectId.data,
       source: {
         assetId: access.id,
         objectKey: access.originalObjectKey,
@@ -227,6 +270,9 @@ export async function handleAssistantHttpRequest(
     }
     if (error instanceof AssetAccessDeniedError) {
       return jsonError(404, "Maquette introuvable.");
+    }
+    if (error instanceof AssistantThreadAccessDeniedError) {
+      return jsonError(404, "Conversation introuvable.");
     }
     if (error instanceof AssistantNotConfiguredError) {
       return jsonError(

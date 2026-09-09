@@ -76,8 +76,10 @@ properties, quantities, relationships, spatial hierarchy, materials,
 georeferencing, and measurements. The first question streams the authorized
 MinIO original into a disposable shared cache; later turns reuse a bounded MCP
 session. Configure `OPENROUTER_API_KEY` in `.env`; the assistant remains visibly
-disabled when the key is absent. Chat persistence is a separate incremental
-milestone.
+disabled when the key is absent. Conversations are persisted per user, project,
+and IFC asset in PostgreSQL. They can be created, reopened, and deleted from
+the inspector; the complete AI SDK message payload is saved after each streamed
+turn so text, model metadata, and tool traces survive a page reload.
 
 ## Repository
 

@@ -7,6 +7,8 @@ export { developmentActorId } from "./development-actor";
 export {
   assetKindEnum,
   assetProcessingResults,
+  assistantMessages,
+  assistantThreads,
   assets,
   assetStatusEnum,
   bcfComments,
@@ -28,6 +30,8 @@ export {
   users,
   type AssetRecord,
   type AssetProcessingResultRecord,
+  type AssistantMessageRecord,
+  type AssistantThreadRecord,
   type BcfCommentRecord,
   type BcfTopicComponentRecord,
   type BcfTopicRecord,
