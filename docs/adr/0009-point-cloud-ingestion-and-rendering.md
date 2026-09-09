@@ -2,8 +2,7 @@
 
 ## Status
 
-Accepted for the browser-preview foundation. The tiled large-file backend is a
-separate feature.
+Accepted and implemented.
 
 ## Context
 
@@ -32,15 +31,31 @@ performance and synchronization problem this rewrite is meant to remove.
 - Keep the original in S3/MinIO. The decoder and renderer never become the
   permanent file store.
 
-The follow-up large-file feature will convert the original into a spatially
-tiled artifact and range-load only camera-relevant nodes. It may reuse an open
-octree file format, but its loader must feed IFC-Lite point-cloud handles rather
-than mount Potree's Three.js renderer.
+- Convert LAS/LAZ originals asynchronously with PotreeConverter 2.1.1 into the
+  open Potree v2 `metadata.json`, `hierarchy.bin`, and `octree.bin` layout.
+- Keep those three derived artifacts in S3/MinIO and their immutable references
+  in PostgreSQL. They are disposable derivatives and are deleted with the
+  asset; the uploaded original remains the source of truth.
+- Give the browser short-lived signed URLs and fetch hierarchy and point data
+  with exact HTTP byte ranges. Refresh the signed URLs without rebuilding the
+  renderer.
+- Select camera-relevant, additive Potree nodes against a local point budget.
+  Decode fetched nodes off the main thread and stream them into independent
+  IFC-Lite point-cloud handles in the existing native WebGPU renderer.
+- Retain the bounded full-object preview for PLY and E57 because
+  PotreeConverter does not ingest those formats in this deployment.
 
 ## Consequences
 
-Small and medium scans can be overlaid now with one renderer, progressive GPU
-upload and bounded point count. Large remote scans still incur a complete Blob
-download and therefore must not be described as true LOD. The adapter boundary
-allows that source to be replaced by an octree/COPC source without changing the
-viewer UI, persisted transform or renderer host.
+LAS and LAZ scans now use real camera-driven octree/LOD streaming without a
+second renderer or a complete original-file download. Their hierarchy and
+resident GPU nodes change as the camera or point budget changes. PLY and E57
+remain development/medium-file previews and still require a bounded complete
+download. A future converter can add tiled support for them behind the same
+source and renderer ports.
+
+## References
+
+- [PotreeConverter 2.x](https://github.com/potree/PotreeConverter)
+- [Potree 2.0 octree loader](https://github.com/potree/potree/blob/develop/src/modules/loader/2.0/OctreeLoader.js)
+- [IFC-Lite rendering guide](https://ifclite.dev/docs/guide/rendering/)

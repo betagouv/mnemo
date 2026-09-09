@@ -1,12 +1,15 @@
 import {
   pointCloudSettingsInputSchema,
   pointCloudSettingsSchema,
+  pointCloudSourceSchema,
   updatePointCloudSettingsInputSchema,
 } from "@mnemo/contracts/point-clouds";
 import { TRPCError } from "@trpc/server";
 
 import { PointCloudSettingsAccessDeniedError } from "@/server/point-clouds/application/point-cloud-settings-service";
+import { PointCloudSourceAccessDeniedError } from "@/server/point-clouds/application/point-cloud-source-service";
 import { getPointCloudSettingsService } from "@/server/point-clouds/point-cloud-settings-service-factory";
+import { getPointCloudSourceService } from "@/server/point-clouds/point-cloud-source-service-factory";
 
 import { createTrpcRouter, publicProcedure } from "./init";
 
@@ -22,6 +25,19 @@ async function mapPointCloudError<T>(operation: () => Promise<T>) {
 }
 
 export const pointCloudRouter = createTrpcRouter({
+  source: publicProcedure
+    .input(pointCloudSettingsInputSchema)
+    .output(pointCloudSourceSchema)
+    .query(async ({ ctx, input }) => {
+      try {
+        return await getPointCloudSourceService().open(ctx.actor.id, input);
+      } catch (error) {
+        if (error instanceof PointCloudSourceAccessDeniedError) {
+          throw new TRPCError({ code: "NOT_FOUND", cause: error });
+        }
+        throw error;
+      }
+    }),
   settings: publicProcedure
     .input(pointCloudSettingsInputSchema)
     .output(pointCloudSettingsSchema)

@@ -4,6 +4,7 @@ import {
   bcfTopics,
   bcfViewpoints,
   deletionJobs,
+  pointCloudProcessingResults,
   projectMembers,
   projects,
   type MnemoDatabase,
@@ -120,6 +121,15 @@ export class DrizzleProjectRepository implements ProjectRepository {
         .from(bcfViewpoints)
         .innerJoin(bcfTopics, eq(bcfTopics.id, bcfViewpoints.topicId))
         .where(eq(bcfTopics.projectId, projectId));
+      const pointCloudArtifacts = await transaction
+        .select({
+          metadataObjectKey: pointCloudProcessingResults.metadataObjectKey,
+          hierarchyObjectKey: pointCloudProcessingResults.hierarchyObjectKey,
+          octreeObjectKey: pointCloudProcessingResults.octreeObjectKey,
+        })
+        .from(pointCloudProcessingResults)
+        .innerJoin(assets, eq(assets.id, pointCloudProcessingResults.assetId))
+        .where(eq(assets.projectId, projectId));
 
       await transaction
         .update(assets)
@@ -135,6 +145,11 @@ export class DrizzleProjectRepository implements ProjectRepository {
             ...viewpointSnapshots.flatMap((viewpoint) =>
               viewpoint.objectKey ? [viewpoint.objectKey] : [],
             ),
+            ...pointCloudArtifacts.flatMap((artifact) => [
+              artifact.metadataObjectKey,
+              artifact.hierarchyObjectKey,
+              artifact.octreeObjectKey,
+            ]),
           ],
           availableAt: requestedAt,
         })

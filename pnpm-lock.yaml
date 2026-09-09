@@ -38,6 +38,9 @@ importers:
       '@mnemo/ifc-processing-adapter':
         specifier: workspace:*
         version: link:../../packages/ifc-processing-adapter
+      '@mnemo/point-cloud-processing-adapter':
+        specifier: workspace:*
+        version: link:../../packages/point-cloud-processing-adapter
       '@mnemo/storage':
         specifier: workspace:*
         version: link:../../packages/storage
@@ -320,11 +323,26 @@ importers:
         specifier: 5.0.0
         version: 5.0.0(@types/node@25.9.5)(vite@8.2.2(@types/node@25.9.5)(esbuild@0.28.2)(sass@1.104.0)(tsx@4.23.13))
 
+  packages/point-cloud-processing-adapter:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.19.15
+        version: 22.20.1
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 5.0.0
+        version: 5.0.0(@types/node@22.20.1)(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(sass@1.104.0)(tsx@4.23.13))
+
   packages/point-cloud-viewer-adapter:
     dependencies:
       '@ifc-lite/pointcloud':
         specifier: 0.7.2
         version: 0.7.2
+      '@ifc-lite/renderer':
+        specifier: 2.0.1
+        version: 2.0.1
     devDependencies:
       typescript:
         specifier: ^5.9.3

@@ -22,9 +22,14 @@ import { Renderer, type PointCloudAssetHandle } from "@ifc-lite/renderer";
 import type { BcfViewpointPayload } from "@mnemo/contracts/bcf";
 import {
   composePointCloudTransform,
+  createPointCloudOctreeStream,
   createPointCloudStream,
   detectPointCloudFormat,
   type PointCloudFormat,
+  type PointCloudLodView,
+  type PointCloudOctreeAccess,
+  type PointCloudOctreeStreamHandle,
+  type PointCloudOctreeStreamOptions,
   type PointCloudStreamHandle,
   type PointCloudStreamOptions,
   type PointCloudTransform,
@@ -81,6 +86,8 @@ export type PointCloudSnapshot = {
   pointCount: number;
   totalPointCount: number | null;
   sampleStride: number;
+  source: "preview" | "octree";
+  residentNodeCount: number;
   message: string | null;
 };
 
@@ -156,13 +163,39 @@ export type LoadIfcInput = {
     { engine: "browser" } | { engine: "rust"; serverBaseUrl: string };
 };
 
-export type LoadPointCloudInput = {
+type LoadPointCloudBase = {
   assetId: string;
   fileName: string;
-  downloadUrl: string;
   maxPointsInMemory: number;
   transform: PointCloudTransform;
 };
+
+export type LoadPointCloudInput =
+  | (LoadPointCloudBase & {
+      source: { mode: "preview"; downloadUrl: string };
+    })
+  | (LoadPointCloudBase & {
+      source: {
+        mode: "octree";
+        access: PointCloudOctreeAccess;
+        refreshAccess: () => Promise<PointCloudOctreeAccess>;
+      };
+    });
+
+type PreviewPointCloudInput = Extract<
+  LoadPointCloudInput,
+  { source: { mode: "preview" } }
+>;
+type OctreePointCloudInput = Extract<
+  LoadPointCloudInput,
+  { source: { mode: "octree" } }
+>;
+
+function isPreviewPointCloudInput(
+  input: LoadPointCloudInput,
+): input is PreviewPointCloudInput {
+  return input.source.mode === "preview";
+}
 
 export type CapturedBcfViewpoint = {
   data: BcfViewpointPayload;
@@ -172,6 +205,17 @@ export type CapturedBcfViewpoint = {
 
 type FrameRequest = (callback: FrameRequestCallback) => number;
 type FrameCancel = (handle: number) => void;
+
+type PointCloudLoad = {
+  abort: AbortController;
+  expressId: number;
+  handles: Map<string, PointCloudAssetHandle>;
+  stream: PointCloudStreamHandle | null;
+  octree: PointCloudOctreeStreamHandle | null;
+  transform: PointCloudTransform;
+  pointBudget: number;
+  lastLodSignature: string | null;
+};
 
 export type IfcViewerRuntime = {
   createRenderer: (canvas: HTMLCanvasElement) => Renderer;
@@ -189,6 +233,9 @@ export type IfcViewerRuntime = {
   createPointCloudStream: (
     options: PointCloudStreamOptions,
   ) => PointCloudStreamHandle;
+  createPointCloudOctreeStream: (
+    options: PointCloudOctreeStreamOptions,
+  ) => PointCloudOctreeStreamHandle;
   fetch: typeof fetch;
   requestFrame: FrameRequest;
   cancelFrame: FrameCancel;
@@ -276,6 +323,7 @@ function createDefaultRuntime(): IfcViewerRuntime {
     readElementDetails,
     createBimIndex: createIfcBimIndex,
     createPointCloudStream,
+    createPointCloudOctreeStream,
     fetch: globalThis.fetch.bind(globalThis),
     requestFrame: globalThis.requestAnimationFrame.bind(globalThis),
     cancelFrame: globalThis.cancelAnimationFrame.bind(globalThis),
@@ -349,16 +397,7 @@ export class IfcViewerController {
   private isolatedIds: Set<number> | null = null;
   private ghostExceptIds: Set<number> | null = null;
   private colorOverrides = new Map<number, [number, number, number, number]>();
-  private readonly pointCloudLoads = new Map<
-    string,
-    {
-      abort: AbortController;
-      expressId: number;
-      handle: PointCloudAssetHandle | null;
-      stream: PointCloudStreamHandle | null;
-      transform: PointCloudTransform;
-    }
-  >();
+  private readonly pointCloudLoads = new Map<string, PointCloudLoad>();
   private nextPointCloudExpressId = 0xf0000000;
 
   constructor(
@@ -431,9 +470,12 @@ export class IfcViewerController {
     const load = {
       abort: new AbortController(),
       expressId: this.nextPointCloudExpressId--,
-      handle: null as PointCloudAssetHandle | null,
+      handles: new Map<string, PointCloudAssetHandle>(),
       stream: null as PointCloudStreamHandle | null,
+      octree: null as PointCloudOctreeStreamHandle | null,
       transform: input.transform,
+      pointBudget: input.maxPointsInMemory,
+      lastLodSignature: null as string | null,
     };
     this.pointCloudLoads.set(input.assetId, load);
     this.updatePointCloudSnapshot(input.assetId, {
@@ -445,84 +487,17 @@ export class IfcViewerController {
       pointCount: 0,
       totalPointCount: null,
       sampleStride: 1,
+      source: input.source.mode,
+      residentNodeCount: 0,
       message: null,
     });
 
     try {
-      const response = await this.runtime.fetch(input.downloadUrl, {
-        signal: load.abort.signal,
-      });
-      if (!response.ok) {
-        throw new Error(`Le stockage a répondu HTTP ${response.status}.`);
+      if (isPreviewPointCloudInput(input)) {
+        await this.loadPointCloudPreview(input, load, format);
+      } else {
+        await this.loadPointCloudOctree(input, load);
       }
-      const blob = await response.blob();
-      if (this.pointCloudLoads.get(input.assetId) !== load) return;
-
-      this.updatePointCloudSnapshot(input.assetId, { phase: "streaming" });
-      const stream = this.runtime.createPointCloudStream({
-        blob,
-        format,
-        label: input.fileName,
-        maxPointsInMemory: input.maxPointsInMemory,
-        signal: load.abort.signal,
-        onOpen: (info) => {
-          if (this.pointCloudLoads.get(input.assetId) !== load) return;
-          load.handle = this.renderer.beginPointCloudStream({
-            expressId: load.expressId,
-            ifcType: "IfcPointCloud",
-          });
-          this.renderer.setPointCloudTransform(
-            load.handle,
-            composePointCloudTransform(load.transform),
-          );
-          this.updatePointCloudSnapshot(input.assetId, {
-            totalPointCount: info.totalPointCount,
-            sampleStride: info.stride,
-          });
-        },
-        onChunk: (chunk) => {
-          if (
-            this.pointCloudLoads.get(input.assetId) !== load ||
-            !load.handle
-          ) {
-            return;
-          }
-          this.renderer.appendPointCloudChunk(load.handle, chunk);
-          this.renderer.requestRender();
-        },
-        onProgress: (loaded, total) => {
-          if (this.pointCloudLoads.get(input.assetId) !== load) return;
-          this.updatePointCloudSnapshot(input.assetId, {
-            pointCount: loaded,
-            progress: total > 0 ? Math.min(1, loaded / total) : 0,
-          });
-        },
-        onComplete: (_bounds, pointCount) => {
-          if (this.pointCloudLoads.get(input.assetId) !== load) return;
-          if (load.handle) this.renderer.endPointCloudStream(load.handle);
-          this.updatePointCloudSnapshot(input.assetId, {
-            phase: "ready",
-            progress: 1,
-            pointCount,
-            message: null,
-          });
-          this.renderer.requestRender();
-        },
-        onError: (error) => {
-          if (this.pointCloudLoads.get(input.assetId) !== load) return;
-          if (load.handle) {
-            this.renderer.removePointCloudAsset(load.handle);
-            load.handle = null;
-            this.renderer.requestRender();
-          }
-          this.updatePointCloudSnapshot(input.assetId, {
-            phase: "error",
-            message: error.message,
-          });
-        },
-      });
-      load.stream = stream;
-      await stream.done;
     } catch (error) {
       if (this.pointCloudLoads.get(input.assetId) !== load) return;
       this.updatePointCloudSnapshot(input.assetId, {
@@ -533,13 +508,163 @@ export class IfcViewerController {
     }
   }
 
+  private async loadPointCloudPreview(
+    input: PreviewPointCloudInput,
+    load: PointCloudLoad,
+    format: PointCloudFormat,
+  ) {
+    const response = await this.runtime.fetch(input.source.downloadUrl, {
+      signal: load.abort.signal,
+    });
+    if (!response.ok) {
+      throw new Error(`Le stockage a répondu HTTP ${response.status}.`);
+    }
+    const blob = await response.blob();
+    if (this.pointCloudLoads.get(input.assetId) !== load) return;
+
+    this.updatePointCloudSnapshot(input.assetId, { phase: "streaming" });
+    const stream = this.runtime.createPointCloudStream({
+      blob,
+      format,
+      label: input.fileName,
+      maxPointsInMemory: input.maxPointsInMemory,
+      signal: load.abort.signal,
+      onOpen: (info) => {
+        if (this.pointCloudLoads.get(input.assetId) !== load) return;
+        const handle = this.renderer.beginPointCloudStream({
+          expressId: load.expressId,
+          ifcType: "IfcPointCloud",
+        });
+        load.handles.set("preview", handle);
+        this.renderer.setPointCloudTransform(
+          handle,
+          composePointCloudTransform(load.transform),
+        );
+        this.updatePointCloudSnapshot(input.assetId, {
+          totalPointCount: info.totalPointCount,
+          sampleStride: info.stride,
+          residentNodeCount: 1,
+        });
+      },
+      onChunk: (chunk) => {
+        const handle = load.handles.get("preview");
+        if (this.pointCloudLoads.get(input.assetId) !== load || !handle) return;
+        this.renderer.appendPointCloudChunk(handle, chunk);
+        this.renderer.requestRender();
+      },
+      onProgress: (loaded, total) => {
+        if (this.pointCloudLoads.get(input.assetId) !== load) return;
+        this.updatePointCloudSnapshot(input.assetId, {
+          pointCount: loaded,
+          progress: total > 0 ? Math.min(1, loaded / total) : 0,
+        });
+      },
+      onComplete: (_bounds, pointCount) => {
+        if (this.pointCloudLoads.get(input.assetId) !== load) return;
+        const handle = load.handles.get("preview");
+        if (handle) this.renderer.endPointCloudStream(handle);
+        this.updatePointCloudSnapshot(input.assetId, {
+          phase: "ready",
+          progress: 1,
+          pointCount,
+          message: null,
+        });
+        this.renderer.requestRender();
+      },
+      onError: (error) => {
+        if (this.pointCloudLoads.get(input.assetId) !== load) return;
+        this.clearPointCloudHandles(load);
+        this.updatePointCloudSnapshot(input.assetId, {
+          phase: "error",
+          message: error.message,
+        });
+      },
+    });
+    load.stream = stream;
+    await stream.done;
+  }
+
+  private async loadPointCloudOctree(
+    input: OctreePointCloudInput,
+    load: PointCloudLoad,
+  ) {
+    this.updatePointCloudSnapshot(input.assetId, { phase: "streaming" });
+    const stream = this.runtime.createPointCloudOctreeStream({
+      access: input.source.access,
+      refreshAccess: input.source.refreshAccess,
+      signal: load.abort.signal,
+      onOpen: (info) => {
+        if (this.pointCloudLoads.get(input.assetId) !== load) return;
+        this.updatePointCloudSnapshot(input.assetId, {
+          totalPointCount: info.totalPointCount,
+        });
+      },
+      onSwap: ({ add, remove, pointCount, nodeCount }) => {
+        if (this.pointCloudLoads.get(input.assetId) !== load) return;
+        const transform = composePointCloudTransform(load.transform);
+
+        // Complete the resident-set update before requesting a frame. Potree
+        // ancestors and children are intentionally additive, while obsolete
+        // camera nodes disappear without an intermediate duplicate frame.
+        for (const { nodeId, chunk } of add) {
+          if (load.handles.has(nodeId)) continue;
+          const handle = this.renderer.beginPointCloudStream({
+            expressId: load.expressId,
+            ifcType: "IfcPointCloud",
+          });
+          this.renderer.setPointCloudTransform(handle, transform);
+          this.renderer.appendPointCloudChunk(handle, chunk);
+          this.renderer.endPointCloudStream(handle);
+          load.handles.set(nodeId, handle);
+        }
+        for (const nodeId of remove) {
+          const handle = load.handles.get(nodeId);
+          if (!handle) continue;
+          this.renderer.removePointCloudAsset(handle);
+          load.handles.delete(nodeId);
+        }
+        this.updatePointCloudSnapshot(input.assetId, {
+          phase: "ready",
+          progress: 1,
+          pointCount,
+          residentNodeCount: nodeCount,
+          message: null,
+        });
+        this.renderer.requestRender();
+      },
+      onError: (error) => {
+        if (this.pointCloudLoads.get(input.assetId) !== load) return;
+        this.clearPointCloudHandles(load);
+        this.updatePointCloudSnapshot(input.assetId, {
+          phase: "error",
+          message: error.message,
+        });
+      },
+    });
+    load.octree = stream;
+    load.lastLodSignature = null;
+    this.updatePointCloudLod();
+    await stream.ready;
+  }
+
+  private clearPointCloudHandles(load: PointCloudLoad) {
+    for (const handle of load.handles.values()) {
+      this.renderer.removePointCloudAsset(handle);
+    }
+    load.handles.clear();
+    this.renderer.requestRender();
+  }
+
   removePointCloud(assetId: string) {
     const load = this.pointCloudLoads.get(assetId);
     if (!load) return;
 
     load.abort.abort();
     load.stream?.cancel();
-    if (load.handle) this.renderer.removePointCloudAsset(load.handle);
+    load.octree?.cancel();
+    for (const handle of load.handles.values()) {
+      this.renderer.removePointCloudAsset(handle);
+    }
     this.pointCloudLoads.delete(assetId);
     this.updateSnapshot({
       pointClouds: this.snapshot.pointClouds.filter(
@@ -558,18 +683,29 @@ export class IfcViewerController {
     this.renderer.requestRender();
   }
 
+  setPointCloudPointBudget(pointBudget: number) {
+    const normalized = Math.max(10_000, Math.floor(pointBudget));
+    for (const load of this.pointCloudLoads.values()) {
+      load.pointBudget = normalized;
+      load.lastLodSignature = null;
+    }
+    this.updatePointCloudLod();
+  }
+
   setPointCloudTransform(assetId: string, transform: PointCloudTransform) {
     const load = this.pointCloudLoads.get(assetId);
     if (!load) return;
 
     load.transform = transform;
-    if (load.handle) {
+    for (const handle of load.handles.values()) {
       this.renderer.setPointCloudTransform(
-        load.handle,
+        handle,
         composePointCloudTransform(transform),
       );
-      this.renderer.requestRender();
     }
+    load.lastLodSignature = null;
+    this.updatePointCloudLod();
+    this.renderer.requestRender();
   }
 
   async captureBcfViewpoint(): Promise<CapturedBcfViewpoint> {
@@ -1087,6 +1223,50 @@ export class IfcViewerController {
     }
   }
 
+  private updatePointCloudLod() {
+    const camera = this.renderer.getCamera();
+    const viewProjectionMatrix = new Float32Array(camera.getViewProjMatrix().m);
+    const position = camera.getPosition();
+    const projectionMode = camera.getProjectionMode();
+    const baseSignature = [
+      this.canvas.width,
+      this.canvas.height,
+      projectionMode,
+      camera.getFOV(),
+      camera.getOrthoSize(),
+      position.x,
+      position.y,
+      position.z,
+      ...viewProjectionMatrix,
+    ]
+      .map((value) =>
+        typeof value === "number" ? Math.round(value * 100_000) : value,
+      )
+      .join(":");
+
+    for (const load of this.pointCloudLoads.values()) {
+      if (!load.octree) continue;
+      const modelMatrix = composePointCloudTransform(load.transform);
+      const signature = `${baseSignature}:${load.pointBudget}:${[...modelMatrix]
+        .map((value) => Math.round(value * 100_000))
+        .join(":")}`;
+      if (signature === load.lastLodSignature) continue;
+      load.lastLodSignature = signature;
+      const view: PointCloudLodView = {
+        viewProjectionMatrix,
+        modelMatrix,
+        cameraPosition: [position.x, position.y, position.z],
+        verticalFovRadians: camera.getFOV(),
+        viewportHeight: Math.max(1, this.canvas.height),
+        pointBudget: load.pointBudget,
+        ...(projectionMode === "orthographic"
+          ? { orthographicHeight: camera.getOrthoSize() }
+          : {}),
+      };
+      load.octree.update(view);
+    }
+  }
+
   private startFrameLoop() {
     const frame = (time: number) => {
       if (this.disposed) return;
@@ -1105,6 +1285,7 @@ export class IfcViewerController {
       }
 
       const cameraAnimating = this.renderer.getCamera().update(delta);
+      this.updatePointCloudLod();
       if (
         queueFlushed ||
         cameraAnimating ||

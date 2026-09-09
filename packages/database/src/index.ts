@@ -21,6 +21,7 @@ export {
   projectMembers,
   processingJobs,
   pointCloudSettings,
+  pointCloudProcessingResults,
   processingJobStatusEnum,
   processingJobTypeEnum,
   projects,
@@ -35,6 +36,7 @@ export {
   type ProjectMemberRecord,
   type ProcessingJobRecord,
   type PointCloudSettingsRecord,
+  type PointCloudProcessingResultRecord,
   type ProjectRecord,
   type UserRecord,
 } from "./schema";

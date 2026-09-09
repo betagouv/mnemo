@@ -16,6 +16,7 @@ import {
   deletionJobTypeEnum,
   processingJobs,
   pointCloudSettings,
+  pointCloudProcessingResults,
   processingJobStatusEnum,
   processingJobTypeEnum,
   projectMembers,
@@ -64,6 +65,12 @@ describe("database schema", () => {
 
   it("persists point-cloud alignment independently from render controls", () => {
     expect(getTableName(pointCloudSettings)).toBe("point_cloud_settings");
+  });
+
+  it("persists durable point-cloud octree artifact references", () => {
+    expect(getTableName(pointCloudProcessingResults)).toBe(
+      "point_cloud_processing_results",
+    );
   });
 
   it("persists BCF topics, comments, and durable IFC component links", () => {

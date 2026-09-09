@@ -27,6 +27,23 @@ export const pointCloudSettingsInputSchema = z.object({
   assetId: assetIdSchema,
 });
 
+export const pointCloudSourceSchema = z.discriminatedUnion("mode", [
+  z.object({
+    mode: z.literal("preview"),
+    downloadUrl: z.url(),
+    expiresAt: z.iso.datetime(),
+  }),
+  z.object({
+    mode: z.literal("octree"),
+    metadataUrl: z.url(),
+    hierarchyUrl: z.url(),
+    octreeUrl: z.url(),
+    pointCount: z.int().nonnegative(),
+    spacing: z.number().positive().finite(),
+    expiresAt: z.iso.datetime(),
+  }),
+]);
+
 export const updatePointCloudSettingsInputSchema =
   pointCloudSettingsInputSchema.extend({
     transform: pointCloudTransformSchema,
@@ -50,3 +67,4 @@ export type UpdatePointCloudSettingsInput = z.infer<
   typeof updatePointCloudSettingsInputSchema
 >;
 export type PointCloudSettings = z.infer<typeof pointCloudSettingsSchema>;
+export type PointCloudSource = z.infer<typeof pointCloudSourceSchema>;

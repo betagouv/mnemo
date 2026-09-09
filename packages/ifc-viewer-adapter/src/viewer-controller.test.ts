@@ -61,6 +61,9 @@ function createHarness() {
       calls.orbitCenter = center;
     },
     getPosition: () => cameraPosition,
+    getViewProjMatrix: () => ({
+      m: new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),
+    }),
     getTarget: () => cameraTarget,
     getUp: () => cameraUp,
     getFOV: () => Math.PI / 3,
@@ -306,6 +309,58 @@ function createHarness() {
       options.onComplete?.({ min: [0, 0, 0], max: [1, 1, 1] }, 2, null);
       return { cancel: () => undefined, done: Promise.resolve() };
     },
+    createPointCloudOctreeStream: (options) => {
+      let updateCount = 0;
+      options.onOpen?.({ totalPointCount: 10_000_000, spacing: 0.1 });
+      return {
+        ready: Promise.resolve(),
+        update: () => {
+          updateCount += 1;
+          if (updateCount === 1) {
+            options.onSwap({
+              add: [
+                {
+                  nodeId: "r",
+                  chunk: {
+                    positions: new Float32Array([0, 0, 0]),
+                    pointCount: 1,
+                    bbox: { min: [0, 0, 0], max: [0, 0, 0] },
+                  },
+                },
+              ],
+              remove: [],
+              pointCount: 1,
+              nodeCount: 1,
+            });
+          } else {
+            options.onSwap({
+              add: [
+                {
+                  nodeId: "r0",
+                  chunk: {
+                    positions: new Float32Array([0, 0, 0]),
+                    pointCount: 1,
+                    bbox: { min: [0, 0, 0], max: [0, 0, 0] },
+                  },
+                },
+                {
+                  nodeId: "r1",
+                  chunk: {
+                    positions: new Float32Array([1, 1, 1]),
+                    pointCount: 1,
+                    bbox: { min: [1, 1, 1], max: [1, 1, 1] },
+                  },
+                },
+              ],
+              remove: ["r"],
+              pointCount: 2,
+              nodeCount: 2,
+            });
+          }
+        },
+        cancel: () => undefined,
+      };
+    },
     readElementDetails: (_store, expressId) => ({
       expressId,
       globalId: "3vB1mExampleGlobalId",
@@ -523,7 +578,10 @@ describe("IfcViewerController", () => {
     await controller.loadPointCloud({
       assetId: "point-cloud-id",
       fileName: "scan.las",
-      downloadUrl: "http://storage.local/scan.las",
+      source: {
+        mode: "preview",
+        downloadUrl: "http://storage.local/scan.las",
+      },
       maxPointsInMemory: 2_000_000,
       transform: {
         position: [0, 0, 0],
@@ -554,6 +612,51 @@ describe("IfcViewerController", () => {
 
     expect(calls.pointCloudOptions).toBe(1);
     expect(calls.pointCloudTransforms).toBe(2);
+    expect(calls.fitToView).toBe(1);
+    controller.dispose();
+  });
+
+  it("swaps octree LOD frontiers without rebuilding or reframing", async () => {
+    const { calls, controller } = createHarness();
+    await controller.loadIfc({ downloadUrl: "http://storage.local/model.ifc" });
+
+    await controller.loadPointCloud({
+      assetId: "octree-id",
+      fileName: "scan.laz",
+      source: {
+        mode: "octree",
+        access: {
+          metadataUrl: "http://storage.local/metadata.json",
+          hierarchyUrl: "http://storage.local/hierarchy.bin",
+          octreeUrl: "http://storage.local/octree.bin",
+          expiresAt: "2099-01-01T00:00:00.000Z",
+        },
+        refreshAccess: async () => {
+          throw new Error("not needed");
+        },
+      },
+      maxPointsInMemory: 2_000_000,
+      transform: {
+        position: [0, 0, 0],
+        rotationDegrees: [-90, 0, 0],
+        scale: [1, 1, 1],
+      },
+    });
+
+    expect(controller.getSnapshot().pointClouds[0]).toMatchObject({
+      source: "octree",
+      phase: "ready",
+      pointCount: 1,
+      residentNodeCount: 1,
+    });
+    controller.setPointCloudPointBudget(4_000_000);
+    expect(controller.getSnapshot().pointClouds[0]).toMatchObject({
+      pointCount: 2,
+      residentNodeCount: 2,
+    });
+    expect(calls.pointCloudsBegun).toBe(3);
+    expect(calls.pointCloudsRemoved).toBe(1);
+    expect(calls.rendererCreated).toBe(1);
     expect(calls.fitToView).toBe(1);
     controller.dispose();
   });

@@ -31,7 +31,11 @@ function replaceVectorValue(
 function phaseLabel(pointCloud: PointCloudSnapshot | undefined) {
   if (!pointCloud) return "En attente";
   if (pointCloud.phase === "downloading") return "Téléchargement";
-  if (pointCloud.phase === "streaming") return "Décodage progressif";
+  if (pointCloud.phase === "streaming") {
+    return pointCloud.source === "octree"
+      ? "Chargement LOD"
+      : "Décodage progressif";
+  }
   if (pointCloud.phase === "ready") return "Prêt";
   return "Erreur";
 }
@@ -131,7 +135,7 @@ export function PointCloudPanel({
             />
           </label>
           <label>
-            <span>Budget mémoire</span>
+            <span>Budget de points</span>
             <strong>
               {(budgetDraft / 1_000_000).toLocaleString("fr-FR")} M
             </strong>
@@ -152,8 +156,9 @@ export function PointCloudPanel({
             Appliquer le budget
           </button>
           <p>
-            Le budget recharge un aperçu échantillonné. La taille et
-            l’alignement sont appliqués immédiatement sur le GPU.
+            Pour un octree, le budget ajuste le LOD selon la caméra sans
+            recharger tout le fichier. La taille et l’alignement sont appliqués
+            immédiatement sur le GPU.
           </p>
         </section>
 
@@ -184,6 +189,14 @@ export function PointCloudPanel({
                   </strong>
                 ) : null}
               </header>
+
+              {pointCloud?.source === "octree" ? (
+                <p>
+                  Octree LOD · {pointCloud.residentNodeCount} nœud
+                  {pointCloud.residentNodeCount > 1 ? "s" : ""} résident
+                  {pointCloud.residentNodeCount > 1 ? "s" : ""}
+                </p>
+              ) : null}
 
               {pointCloud && pointCloud.phase !== "ready" ? (
                 <progress max={1} value={pointCloud.progress} />

@@ -316,6 +316,28 @@ export const assetProcessingResults = pgTable("asset_processing_results", {
   ...timestamps(),
 });
 
+export const pointCloudProcessingResults = pgTable(
+  "point_cloud_processing_results",
+  {
+    assetId: uuid("asset_id")
+      .primaryKey()
+      .references(() => assets.id, { onDelete: "cascade" }),
+    format: varchar("format", { length: 40 }).notNull(),
+    processor: varchar("processor", { length: 80 }).notNull(),
+    processorVersion: varchar("processor_version", { length: 80 }).notNull(),
+    metadataObjectKey: text("metadata_object_key").notNull(),
+    hierarchyObjectKey: text("hierarchy_object_key").notNull(),
+    octreeObjectKey: text("octree_object_key").notNull(),
+    pointCount: bigint("point_count", { mode: "number" }).notNull(),
+    spacing: doublePrecision("spacing").notNull(),
+    processedAt: timestamp("processed_at", { withTimezone: true }).notNull(),
+    ...timestamps(),
+  },
+  (table) => [
+    index("point_cloud_results_processed_at_idx").on(table.processedAt),
+  ],
+);
+
 export const deletionJobs = pgTable(
   "deletion_jobs",
   {
@@ -356,4 +378,6 @@ export type BcfCommentRecord = typeof bcfComments.$inferSelect;
 export type BcfViewpointRecord = typeof bcfViewpoints.$inferSelect;
 export type AssetProcessingResultRecord =
   typeof assetProcessingResults.$inferSelect;
+export type PointCloudProcessingResultRecord =
+  typeof pointCloudProcessingResults.$inferSelect;
 export type DeletionJobRecord = typeof deletionJobs.$inferSelect;

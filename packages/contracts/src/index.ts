@@ -63,10 +63,12 @@ export {
 } from "./projects";
 export { systemInfoSchema, type SystemInfo } from "./system";
 export {
+  pointCloudSourceSchema,
   pointCloudSettingsInputSchema,
   pointCloudSettingsSchema,
   pointCloudTransformSchema,
   updatePointCloudSettingsInputSchema,
+  type PointCloudSource,
   type PointCloudSettings,
   type PointCloudSettingsInput,
   type PointCloudTransform,
