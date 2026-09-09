@@ -54,7 +54,7 @@ function projects(role: "owner" | "editor" | "viewer"): ProjectRepository {
     createForActor: async () => {
       throw new Error("not used");
     },
-    requestDeletion: async () => undefined,
+    requestDeletion: async () => [],
   };
 }
 
@@ -92,6 +92,11 @@ function storage(): ObjectStorage {
     createDownloadUrl: vi.fn(async () => "http://storage.local/download"),
     statObject: vi.fn(async () => null),
     readObject: vi.fn(async () => new Uint8Array()),
+    readObjectStream: vi.fn(async () =>
+      (async function* () {
+        yield new Uint8Array();
+      })(),
+    ),
     writeObject: vi.fn(async () => undefined),
     deleteObject: vi.fn(async () => undefined),
   };

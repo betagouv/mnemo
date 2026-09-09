@@ -87,6 +87,9 @@ function AssistantThread() {
               M
             </div>
             <strong>Interrogez votre maquette</strong>
+            <span className={styles.mcpStatus}>
+              <i aria-hidden="true" /> IFC-Lite MCP · lecture BIM
+            </span>
             <p>
               L’assistant peut lire la structure BIM et piloter la scène sans
               recréer le renderer ni déplacer la caméra sans demande explicite.
@@ -161,12 +164,14 @@ export function IfcAssistantPanel({
   configured,
   getViewer,
   hidden,
+  mcpConfigured,
   projectId,
 }: {
   assetId: string;
   configured: boolean;
   getViewer: () => IfcViewerController | null;
   hidden: boolean;
+  mcpConfigured: boolean;
   projectId: string;
 }) {
   const actions = useMemo(
@@ -190,11 +195,11 @@ export function IfcAssistantPanel({
 
   return (
     <section className={styles.panel} hidden={hidden}>
-      {configured ? (
+      {configured && mcpConfigured ? (
         <AssistantRuntimeProvider config={config} runtime={runtime}>
           <AssistantThread />
         </AssistantRuntimeProvider>
-      ) : (
+      ) : !configured ? (
         <div className={styles.notConfigured} role="status">
           <span className="fr-icon-lock-line" aria-hidden="true" />
           <strong>Assistant non configuré</strong>
@@ -203,6 +208,15 @@ export function IfcAssistantPanel({
             , puis redémarrez le service web.
           </p>
           <small>Modèle par défaut : google/gemini-3.7-flash</small>
+        </div>
+      ) : (
+        <div className={styles.notConfigured} role="status">
+          <span className="fr-icon-server-line" aria-hidden="true" />
+          <strong>MCP IFC-Lite non configuré</strong>
+          <p>
+            Renseignez les variables <code>IFC_MCP_*</code>, puis redémarrez le
+            service web.
+          </p>
         </div>
       )}
     </section>

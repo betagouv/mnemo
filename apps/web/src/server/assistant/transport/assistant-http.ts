@@ -1,5 +1,6 @@
 import type { FrontendTools } from "@assistant-ui/ai-sdk";
-import { assetIdSchema, type OpenAssetResult } from "@mnemo/contracts/assets";
+import { assetIdSchema } from "@mnemo/contracts/assets";
+import type { AssetKind, AssetStatus } from "@mnemo/domain";
 import { projectIdSchema } from "@mnemo/contracts/projects";
 import { safeValidateUIMessages, type UIMessage } from "ai";
 import { z } from "zod";
@@ -8,6 +9,7 @@ import { getAssetService } from "@/server/assets/asset-service-factory";
 import { AssetAccessDeniedError } from "@/server/assets/application/asset-errors";
 import { resolveActor } from "@/server/auth/resolve-actor";
 import { getAssistantConfiguration } from "@/shared/config/assistant/server-only";
+import { getIfcMcpTools } from "@/server/assistant/infrastructure/ifc-mcp-runtime";
 
 import { streamAssistantChat } from "../application/assistant-chat";
 
@@ -24,6 +26,15 @@ const requestEnvelopeSchema = z.looseObject({
 export class InvalidAssistantRequestError extends Error {}
 export class AssistantRequestTooLargeError extends Error {}
 export class AssistantNotConfiguredError extends Error {}
+export class AssistantMcpUnavailableError extends Error {}
+
+export type AuthorizedAssistantAsset = {
+  id: string;
+  kind: AssetKind;
+  sizeBytes: number;
+  originalObjectKey: string;
+  status: AssetStatus;
+};
 
 type ValidatedAssistantRequest = {
   assetId: string;
@@ -31,13 +42,21 @@ type ValidatedAssistantRequest = {
   tools: FrontendTools;
 };
 
+type AuthorizedAssistantRequest = ValidatedAssistantRequest & {
+  source: {
+    assetId: string;
+    objectKey: string;
+    sizeBytes: number;
+  };
+};
+
 export type AssistantHttpDependencies = {
   authorize: (
     actorId: string,
     input: { projectId: string; assetId: string },
-  ) => Promise<OpenAssetResult>;
+  ) => Promise<AuthorizedAssistantAsset>;
   resolveActorId: () => string;
-  stream: (input: ValidatedAssistantRequest) => Response | Promise<Response>;
+  stream: (input: AuthorizedAssistantRequest) => Response | Promise<Response>;
 };
 
 async function readBoundedText(request: Request) {
@@ -139,9 +158,10 @@ function jsonError(status: number, error: string) {
 }
 
 const defaultDependencies: AssistantHttpDependencies = {
-  authorize: (actorId, input) => getAssetService().open(actorId, input),
+  authorize: (actorId, input) =>
+    getAssetService().locateOriginal(actorId, input),
   resolveActorId: () => resolveActor().id,
-  stream: (input) => {
+  stream: async (input) => {
     let configuration;
     try {
       configuration = getAssistantConfiguration();
@@ -150,7 +170,24 @@ const defaultDependencies: AssistantHttpDependencies = {
         "OPENROUTER_API_KEY is not configured",
       );
     }
-    return streamAssistantChat({ configuration, ...input });
+    let mcpSession;
+    try {
+      mcpSession = await getIfcMcpTools(input.source);
+    } catch (error) {
+      console.error("IFC MCP session could not be prepared", {
+        assetId: input.assetId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw new AssistantMcpUnavailableError(
+        "IFC-Lite MCP is unavailable for this model",
+      );
+    }
+    return streamAssistantChat({
+      configuration,
+      messages: input.messages,
+      tools: input.tools,
+      mcpTools: mcpSession.tools,
+    });
   },
 };
 
@@ -170,10 +207,17 @@ export async function handleAssistantHttpRequest(
       projectId: projectId.data,
       assetId: input.assetId,
     });
-    if (access.asset.kind !== "ifc") {
+    if (access.kind !== "ifc") {
       return jsonError(400, "L’assistant doit être lié à une maquette IFC.");
     }
-    return await dependencies.stream(input);
+    return await dependencies.stream({
+      ...input,
+      source: {
+        assetId: access.id,
+        objectKey: access.originalObjectKey,
+        sizeBytes: access.sizeBytes,
+      },
+    });
   } catch (error) {
     if (error instanceof AssistantRequestTooLargeError) {
       return jsonError(413, "La conversation envoyée est trop volumineuse.");
@@ -188,6 +232,12 @@ export async function handleAssistantHttpRequest(
       return jsonError(
         503,
         "Ajoutez OPENROUTER_API_KEY à l’environnement du serveur.",
+      );
+    }
+    if (error instanceof AssistantMcpUnavailableError) {
+      return jsonError(
+        503,
+        "Le moteur MCP IFC-Lite est indisponible. Réessayez dans un instant.",
       );
     }
     return jsonError(500, "L’assistant n’a pas pu démarrer.");

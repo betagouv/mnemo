@@ -37,7 +37,9 @@ class ProjectRepositoryStub implements ProjectRepository {
     return project;
   }
 
-  async requestDeletion() {}
+  async requestDeletion() {
+    return [];
+  }
 }
 
 class AssetRepositoryStub implements AssetRepository {
@@ -113,6 +115,12 @@ class ObjectStorageStub implements ObjectStorage {
 
   async readObject() {
     return new Uint8Array();
+  }
+
+  async readObjectStream() {
+    return (async function* () {
+      yield new Uint8Array();
+    })();
   }
 
   async writeObject() {}

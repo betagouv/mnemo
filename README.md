@@ -39,6 +39,7 @@ The default local endpoints are:
 - MinIO API: <http://localhost:9200>
 - MinIO console: <http://localhost:9201>
 - IFC-Lite Rust server: <http://localhost:3301>
+- IFC-Lite MCP server: <http://localhost:8765> (bearer token required)
 - PostgreSQL: `localhost:5436`
 
 Ports can be changed through the variables documented in [`.env.example`](./.env.example).
@@ -61,10 +62,14 @@ The IFC viewer also embeds a streaming assistant built with assistant-ui and AI
 SDK v7. It uses OpenRouter with `google/gemini-3.7-flash` by default and keeps
 the API key on the Next.js server. Its frontend tool registry can inspect and
 query the loaded BIM index, apply one atomic multi-group style, hide or select
-elements, frame the camera, and reset the scene. Configure
-`OPENROUTER_API_KEY` in `.env`; the assistant remains visibly disabled when the
-key is absent. Chat persistence and advanced IFC-Lite MCP queries are separate
-incremental milestones.
+elements, frame the camera, and reset the scene. A dedicated
+`@ifc-lite/mcp@0.13.1` runtime supplies read-only semantic queries for
+properties, quantities, relationships, spatial hierarchy, materials,
+georeferencing, and measurements. The first question streams the authorized
+MinIO original into a disposable shared cache; later turns reuse a bounded MCP
+session. Configure `OPENROUTER_API_KEY` in `.env`; the assistant remains visibly
+disabled when the key is absent. Chat persistence is a separate incremental
+milestone.
 
 ## Repository
 
@@ -78,6 +83,7 @@ packages/
   database/            Drizzle schema and PostgreSQL adapter
   domain/              framework-independent business rules and ports
   ifc-viewer-adapter/  stable bridge to the IFC-Lite WebGPU runtime
+  ifc-mcp-adapter/     safe read-only MCP tool and session boundary
   point-cloud-viewer-adapter/ worker decoding and transform boundary
   storage/             S3-compatible object-storage adapter
 docs/adr/              durable architecture decisions

@@ -1,32 +1,23 @@
-import type { OpenAssetResult } from "@mnemo/contracts/assets";
 import { describe, expect, it, vi } from "vitest";
 
 import {
   AssistantRequestTooLargeError,
   handleAssistantHttpRequest,
   parseAssistantRequest,
+  type AuthorizedAssistantAsset,
   type AssistantHttpDependencies,
 } from "./assistant-http";
 
 const projectId = "00000000-0000-4000-8000-000000000010";
 const assetId = "00000000-0000-4000-8000-000000000020";
 
-function ifcAccess(): OpenAssetResult {
+function ifcAccess(): AuthorizedAssistantAsset {
   return {
-    asset: {
-      id: assetId,
-      projectId,
-      kind: "ifc",
-      originalFileName: "model.ifc",
-      mediaType: "application/x-step",
-      sizeBytes: 120,
-      status: "ready",
-      errorMessage: null,
-      createdAt: "2026-09-09T00:00:00.000Z",
-      updatedAt: "2026-09-09T00:00:00.000Z",
-    },
-    downloadUrl: "http://storage.local/model.ifc",
-    expiresAt: "2026-09-09T00:05:00.000Z",
+    id: assetId,
+    kind: "ifc",
+    sizeBytes: 120,
+    originalObjectKey: `projects/${projectId}/assets/${assetId}/original.ifc`,
+    status: "ready",
   };
 }
 
@@ -85,6 +76,11 @@ describe("assistant HTTP transport", () => {
         assetId,
         messages: [expect.objectContaining({ role: "user" })],
         tools: { inspect_scene: expect.any(Object) },
+        source: {
+          assetId,
+          objectKey: `projects/${projectId}/assets/${assetId}/original.ifc`,
+          sizeBytes: 120,
+        },
       }),
     );
   });
@@ -117,7 +113,7 @@ describe("assistant HTTP transport", () => {
 
   it("requires an IFC asset", async () => {
     const access = ifcAccess();
-    access.asset.kind = "point_cloud";
+    access.kind = "point_cloud";
     const response = await handleAssistantHttpRequest(
       validRequest(),
       projectId,

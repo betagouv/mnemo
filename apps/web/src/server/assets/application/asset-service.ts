@@ -163,6 +163,23 @@ export class AssetService {
   }
 
   async open(actorId: string, input: OpenAssetInput): Promise<OpenAssetResult> {
+    const asset = await this.locateOriginal(actorId, input);
+
+    const now = this.now();
+    const expiresAt = new Date(now.getTime() + downloadTtlSeconds * 1_000);
+    const downloadUrl = await this.storage.createDownloadUrl({
+      objectKey: asset.originalObjectKey,
+      expiresInSeconds: downloadTtlSeconds,
+    });
+
+    return {
+      asset: toAssetSummary(asset),
+      downloadUrl,
+      expiresAt: expiresAt.toISOString(),
+    };
+  }
+
+  async locateOriginal(actorId: string, input: OpenAssetInput) {
     const match = await this.assets.findForActor(
       actorId,
       input.projectId,
@@ -179,18 +196,7 @@ export class AssetService {
       );
     }
 
-    const now = this.now();
-    const expiresAt = new Date(now.getTime() + downloadTtlSeconds * 1_000);
-    const downloadUrl = await this.storage.createDownloadUrl({
-      objectKey: match.asset.originalObjectKey,
-      expiresInSeconds: downloadTtlSeconds,
-    });
-
-    return {
-      asset: toAssetSummary(match.asset),
-      downloadUrl,
-      expiresAt: expiresAt.toISOString(),
-    };
+    return match.asset;
   }
 
   async delete(actorId: string, input: DeleteAssetInput) {

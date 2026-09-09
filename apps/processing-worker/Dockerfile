@@ -23,6 +23,8 @@ RUN pnpm --filter @mnemo/processing-worker build
 FROM node:22-bookworm-slim AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
-COPY --from=build --chown=node:node /workspace/apps/processing-worker/dist ./dist
-USER node
+RUN groupadd --system --gid 1001 mnemo \
+  && useradd --system --uid 1001 --gid mnemo --home-dir /app mnemo
+COPY --from=build --chown=mnemo:mnemo /workspace/apps/processing-worker/dist ./dist
+USER mnemo
 CMD ["node", "dist/index.cjs"]

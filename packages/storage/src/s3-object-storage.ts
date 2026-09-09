@@ -113,6 +113,36 @@ export class S3ObjectStorage implements ObjectStorage {
     return result.Body.transformToByteArray();
   }
 
+  async readObjectStream(
+    objectKey: string,
+  ): Promise<AsyncIterable<Uint8Array>> {
+    const result = await this.internalClient.send(
+      new GetObjectCommand({
+        Bucket: this.options.bucket,
+        Key: objectKey,
+      }),
+    );
+    const body = result.Body;
+
+    if (!body || !(Symbol.asyncIterator in body)) {
+      throw new Error(`Object ${objectKey} has no streaming response body`);
+    }
+
+    return {
+      async *[Symbol.asyncIterator]() {
+        for await (const chunk of body as AsyncIterable<unknown>) {
+          if (chunk instanceof Uint8Array) {
+            yield chunk;
+          } else if (typeof chunk === "string") {
+            yield new TextEncoder().encode(chunk);
+          } else {
+            throw new Error(`Object ${objectKey} returned an invalid chunk`);
+          }
+        }
+      },
+    };
+  }
+
   async writeObject({ objectKey, contentType, body }: WriteObjectInput) {
     await this.internalClient.send(
       new PutObjectCommand({
