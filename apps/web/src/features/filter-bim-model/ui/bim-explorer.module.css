@@ -1,0 +1,244 @@
+.explorer {
+  z-index: 2;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  border-right: 1px solid var(--viewer-border);
+  color: #fff;
+  background: #1e1e1e;
+}
+
+.explorer > header {
+  display: grid;
+  min-height: 3.75rem;
+  align-content: center;
+  gap: 0.05rem;
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--viewer-border);
+}
+
+.explorer > header small,
+.active small {
+  color: #8585f6;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.explorer > header strong {
+  font-size: 0.85rem;
+}
+
+.body {
+  min-height: 0;
+  overflow: auto;
+  scrollbar-color: #666 transparent;
+  scrollbar-width: thin;
+}
+
+.body section {
+  padding: 0.9rem 0.85rem;
+  border-bottom: 1px solid var(--viewer-border);
+}
+
+.body h2 {
+  margin: 0 0 0.65rem;
+  color: #fff;
+  font-size: 0.76rem;
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.sectionTitle button {
+  padding: 0;
+  border: 0;
+  color: #c7c7ff;
+  font-size: 0.65rem;
+  background: transparent;
+  cursor: pointer;
+}
+
+.body section > label:not(.check),
+.colorAction > label {
+  display: block;
+  margin: 0.6rem 0 0.25rem;
+  color: var(--viewer-muted);
+  font-size: 0.65rem;
+}
+
+.body select {
+  width: 100%;
+  min-height: 2.3rem;
+  padding: 0 1.8rem 0 0.55rem;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 0;
+  color: #fff;
+  font-size: 0.7rem;
+  background: #2a2a2a;
+}
+
+.actions,
+.colorAction {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+  margin-top: 0.65rem;
+}
+
+.actions button,
+.colorAction button,
+.paletteButton {
+  min-height: 2.1rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid rgb(255 255 255 / 24%);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 600;
+  background: transparent;
+  cursor: pointer;
+}
+
+.actions button:first-child,
+.colorAction button {
+  border-color: #8585f6;
+  color: #c7c7ff;
+}
+
+.actions button:hover:not(:disabled),
+.colorAction button:hover:not(:disabled),
+.paletteButton:hover:not(:disabled) {
+  background: rgb(255 255 255 / 8%);
+}
+
+.actions button:disabled,
+.colorAction button:disabled,
+.paletteButton:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.colorAction {
+  grid-template-columns: auto 2.25rem minmax(0, 1fr);
+  align-items: end;
+}
+
+.colorAction > label {
+  align-self: center;
+  margin: 0;
+}
+
+.colorAction input {
+  width: 2.25rem;
+  height: 2.1rem;
+  padding: 0.15rem;
+  border: 1px solid rgb(255 255 255 / 24%);
+  background: transparent;
+  cursor: pointer;
+}
+
+.storeys {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.storeys button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.55rem;
+  border: 0;
+  color: #eee;
+  font-size: 0.68rem;
+  text-align: left;
+  background: rgb(255 255 255 / 4%);
+  cursor: pointer;
+}
+
+.storeys button:hover {
+  background: rgb(255 255 255 / 9%);
+}
+
+.storeys small {
+  color: var(--viewer-muted);
+  font-size: 0.58rem;
+  white-space: nowrap;
+}
+
+.paletteButton {
+  width: 100%;
+  margin-top: 0.55rem;
+}
+
+.check {
+  display: flex;
+  gap: 0.45rem;
+  align-items: flex-start;
+  color: #eee;
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.check input {
+  flex: none;
+  margin-top: 0.1rem;
+  accent-color: #8585f6;
+}
+
+.opacity {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 2.5rem;
+  gap: 0.6rem;
+  align-items: center;
+  margin-top: 0.7rem;
+}
+
+.opacity input {
+  width: 100%;
+  accent-color: #8585f6;
+}
+
+.opacity strong {
+  color: #fff;
+  font-size: 0.65rem;
+  text-align: right;
+}
+
+.body section > p,
+.empty {
+  margin: 0.45rem 0 0;
+  color: var(--viewer-muted);
+  font-size: 0.62rem;
+  line-height: 1.4;
+}
+
+.active {
+  display: grid;
+  gap: 0.15rem;
+  margin: 0.75rem;
+  padding: 0.7rem;
+  border-left: 2px solid #8585f6;
+  background: rgb(106 106 244 / 12%);
+}
+
+.active strong {
+  overflow: hidden;
+  font-size: 0.7rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.active span {
+  color: var(--viewer-muted);
+  font-size: 0.62rem;
+}

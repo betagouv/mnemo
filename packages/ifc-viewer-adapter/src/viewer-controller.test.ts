@@ -18,6 +18,8 @@ function createHarness() {
     rendererInitialized: 0,
     geometryInitialized: 0,
     sceneCleared: 0,
+    colorOverridesSet: 0,
+    colorOverridesCleared: 0,
     batchesAdded: 0,
     fitToView: 0,
     orbit: 0,
@@ -54,6 +56,13 @@ function createHarness() {
       min: { x: 0, y: 2, z: 4 },
       max: { x: 2, y: 4, z: 6 },
     }),
+    getAllMeshDataExpressIds: () => [42, 84],
+    setColorOverrides: () => {
+      calls.colorOverridesSet += 1;
+    },
+    clearColorOverrides: () => {
+      calls.colorOverridesCleared += 1;
+    },
   };
   const renderer = {
     init: async () => {
@@ -63,8 +72,8 @@ function createHarness() {
     resize: () => undefined,
     getScene: () => scene,
     getCamera: () => camera,
-    getGPUDevice: () => null,
-    getPipeline: () => null,
+    getGPUDevice: () => ({}),
+    getPipeline: () => ({}),
     addMeshes: () => {
       calls.batchesAdded += 1;
     },
@@ -148,6 +157,29 @@ function createHarness() {
     },
     createGeometryProcessor: () => geometry,
     createParser: () => parser,
+    createBimIndex: () => ({
+      catalog: {
+        types: [
+          { ifcClass: "IfcDoor", elementCount: 1 },
+          { ifcClass: "IfcWall", elementCount: 1 },
+        ],
+        storeys: [
+          {
+            expressId: 10,
+            name: "Niveau 1",
+            elevation: 0,
+            elementCount: 2,
+          },
+        ],
+      },
+      findIds: (query) =>
+        query.ifcClass === "IfcDoor"
+          ? [84]
+          : query.ifcClass === "IfcWall"
+            ? [42]
+            : [42, 84],
+      query: () => [],
+    }),
     readElementDetails: (_store, expressId) => ({
       expressId,
       globalId: "3vB1mExampleGlobalId",
@@ -299,6 +331,34 @@ describe("IfcViewerController", () => {
       name: "Mur test",
     });
     expect(controller.getSnapshot().selection?.propertySets).toHaveLength(1);
+    expect(calls.fitToView).toBe(1);
+    controller.dispose();
+  });
+
+  it("applies BIM filters without rebuilding or reframing the scene", async () => {
+    const { calls, controller } = createHarness();
+    await controller.loadIfc({ downloadUrl: "http://storage.local/model.ifc" });
+
+    controller.isolate({ ifcClass: "IfcWall" }, "Murs");
+
+    expect(controller.getSnapshot().catalog?.storeys).toHaveLength(1);
+    expect(controller.getSnapshot().visual).toMatchObject({
+      mode: "isolate",
+      label: "Murs",
+      matchCount: 1,
+      showContext: true,
+      contextOpacity: 0.1,
+    });
+
+    controller.setIsolationContext(false, 0.25);
+    expect(controller.getSnapshot().visual).toMatchObject({
+      showContext: false,
+      contextOpacity: 0.25,
+    });
+
+    controller.color({ ifcClass: "IfcDoor" }, [0.5, 0.1, 0.8, 1]);
+    expect(calls.colorOverridesSet).toBe(1);
+    expect(calls.rendererCreated).toBe(1);
     expect(calls.fitToView).toBe(1);
     controller.dispose();
   });

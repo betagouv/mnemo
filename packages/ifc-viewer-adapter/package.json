@@ -15,6 +15,7 @@
   "dependencies": {
     "@ifc-lite/geometry": "4.3.0",
     "@ifc-lite/parser": "5.2.0",
+    "@ifc-lite/query": "2.2.0",
     "@ifc-lite/renderer": "2.0.1"
   },
   "devDependencies": {
