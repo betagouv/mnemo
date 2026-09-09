@@ -6,6 +6,7 @@ import {
   bcfViewpoints,
   createDatabase,
   deletionJobs,
+  pointCloudProcessingResults,
   projects,
   users,
 } from "@mnemo/database";
@@ -87,6 +88,12 @@ describe("DrizzleProjectRepository", () => {
     const topicId = randomUUID();
     const viewpointId = randomUUID();
     const snapshotObjectKey = `projects/${created.id}/bcf/${topicId}/viewpoints/${viewpointId}/snapshot.png`;
+    const pointCloudAssetId = randomUUID();
+    const pointCloudOriginalKey = `projects/${created.id}/assets/${pointCloudAssetId}/original.laz`;
+    const pointCloudKeys = ["metadata.json", "hierarchy.bin", "octree.bin"].map(
+      (name) =>
+        `projects/${created.id}/assets/${pointCloudAssetId}/derived/potree-v2/${name}`,
+    );
     await database.db.insert(assets).values({
       id: assetId,
       projectId: created.id,
@@ -98,6 +105,30 @@ describe("DrizzleProjectRepository", () => {
       status: "ready",
       createdBy: actorId,
       uploadExpiresAt: new Date("2030-01-01T00:00:00.000Z"),
+    });
+    await database.db.insert(assets).values({
+      id: pointCloudAssetId,
+      projectId: created.id,
+      kind: "point_cloud",
+      originalFileName: "survey.laz",
+      mediaType: "application/vnd.laszip",
+      sizeBytes: 84,
+      originalObjectKey: pointCloudOriginalKey,
+      status: "ready",
+      createdBy: actorId,
+      uploadExpiresAt: new Date("2030-01-01T00:00:00.000Z"),
+    });
+    await database.db.insert(pointCloudProcessingResults).values({
+      assetId: pointCloudAssetId,
+      format: "potree-v2",
+      processor: "PotreeConverter",
+      processorVersion: "2.1.1",
+      metadataObjectKey: pointCloudKeys[0],
+      hierarchyObjectKey: pointCloudKeys[1],
+      octreeObjectKey: pointCloudKeys[2],
+      pointCount: 10_000,
+      spacing: 0.5,
+      processedAt: new Date(),
     });
     await database.db.insert(bcfTopics).values({
       id: topicId,
@@ -129,11 +160,19 @@ describe("DrizzleProjectRepository", () => {
     await expect(
       repository.findForActor(actorId, created.id),
     ).resolves.toBeUndefined();
-    await expect(
-      database.db
-        .select({ objectKeys: deletionJobs.objectKeys })
-        .from(deletionJobs)
-        .where(eq(deletionJobs.resourceId, created.id)),
-    ).resolves.toEqual([{ objectKeys: [objectKey, snapshotObjectKey] }]);
+    const jobs = await database.db
+      .select({ objectKeys: deletionJobs.objectKeys })
+      .from(deletionJobs)
+      .where(eq(deletionJobs.resourceId, created.id));
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]?.objectKeys).toHaveLength(6);
+    expect(jobs[0]?.objectKeys).toEqual(
+      expect.arrayContaining([
+        objectKey,
+        pointCloudOriginalKey,
+        snapshotObjectKey,
+        ...pointCloudKeys,
+      ]),
+    );
   });
 });

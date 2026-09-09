@@ -3,9 +3,11 @@
 import {
   IfcViewerController,
   type LoadIfcInput,
+  type LoadPointCloudInput,
   type IfcViewerSnapshot,
 } from "@mnemo/ifc-viewer-adapter";
 import type { PointCloudSettings } from "@mnemo/contracts/point-clouds";
+import type { PointCloudSource } from "@mnemo/contracts/point-clouds";
 import type { BcfTopic } from "@mnemo/contracts/bcf";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -55,7 +57,7 @@ const initialPointBudget = 2_000_000;
 export type ViewerPointCloudSource = {
   assetId: string;
   fileName: string;
-  downloadUrl: string;
+  source: PointCloudSource;
   settings: PointCloudSettings;
 };
 
@@ -128,6 +130,57 @@ export function IfcViewer({
   const trpcClient = useTRPCClient();
   const getViewer = useCallback(() => controllerRef.current, []);
 
+  const loadPointCloud = useCallback(
+    async (
+      controller: IfcViewerController,
+      source: ViewerPointCloudSource,
+      maxPointsInMemory: number,
+      transform = source.settings.transform,
+    ) => {
+      const renderSource: LoadPointCloudInput["source"] =
+        source.source.mode === "preview"
+          ? {
+              mode: "preview" as const,
+              downloadUrl: source.source.downloadUrl,
+            }
+          : {
+              mode: "octree" as const,
+              access: source.source,
+              refreshAccess: async () => {
+                const refreshed = await trpcClient.pointClouds.source.query({
+                  assetId: source.assetId,
+                  projectId,
+                });
+                if (refreshed.mode !== "octree") {
+                  throw new Error(
+                    "L’octree du nuage de points n’est plus disponible.",
+                  );
+                }
+                return refreshed;
+              },
+            };
+      if (renderSource.mode === "preview") {
+        await controller.loadPointCloud({
+          assetId: source.assetId,
+          fileName: source.fileName,
+          source: renderSource,
+          maxPointsInMemory,
+          transform,
+        });
+      } else {
+        await controller.loadPointCloud({
+          assetId: source.assetId,
+          fileName: source.fileName,
+          source: renderSource,
+          maxPointsInMemory,
+          transform,
+        });
+      }
+    },
+    [projectId, trpcClient],
+  );
+  const initialLoadPointCloudRef = useRef(loadPointCloud);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -143,13 +196,11 @@ export function IfcViewer({
       .then(() =>
         Promise.allSettled(
           pointCloudSourcesRef.current.map((source) =>
-            controller.loadPointCloud({
-              assetId: source.assetId,
-              fileName: source.fileName,
-              downloadUrl: source.downloadUrl,
-              maxPointsInMemory: initialPointBudget,
-              transform: source.settings.transform,
-            }),
+            initialLoadPointCloudRef.current(
+              controller,
+              source,
+              initialPointBudget,
+            ),
           ),
         ),
       )
@@ -181,22 +232,28 @@ export function IfcViewer({
     if (!controller) return;
 
     setPointBudget(maxPointsInMemory);
+    controller.setPointCloudPointBudget(maxPointsInMemory);
     await Promise.allSettled(
       pointCloudSourcesRef.current.map(async (source) => {
-        const access = await trpcClient.assets.open.query({
+        if (source.source.mode === "octree") return;
+        const access = await trpcClient.pointClouds.source.query({
           assetId: source.assetId,
           projectId,
         });
         const configuration = pointCloudConfigurations.find(
           (item) => item.assetId === source.assetId,
         );
-        await controller.loadPointCloud({
-          assetId: source.assetId,
-          fileName: source.fileName,
-          downloadUrl: access.downloadUrl,
+        const refreshed = { ...source, source: access };
+        await loadPointCloud(
+          controller,
+          refreshed,
           maxPointsInMemory,
-          transform: configuration?.transform ?? source.settings.transform,
-        });
+          configuration?.transform ?? source.settings.transform,
+        );
+        pointCloudSourcesRef.current = pointCloudSourcesRef.current.map(
+          (current) =>
+            current.assetId === refreshed.assetId ? refreshed : current,
+        );
       }),
     );
   }

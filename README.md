@@ -46,7 +46,15 @@ Ports can be changed through the variables documented in [`.env.example`](./.env
 
 The standalone browser parser handles IFC files below 25 MiB by default. Larger files use the IFC-Lite Rust server and progressive Parquet batches. Docker Compose sets the threshold to zero so the server path is exercised for every local IFC; change `IFC_BROWSER_PROCESSING_MAX_BYTES` to test the browser path.
 
-LAS, LAZ, PLY, and E57 point clouds can be attached to a project and overlaid in the IFC viewer. The current browser preview decodes in a worker, limits the number of uploaded points through sampling, and keeps alignment in PostgreSQL. It still downloads the complete original object before decoding; true camera-driven octree/LOD streaming for very large scans is the next point-cloud milestone.
+LAS, LAZ, PLY, and E57 point clouds can be attached to a project and overlaid in
+the IFC viewer. LAS/LAZ originals are converted asynchronously by
+PotreeConverter 2.1.1 into persistent Potree v2 octree artifacts in MinIO. The
+browser range-loads only camera-relevant hierarchy and point nodes, decodes
+them in a worker, and uploads an additive LOD selection to the same native
+IFC-Lite WebGPU renderer as the IFC. The point budget and point size update the
+live renderer without recreating it or resetting the camera. PLY/E57 retain a
+bounded full-object preview path. Per-file alignment and CRS labels are stored
+in PostgreSQL; originals always remain the source of truth.
 
 BCF topics are persisted per project in PostgreSQL. A topic can carry a status,
 priority, description, comments, and a durable IFC component reference by
@@ -84,7 +92,8 @@ packages/
   domain/              framework-independent business rules and ports
   ifc-viewer-adapter/  stable bridge to the IFC-Lite WebGPU runtime
   ifc-mcp-adapter/     safe read-only MCP tool and session boundary
-  point-cloud-viewer-adapter/ worker decoding and transform boundary
+  point-cloud-processing-adapter/ PotreeConverter process boundary
+  point-cloud-viewer-adapter/ octree LOD, worker decoding and transforms
   storage/             S3-compatible object-storage adapter
 docs/adr/              durable architecture decisions
 ```

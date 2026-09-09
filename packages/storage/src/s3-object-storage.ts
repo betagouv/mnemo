@@ -6,6 +6,7 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { Readable } from "node:stream";
 
 import type {
   CreateDownloadUrlInput,
@@ -13,6 +14,7 @@ import type {
   ObjectStorage,
   StoredObject,
   WriteObjectInput,
+  WriteObjectStreamInput,
 } from "./object-storage";
 
 export type S3ObjectStorageOptions = {
@@ -150,6 +152,23 @@ export class S3ObjectStorage implements ObjectStorage {
         Key: objectKey,
         Body: body,
         ContentLength: body.byteLength,
+        ContentType: contentType,
+      }),
+    );
+  }
+
+  async writeObjectStream({
+    objectKey,
+    contentType,
+    contentLength,
+    body,
+  }: WriteObjectStreamInput) {
+    await this.internalClient.send(
+      new PutObjectCommand({
+        Bucket: this.options.bucket,
+        Key: objectKey,
+        Body: Readable.from(body),
+        ContentLength: contentLength,
         ContentType: contentType,
       }),
     );

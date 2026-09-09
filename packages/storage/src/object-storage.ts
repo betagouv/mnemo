@@ -21,6 +21,13 @@ export type WriteObjectInput = {
   body: Uint8Array;
 };
 
+export type WriteObjectStreamInput = {
+  objectKey: string;
+  contentType: string;
+  contentLength: number;
+  body: AsyncIterable<Uint8Array>;
+};
+
 export interface ObjectStorage {
   createUploadUrl(input: CreateUploadUrlInput): Promise<string>;
   createDownloadUrl(input: CreateDownloadUrlInput): Promise<string>;
@@ -28,5 +35,6 @@ export interface ObjectStorage {
   readObject(objectKey: string): Promise<Uint8Array>;
   readObjectStream(objectKey: string): Promise<AsyncIterable<Uint8Array>>;
   writeObject(input: WriteObjectInput): Promise<void>;
+  writeObjectStream(input: WriteObjectStreamInput): Promise<void>;
   deleteObject(objectKey: string): Promise<void>;
 }

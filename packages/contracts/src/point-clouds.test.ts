@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { updatePointCloudSettingsInputSchema } from "./point-clouds";
+import {
+  pointCloudSourceSchema,
+  updatePointCloudSettingsInputSchema,
+} from "./point-clouds";
 
 const validInput = {
   projectId: "d14ccec4-b8c9-437e-89af-0690c9c9682b",
@@ -15,6 +18,20 @@ const validInput = {
 };
 
 describe("point-cloud contracts", () => {
+  it("distinguishes bounded previews from camera-driven octrees", () => {
+    expect(
+      pointCloudSourceSchema.parse({
+        mode: "octree",
+        metadataUrl: "http://storage/metadata.json",
+        hierarchyUrl: "http://storage/hierarchy.bin",
+        octreeUrl: "http://storage/octree.bin",
+        pointCount: 1_000_000,
+        spacing: 0.1,
+        expiresAt: "2026-09-09T12:00:00.000Z",
+      }).mode,
+    ).toBe("octree");
+  });
+
   it("accepts a finite spatial transform and CRS metadata", () => {
     expect(updatePointCloudSettingsInputSchema.parse(validInput)).toEqual(
       validInput,

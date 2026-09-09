@@ -22,6 +22,7 @@ export function getWorkerConfig() {
     databaseUrl: required("DATABASE_URL"),
     ifcLiteServerUrl: required("IFC_LITE_SERVER_URL"),
     ifcMcpCacheDirectory: required("IFC_MCP_CACHE_DIR"),
+    potreeConverterPath: required("POTREE_CONVERTER_PATH"),
     storage: {
       endpoint: required("S3_ENDPOINT"),
       region: required("S3_REGION"),

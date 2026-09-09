@@ -98,6 +98,7 @@ function storage(): ObjectStorage {
       })(),
     ),
     writeObject: vi.fn(async () => undefined),
+    writeObjectStream: vi.fn(async () => undefined),
     deleteObject: vi.fn(async () => undefined),
   };
 }

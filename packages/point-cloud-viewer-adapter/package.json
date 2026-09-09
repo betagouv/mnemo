@@ -13,7 +13,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@ifc-lite/pointcloud": "0.7.2"
+    "@ifc-lite/pointcloud": "0.7.2",
+    "@ifc-lite/renderer": "2.0.1"
   },
   "devDependencies": {
     "typescript": "^5.9.3",

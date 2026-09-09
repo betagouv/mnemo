@@ -50,15 +50,15 @@ export async function IfcViewerScreen({
     await Promise.all(
       assets
         .filter(
-          (asset) =>
-            asset.kind === "point_cloud" &&
-            asset.status !== "upload_pending" &&
-            asset.status !== "failed",
+          (asset) => asset.kind === "point_cloud" && asset.status === "ready",
         )
         .map(async (asset) => {
           try {
             const [access, settings] = await Promise.all([
-              caller.assets.open({ projectId: project.id, assetId: asset.id }),
+              caller.pointClouds.source({
+                projectId: project.id,
+                assetId: asset.id,
+              }),
               caller.pointClouds.settings({
                 projectId: project.id,
                 assetId: asset.id,
@@ -67,7 +67,7 @@ export async function IfcViewerScreen({
             return {
               assetId: asset.id,
               fileName: asset.originalFileName,
-              downloadUrl: access.downloadUrl,
+              source: access,
               settings,
             };
           } catch {

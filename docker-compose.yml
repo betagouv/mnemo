@@ -65,6 +65,7 @@ services:
       S3_SECRET_KEY: mnemo-local-password
       IFC_LITE_SERVER_URL: http://ifc-lite-server:8080
       IFC_MCP_CACHE_DIR: /app/ifc-mcp-models
+      POTREE_CONVERTER_PATH: /usr/local/bin/PotreeConverter
       WORKER_POLL_INTERVAL_MS: 3000
       WORKER_LEASE_TIMEOUT_MS: 900000
       WORKER_RETRY_BASE_DELAY_MS: 5000

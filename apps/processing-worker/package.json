@@ -23,6 +23,7 @@
     "@mnemo/database": "workspace:*",
     "@mnemo/domain": "workspace:*",
     "@mnemo/ifc-processing-adapter": "workspace:*",
+    "@mnemo/point-cloud-processing-adapter": "workspace:*",
     "@mnemo/storage": "workspace:*",
     "drizzle-orm": "0.45.2",
     "parquet-wasm": "0.7.2"

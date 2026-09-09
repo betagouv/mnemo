@@ -1,5 +1,6 @@
 import { createDatabase } from "@mnemo/database";
 import { IfcLiteServerProcessor } from "@mnemo/ifc-processing-adapter";
+import { PotreeConverterProcessor } from "@mnemo/point-cloud-processing-adapter";
 import { S3ObjectStorage } from "@mnemo/storage";
 
 import { createProcessIfcAssetHandler } from "./application/process-ifc-asset";
@@ -21,6 +22,7 @@ import { DrizzleProcessingJobQueue } from "./infrastructure/drizzle-processing-j
 import { DrizzleIfcProcessingRepository } from "./infrastructure/drizzle-ifc-processing-repository";
 import { DrizzlePointCloudProcessingRepository } from "./infrastructure/drizzle-point-cloud-processing-repository";
 import { LocalIfcMcpCacheCleaner } from "./infrastructure/local-ifc-mcp-cache-cleaner";
+import { PotreePointCloudArtifactBuilder } from "./infrastructure/potree-point-cloud-artifact-builder";
 import { getWorkerConfig } from "./runtime-config";
 
 async function main() {
@@ -42,6 +44,12 @@ async function main() {
     process_point_cloud: createProcessPointCloudAssetHandler({
       repository: new DrizzlePointCloudProcessingRepository(database.db),
       storage,
+      artifacts: new PotreePointCloudArtifactBuilder(
+        storage,
+        new PotreeConverterProcessor({
+          executablePath: config.potreeConverterPath,
+        }),
+      ),
     }),
   };
   const worker = new ProcessingWorker(

@@ -125,6 +125,8 @@ class ObjectStorageStub implements ObjectStorage {
 
   async writeObject() {}
 
+  async writeObjectStream() {}
+
   async deleteObject() {}
 }
 

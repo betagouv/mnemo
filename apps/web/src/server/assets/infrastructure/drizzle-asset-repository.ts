@@ -1,6 +1,7 @@
 import {
   assets,
   deletionJobs,
+  pointCloudProcessingResults,
   processingJobs,
   projectMembers,
   type MnemoDatabase,
@@ -140,12 +141,31 @@ export class DrizzleAssetRepository implements AssetRepository {
 
       if (!asset) return;
 
+      const [pointCloudResult] = await transaction
+        .select({
+          metadataObjectKey: pointCloudProcessingResults.metadataObjectKey,
+          hierarchyObjectKey: pointCloudProcessingResults.hierarchyObjectKey,
+          octreeObjectKey: pointCloudProcessingResults.octreeObjectKey,
+        })
+        .from(pointCloudProcessingResults)
+        .where(eq(pointCloudProcessingResults.assetId, asset.id))
+        .limit(1);
+
       await transaction
         .insert(deletionJobs)
         .values({
           resourceId: asset.id,
           type: "delete_asset",
-          objectKeys: [asset.originalObjectKey],
+          objectKeys: [
+            asset.originalObjectKey,
+            ...(pointCloudResult
+              ? [
+                  pointCloudResult.metadataObjectKey,
+                  pointCloudResult.hierarchyObjectKey,
+                  pointCloudResult.octreeObjectKey,
+                ]
+              : []),
+          ],
           availableAt: requestedAt,
         })
         .onConflictDoNothing();
