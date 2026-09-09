@@ -180,6 +180,18 @@ export const beginBcfViewpointCaptureResultSchema = z.object({
 
 export const bcfTopicListSchema = z.array(bcfTopicSchema);
 
+export const bcfArchiveImportResultSchema = z.object({
+  topics: bcfTopicListSchema,
+  imported: z.object({
+    topics: z.int().nonnegative(),
+    comments: z.int().nonnegative(),
+    viewpoints: z.int().nonnegative(),
+    snapshots: z.int().nonnegative(),
+  }),
+  skippedTopics: z.int().nonnegative(),
+  warnings: z.array(z.string()).max(500),
+});
+
 export type BcfTopic = z.infer<typeof bcfTopicSchema>;
 export type BcfComment = z.infer<typeof bcfCommentSchema>;
 export type BcfComponent = z.infer<typeof bcfComponentSchema>;
@@ -198,4 +210,7 @@ export type BeginBcfViewpointCaptureInput = z.infer<
 >;
 export type CompleteBcfViewpointCaptureInput = z.infer<
   typeof completeBcfViewpointCaptureInputSchema
+>;
+export type BcfArchiveImportResult = z.infer<
+  typeof bcfArchiveImportResultSchema
 >;

@@ -1,0 +1,24 @@
+{
+  "name": "@mnemo/bcf-adapter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint src",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@ifc-lite/bcf": "3.0.1",
+    "@mnemo/contracts": "workspace:*",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "5.0.0"
+  }
+}

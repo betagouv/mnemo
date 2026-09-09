@@ -115,6 +115,8 @@ class ObjectStorageStub implements ObjectStorage {
     return new Uint8Array();
   }
 
+  async writeObject() {}
+
   async deleteObject() {}
 }
 

@@ -71,6 +71,9 @@ describe("database schema", () => {
     expect(getTableName(bcfComments)).toBe("bcf_comments");
     expect(getTableName(bcfTopicComponents)).toBe("bcf_topic_components");
     expect(getTableName(bcfViewpoints)).toBe("bcf_viewpoints");
+    expect(bcfTopics.bcfGuid.notNull).toBe(true);
+    expect(bcfComments.bcfGuid.notNull).toBe(true);
+    expect(bcfViewpoints.bcfGuid.notNull).toBe(true);
     expect(bcfTopicStatusEnum.enumValues).toEqual([
       "open",
       "in_progress",

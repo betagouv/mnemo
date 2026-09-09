@@ -187,4 +187,94 @@ describe("DrizzleBcfTopicRepository", () => {
       },
     ]);
   });
+
+  it("imports external authors once per project BCF GUID", async () => {
+    const repository = new DrizzleBcfTopicRepository(database.db);
+    const importedTopicId = randomUUID();
+    const importedTopicGuid = randomUUID();
+    const importedCommentId = randomUUID();
+    const importedCommentGuid = randomUUID();
+    const importedViewpointId = randomUUID();
+    const importedViewpointGuid = randomUUID();
+    const record = {
+      id: importedTopicId,
+      bcfGuid: importedTopicGuid,
+      projectId,
+      title: "Remarque importée",
+      description: null,
+      type: "issue" as const,
+      status: "open" as const,
+      priority: "normal" as const,
+      createdBy: actorId,
+      externalAuthor: "architecte@example.fr",
+      createdAt,
+      updatedAt: createdAt,
+      components: [{ id: randomUUID(), globalId: "0YvctA6Hn0pgmBdv0cPwH6" }],
+      comments: [
+        {
+          id: importedCommentId,
+          bcfGuid: importedCommentGuid,
+          externalAuthor: "controle@example.fr",
+          comment: "À reprendre",
+          viewpointBcfGuid: importedViewpointGuid,
+          createdAt,
+        },
+      ],
+      viewpoints: [
+        {
+          id: importedViewpointId,
+          bcfGuid: importedViewpointGuid,
+          data: {
+            guid: importedViewpointGuid,
+            perspectiveCamera: {
+              cameraViewPoint: { x: 1, y: 2, z: 3 },
+              cameraDirection: { x: 0, y: 0, z: -1 },
+              cameraUpVector: { x: 0, y: 1, z: 0 },
+              fieldOfView: 50,
+            },
+          },
+          targetDistance: 10,
+          snapshotObjectKey: null,
+          snapshotMediaType: null,
+          snapshotExpectedSize: null,
+          snapshotUploadedAt: null,
+          externalAuthor: "architecte@example.fr",
+          createdAt,
+        },
+      ],
+    };
+
+    await expect(repository.importTopics([record])).resolves.toEqual({
+      insertedTopicIds: [importedTopicId],
+      skippedBcfGuids: [],
+    });
+    await expect(
+      repository.importTopics([{ ...record, id: randomUUID() }]),
+    ).resolves.toEqual({
+      insertedTopicIds: [],
+      skippedBcfGuids: [importedTopicGuid],
+    });
+    await expect(repository.list(projectId)).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: importedTopicId,
+          bcfGuid: importedTopicGuid,
+          authorName: "architecte@example.fr",
+          comments: [
+            expect.objectContaining({
+              bcfGuid: importedCommentGuid,
+              authorName: "controle@example.fr",
+              viewpointBcfGuid: importedViewpointGuid,
+            }),
+          ],
+          viewpoints: [
+            expect.objectContaining({
+              bcfGuid: importedViewpointGuid,
+              authorName: "architecte@example.fr",
+            }),
+          ],
+        }),
+      ]),
+    );
+  });
 });

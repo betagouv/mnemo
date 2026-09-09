@@ -48,6 +48,47 @@
   cursor: not-allowed;
 }
 
+.exchange {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.exchange label,
+.exchange button {
+  display: flex;
+  min-height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid rgb(133 133 246 / 65%);
+  color: #fff;
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.exchange label:hover:not([aria-disabled="true"]) {
+  background: rgb(133 133 246 / 14%);
+}
+
+.exchange label[aria-disabled="true"] {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.exchange input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .create {
   display: grid;
   gap: 0.55rem;
