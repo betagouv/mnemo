@@ -6,6 +6,11 @@ import {
   assetProcessingResults,
   assets,
   assetStatusEnum,
+  bcfComments,
+  bcfPriorityEnum,
+  bcfTopicComponents,
+  bcfTopics,
+  bcfTopicStatusEnum,
   deletionJobs,
   deletionJobTypeEnum,
   processingJobs,
@@ -58,6 +63,24 @@ describe("database schema", () => {
 
   it("persists point-cloud alignment independently from render controls", () => {
     expect(getTableName(pointCloudSettings)).toBe("point_cloud_settings");
+  });
+
+  it("persists BCF topics, comments, and durable IFC component links", () => {
+    expect(getTableName(bcfTopics)).toBe("bcf_topics");
+    expect(getTableName(bcfComments)).toBe("bcf_comments");
+    expect(getTableName(bcfTopicComponents)).toBe("bcf_topic_components");
+    expect(bcfTopicStatusEnum.enumValues).toEqual([
+      "open",
+      "in_progress",
+      "resolved",
+      "closed",
+    ]);
+    expect(bcfPriorityEnum.enumValues).toEqual([
+      "low",
+      "normal",
+      "high",
+      "critical",
+    ]);
   });
 
   it("keeps cleanup jobs independent from resources being deleted", () => {

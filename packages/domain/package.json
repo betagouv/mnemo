@@ -7,6 +7,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./asset": "./src/asset.ts",
+    "./bcf": "./src/bcf.ts",
     "./project": "./src/project.ts",
     "./processing-job": "./src/processing-job.ts"
   },

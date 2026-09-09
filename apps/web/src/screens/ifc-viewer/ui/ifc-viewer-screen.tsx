@@ -40,7 +40,10 @@ export async function IfcViewerScreen({
     notFound();
   }
 
-  const assets = await caller.assets.list({ projectId: project.id });
+  const [assets, bcfTopics] = await Promise.all([
+    caller.assets.list({ projectId: project.id }),
+    caller.bcf.list({ projectId: project.id }),
+  ]);
   const pointCloudSources = (
     await Promise.all(
       assets
@@ -76,6 +79,7 @@ export async function IfcViewerScreen({
     <IfcViewer
       assetId={result.asset.id}
       assetName={result.asset.originalFileName}
+      initialBcfTopics={bcfTopics}
       initialDownloadUrl={result.downloadUrl}
       key={result.asset.id}
       pointCloudSources={pointCloudSources}

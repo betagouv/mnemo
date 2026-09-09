@@ -1,5 +1,10 @@
 import { assetKinds, assetStatuses } from "@mnemo/domain/asset";
 import {
+  bcfPriorities,
+  bcfTopicStatuses,
+  bcfTopicTypes,
+} from "@mnemo/domain/bcf";
+import {
   processingJobStatuses,
   processingJobTypes,
 } from "@mnemo/domain/processing-job";
@@ -45,6 +50,9 @@ export const deletionJobTypeEnum = pgEnum("deletion_job_type", [
   "delete_asset",
   "delete_project",
 ]);
+export const bcfTopicStatusEnum = pgEnum("bcf_topic_status", bcfTopicStatuses);
+export const bcfTopicTypeEnum = pgEnum("bcf_topic_type", bcfTopicTypes);
+export const bcfPriorityEnum = pgEnum("bcf_priority", bcfPriorities);
 
 export const users = pgTable(
   "users",
@@ -175,6 +183,70 @@ export const pointCloudSettings = pgTable("point_cloud_settings", {
   ...timestamps(),
 });
 
+export const bcfTopics = pgTable(
+  "bcf_topics",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    title: varchar("title", { length: 255 }).notNull(),
+    description: text("description"),
+    type: bcfTopicTypeEnum("type").default("issue").notNull(),
+    status: bcfTopicStatusEnum("status").default("open").notNull(),
+    priority: bcfPriorityEnum("priority").default("normal").notNull(),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    ...timestamps(),
+  },
+  (table) => [
+    index("bcf_topics_project_id_idx").on(table.projectId),
+    index("bcf_topics_status_idx").on(table.status),
+  ],
+);
+
+export const bcfTopicComponents = pgTable(
+  "bcf_topic_components",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    topicId: uuid("topic_id")
+      .notNull()
+      .references(() => bcfTopics.id, { onDelete: "cascade" }),
+    assetId: uuid("asset_id").references(() => assets.id, {
+      onDelete: "set null",
+    }),
+    globalId: varchar("global_id", { length: 64 }).notNull(),
+    expressId: integer("express_id"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("bcf_topic_components_topic_id_idx").on(table.topicId),
+    index("bcf_topic_components_asset_id_idx").on(table.assetId),
+    index("bcf_topic_components_global_id_idx").on(table.globalId),
+  ],
+);
+
+export const bcfComments = pgTable(
+  "bcf_comments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    topicId: uuid("topic_id")
+      .notNull()
+      .references(() => bcfTopics.id, { onDelete: "cascade" }),
+    authorId: uuid("author_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    comment: text("comment").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [index("bcf_comments_topic_id_idx").on(table.topicId)],
+);
+
 export const assetProcessingResults = pgTable("asset_processing_results", {
   assetId: uuid("asset_id")
     .primaryKey()
@@ -226,6 +298,9 @@ export type ProjectMemberRecord = typeof projectMembers.$inferSelect;
 export type AssetRecord = typeof assets.$inferSelect;
 export type ProcessingJobRecord = typeof processingJobs.$inferSelect;
 export type PointCloudSettingsRecord = typeof pointCloudSettings.$inferSelect;
+export type BcfTopicRecord = typeof bcfTopics.$inferSelect;
+export type BcfTopicComponentRecord = typeof bcfTopicComponents.$inferSelect;
+export type BcfCommentRecord = typeof bcfComments.$inferSelect;
 export type AssetProcessingResultRecord =
   typeof assetProcessingResults.$inferSelect;
 export type DeletionJobRecord = typeof deletionJobs.$inferSelect;

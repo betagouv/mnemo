@@ -161,25 +161,7 @@
   border-bottom: 1px solid var(--viewer-border);
 }
 
-.inspectorHeader > div {
-  display: grid;
-  gap: 0.05rem;
-}
-
-.inspectorHeader small {
-  color: #8585f6;
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.inspectorHeader strong {
-  color: #fff;
-  font-size: 0.85rem;
-}
-
-.inspectorHeader button {
+.frameButton {
   display: inline-grid;
   width: 2.25rem;
   height: 2.25rem;
@@ -190,8 +172,56 @@
   cursor: pointer;
 }
 
-.inspectorHeader button:hover {
+.frameButton:hover {
   background: rgb(255 255 255 / 9%);
+}
+
+.inspectorTabs {
+  display: flex;
+  align-self: stretch;
+  gap: 0.2rem;
+}
+
+.inspectorTabs button {
+  position: relative;
+  padding: 0 0.5rem;
+  border: 0;
+  color: #aaa;
+  background: transparent;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.inspectorTabs button::after {
+  position: absolute;
+  right: 0.5rem;
+  bottom: -0.7rem;
+  left: 0.5rem;
+  height: 2px;
+  background: transparent;
+  content: "";
+}
+
+.inspectorTabs button[aria-selected="true"] {
+  color: #fff;
+}
+
+.inspectorTabs button[aria-selected="true"]::after {
+  background: #8585f6;
+}
+
+.inspectorTabs span {
+  display: inline-grid;
+  min-width: 1.15rem;
+  min-height: 1.15rem;
+  margin-left: 0.2rem;
+  padding: 0 0.25rem;
+  place-items: center;
+  border-radius: 1rem;
+  color: #fff;
+  background: #6a6af4;
+  font-size: 0.58rem;
 }
 
 .inspectorBody {
