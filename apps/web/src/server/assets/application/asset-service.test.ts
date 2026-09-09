@@ -1,0 +1,160 @@
+import type { ObjectStorage, StoredObject } from "@mnemo/storage";
+import { describe, expect, it } from "vitest";
+
+import type {
+  ProjectForActor,
+  ProjectRepository,
+} from "@/server/projects/application/project-repository";
+
+import { UnsupportedAssetFileError } from "./asset-errors";
+import type {
+  AssetForActor,
+  AssetRepository,
+  PendingAsset,
+} from "./asset-repository";
+import { AssetService } from "./asset-service";
+
+const now = new Date("2026-09-09T10:00:00.000Z");
+const project: ProjectForActor = {
+  id: "8017a38c-385e-4ef4-87da-7cc1fb2a5e3b",
+  name: "Projet test",
+  description: null,
+  role: "owner",
+  createdAt: now,
+  updatedAt: now,
+};
+
+class ProjectRepositoryStub implements ProjectRepository {
+  async listForActor() {
+    return [project];
+  }
+
+  async findForActor(_actorId: string, projectId: string) {
+    return projectId === project.id ? project : undefined;
+  }
+
+  async createForActor() {
+    return project;
+  }
+}
+
+class AssetRepositoryStub implements AssetRepository {
+  private asset: AssetForActor | undefined;
+
+  async listForActor() {
+    return this.asset ? [this.asset] : [];
+  }
+
+  async findForActor() {
+    return this.asset
+      ? { asset: this.asset, role: "owner" as const }
+      : undefined;
+  }
+
+  async createPending(input: PendingAsset) {
+    this.asset = {
+      ...input,
+      status: "upload_pending",
+      errorMessage: null,
+      uploadedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    return this.asset;
+  }
+
+  async markUploaded(_assetId: string, uploadedAt: Date) {
+    if (!this.asset) {
+      throw new Error("Missing test asset");
+    }
+
+    this.asset = {
+      ...this.asset,
+      status: "uploaded",
+      uploadedAt,
+      updatedAt: uploadedAt,
+    };
+    return this.asset;
+  }
+}
+
+class ObjectStorageStub implements ObjectStorage {
+  storedObject: StoredObject | null = {
+    contentLength: 42,
+    contentType: "application/octet-stream",
+    etag: "test-etag",
+  };
+
+  async createUploadUrl() {
+    return "http://storage.local/upload";
+  }
+
+  async statObject() {
+    return this.storedObject;
+  }
+
+  async deleteObject() {}
+}
+
+function createService() {
+  return new AssetService(
+    new AssetRepositoryStub(),
+    new ProjectRepositoryStub(),
+    new ObjectStorageStub(),
+    {
+      createId: () => "2dc84044-62d6-4e2d-99ae-a8db4446b271",
+      now: () => now,
+    },
+  );
+}
+
+describe("AssetService", () => {
+  it("creates a short-lived server-owned upload target", async () => {
+    await expect(
+      createService().beginUpload("actor-id", {
+        projectId: project.id,
+        kind: "point_cloud",
+        fileName: "releve.laz",
+        mediaType: "application/octet-stream",
+        sizeBytes: 42,
+      }),
+    ).resolves.toMatchObject({
+      uploadUrl: "http://storage.local/upload",
+      requiredHeaders: { "content-type": "application/octet-stream" },
+      asset: {
+        status: "upload_pending",
+        originalFileName: "releve.laz",
+      },
+    });
+  });
+
+  it("rejects a file whose extension does not match its kind", async () => {
+    await expect(
+      createService().beginUpload("actor-id", {
+        projectId: project.id,
+        kind: "ifc",
+        fileName: "releve.laz",
+        mediaType: "application/octet-stream",
+        sizeBytes: 42,
+      }),
+    ).rejects.toBeInstanceOf(UnsupportedAssetFileError);
+  });
+
+  it("marks the upload received only after checking the stored size", async () => {
+    const service = createService();
+    const started = await service.beginUpload("actor-id", {
+      projectId: project.id,
+      kind: "ifc",
+      fileName: "model.ifc",
+      mediaType: "application/x-step",
+      sizeBytes: 42,
+    });
+
+    await expect(
+      service.completeUpload("actor-id", {
+        projectId: project.id,
+        assetId: started.asset.id,
+      }),
+    ).resolves.toMatchObject({ status: "uploaded" });
+  });
+});

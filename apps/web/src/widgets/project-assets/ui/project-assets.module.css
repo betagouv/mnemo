@@ -1,0 +1,136 @@
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 19rem;
+  gap: clamp(2rem, 5vw, 5rem);
+  align-items: start;
+}
+
+.files {
+  min-width: 0;
+}
+
+.sectionHeading {
+  display: flex;
+  gap: 2rem;
+  align-items: end;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+
+.sectionHeading h2,
+.summary h2 {
+  margin: 0;
+  font-size: 1.45rem;
+}
+
+.sectionHeading > div > span {
+  color: var(--text-mention-grey);
+  font-size: 0.8rem;
+}
+
+.eyebrow {
+  margin: 0 0 0.45rem;
+  color: var(--mnemo-blue);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+}
+
+.empty {
+  display: grid;
+  justify-items: center;
+  min-height: 26rem;
+  padding: 5rem 2rem;
+  border: 1px dashed var(--border-default-grey);
+  text-align: center;
+  background: #fff;
+}
+
+.emptyIcon {
+  display: grid;
+  place-items: center;
+  width: 4.5rem;
+  height: 4.5rem;
+  margin-bottom: 1.5rem;
+  color: var(--mnemo-blue);
+  background: var(--mnemo-soft);
+}
+
+.emptyIcon span::before {
+  --icon-size: 2rem;
+}
+
+.empty h3 {
+  margin: 0 0 0.65rem;
+  font-size: 1.35rem;
+}
+
+.empty p {
+  max-width: 34rem;
+  margin: 0 0 1rem;
+  color: var(--text-mention-grey);
+  line-height: 1.6;
+}
+
+.empty small {
+  color: var(--mnemo-blue);
+  font-weight: 700;
+}
+
+.assetList {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.summary {
+  padding: 1.5rem;
+  border-top: 0.35rem solid var(--mnemo-blue);
+  background: var(--mnemo-soft);
+}
+
+.summary dl {
+  margin: 1.5rem 0;
+}
+
+.summary dl > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 0;
+  border-bottom: 1px solid rgb(0 0 145 / 14%);
+}
+
+.summary dt {
+  color: var(--text-mention-grey);
+  font-size: 0.85rem;
+}
+
+.summary dd {
+  margin: 0;
+  color: var(--mnemo-blue);
+  font-weight: 700;
+}
+
+.hint {
+  margin: 0;
+  color: var(--text-mention-grey);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+@media (width <= 60rem) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .summary {
+    grid-row: 1;
+  }
+}
+
+@media (width <= 45rem) {
+  .sectionHeading {
+    align-items: start;
+    flex-direction: column;
+  }
+}

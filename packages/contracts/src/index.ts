@@ -4,10 +4,18 @@ export {
   assetListSchema,
   assetStatusSchema,
   assetSummarySchema,
+  beginAssetUploadInputSchema,
+  beginAssetUploadResultSchema,
+  completeAssetUploadInputSchema,
   listAssetsInputSchema,
   type AssetId,
+  type AssetKind,
   type AssetList,
+  type AssetStatus,
   type AssetSummary,
+  type BeginAssetUploadInput,
+  type BeginAssetUploadResult,
+  type CompleteAssetUploadInput,
   type ListAssetsInput,
 } from "./assets";
 export {
