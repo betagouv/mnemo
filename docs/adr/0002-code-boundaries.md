@@ -33,4 +33,3 @@ Do not create empty layers. Add each folder only with the first real slice that 
 - Vendor libraries stay replaceable behind focused adapters.
 - Architecture rules can be checked mechanically.
 - A small feature may remain local until reuse justifies a package.
-

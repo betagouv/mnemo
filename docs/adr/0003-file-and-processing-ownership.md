@@ -21,4 +21,3 @@ Deletion is asynchronous and idempotent. It removes derived artifacts, originals
 - The web runtime does not buffer large uploads.
 - Every stored object is reachable through an application-owned asset or artifact record.
 - Cleanup requires an explicit, tested workflow rather than a database cascade alone.
-

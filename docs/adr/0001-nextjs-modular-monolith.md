@@ -19,4 +19,3 @@ Long-running work is never performed in an HTTP request. It runs in the processi
 - Server Components invoke application services directly rather than calling the local HTTP API.
 - A future standalone API remains possible because transports do not own domain logic.
 - Worker and IFC processing availability do not determine the web framework.
-
