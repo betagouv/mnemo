@@ -1,0 +1,149 @@
+specification {
+  element actor {
+    style {
+      shape person
+    }
+  }
+  element application
+  element service
+  element component
+  element database
+  element storage
+}
+
+model {
+  user = actor 'Utilisateur'
+
+  browser = application 'Navigateur' {
+    technology 'React, DSFR, WebGPU'
+
+    workspace = component 'Espace projets' 'Pages, formulaires et panneaux'
+    viewer = component 'Viewer BIM' 'IFC-Lite WebGPU, géométrie IFC et point cloud LOD'
+    assistantUi = component 'Chat' 'assistant-ui et outils de scène'
+  }
+
+  web = application 'Application Mnemo' {
+    technology 'Next.js App Router'
+
+    pages = component 'Server Components' 'Lectures initiales des projets, fichiers et BCF'
+    actions = component 'Server Actions' 'Mutations validées par Zod'
+    reads = component 'GET Route Handlers' 'Accès autorisé aux originaux et sources point cloud'
+    protocols = component 'Routes dédiées' 'Streaming assistant et archives BCF'
+    usecases = component 'Services applicatifs' 'Autorisations et règles métier'
+    adapters = component 'Adaptateurs' 'Prisma, S3, BCF et IFC-Lite MCP'
+  }
+
+  worker = service 'Processing worker' 'Jobs asynchrones et suppression idempotente' {
+    technology 'Node.js, Prisma, PotreeConverter'
+  }
+  rust = service 'IFC-Lite Rust' 'Parsing, Parquet et cache temporaire de géométrie'
+  mcp = service 'IFC-Lite MCP' 'Requêtes sémantiques IFC en lecture seule'
+  openrouter = service 'OpenRouter' 'Modèle LLM externe'
+  postgres = database 'PostgreSQL' 'Projets, membres, fichiers, jobs, alignements, BCF et conversations'
+  minio = storage 'MinIO / S3' 'Originaux IFC et nuages, octrees Potree et screenshots BCF'
+
+  user -> browser.workspace 'gère ses projets et fichiers'
+  user -> browser.viewer 'inspecte la scène'
+  user -> browser.assistantUi 'pose des questions'
+
+  browser.workspace -> web.pages 'navigue'
+  browser.workspace -> web.actions 'crée, téléverse, supprime et annote'
+  browser.workspace -> minio 'envoie les originaux par URL signée'
+  browser.viewer -> web.reads 'obtient des URLs signées et les réglages'
+  browser.viewer -> minio 'télécharge les IFC et lit les octrees par URL signée'
+  browser.viewer -> rust 'charge les lots Parquet IFC progressifs'
+  browser.assistantUi -> web.protocols 'ouvre un flux de chat'
+  browser.assistantUi -> browser.viewer 'applique les outils visuels'
+
+  web.pages -> web.usecases 'lit les données initiales'
+  web.actions -> web.usecases 'exécute les mutations'
+  web.reads -> web.usecases 'autorise les lectures'
+  web.protocols -> web.usecases 'autorise les échanges'
+  web.usecases -> web.adapters 'utilise les ports métier'
+  web.adapters -> postgres 'lit et écrit les métadonnées'
+  web.adapters -> minio 'signe les accès et lit les originaux'
+  web.protocols -> openrouter 'streaming LLM'
+  web.protocols -> mcp 'interroge la sémantique IFC'
+  web.adapters -> mcp 'alimente un cache IFC jetable'
+
+  worker -> postgres 'réserve les jobs et publie les résultats'
+  worker -> minio 'lit les originaux et écrit les artefacts Potree'
+  worker -> rust 'fait traiter les IFC lourds'
+}
+
+views {
+  view index {
+    title 'Mnemo — vue d’ensemble'
+    description 'Runtimes, sources de vérité et dépendances externes.'
+    include user, browser, web, worker, rust, mcp, openrouter, postgres, minio
+  }
+
+  view application {
+    title 'Frontières du monolithe Next.js'
+    description 'UI React, transports Next.js, services métier et adaptateurs de stockage.'
+    include browser.*, web.*, postgres, minio, mcp, openrouter
+  }
+
+  dynamic view upload {
+    title 'Téléversement et traitement asynchrone'
+    description 'Le traitement IFC via Rust et la conversion LAS/LAZ via Potree sont deux chemins alternatifs du même job.'
+    user -> browser.workspace 'choisit un IFC ou un nuage de points'
+    browser.workspace -> web.actions 'demande une URL de dépôt'
+    web.actions -> web.usecases 'vérifie le projet et prépare le fichier'
+    web.usecases -> postgres 'crée le fichier en attente'
+    web.usecases -> minio 'signe le dépôt'
+    web.actions -> browser.workspace 'renvoie l’URL signée'
+    browser.workspace -> minio 'PUT de l’original, directement'
+    browser.workspace -> web.actions 'confirme le dépôt'
+    web.usecases -> minio 'vérifie la taille de l’objet'
+    web.usecases -> postgres 'enfile le job'
+    worker -> postgres 'réserve le job'
+    worker -> minio 'lit l’original'
+    worker -> rust 'traite un IFC avec IFC-Lite'
+    worker -> minio 'écrit un octree Potree pour LAS/LAZ'
+    worker -> postgres 'publie le résultat et le statut'
+  }
+
+  dynamic view rendering {
+    title 'Ouverture IFC et nuage de points'
+    description 'Le navigateur rend la géométrie IFC et charge seulement les nœuds utiles de l’octree.'
+    user -> browser.viewer 'ouvre la scène'
+    browser.viewer -> web.reads 'demande les sources autorisées'
+    web.reads -> web.usecases 'vérifie les droits du projet'
+    web.usecases -> postgres 'lit les fichiers et transformations'
+    web.usecases -> minio 'signe originaux et octree'
+    web.reads -> browser.viewer 'URLs et réglages'
+    browser.viewer -> minio 'télécharge l’IFC et lit l’octree par plages d’octets'
+    browser.viewer -> rust 'reçoit la géométrie IFC en lots Parquet'
+    browser.viewer -> browser.viewer 'rend avec IFC-Lite WebGPU et LOD'
+  }
+
+  dynamic view assistant {
+    title 'Chat IFC et actions sur la scène'
+    description 'Le MCP lit la sémantique IFC ; les outils visuels restent exécutés dans le viewer.'
+    user -> browser.assistantUi 'pose une question'
+    browser.assistantUi -> web.protocols 'démarre le flux SSE'
+    web.protocols -> web.usecases 'autorise le projet et le fichier IFC'
+    web.usecases -> postgres 'lit le fil de conversation'
+    web.protocols -> mcp 'exécute des requêtes IFC en lecture seule'
+    web.protocols -> openrouter 'génère la réponse et les appels d’outils'
+    web.protocols -> postgres 'sauvegarde les messages'
+    web.protocols -> browser.assistantUi 'streaming de la réponse'
+    browser.assistantUi -> browser.viewer 'sélectionne, isole ou colore'
+  }
+
+  dynamic view bcf {
+    title 'Remarques BCF et viewpoints'
+    description 'Métadonnées transactionnelles dans PostgreSQL, screenshots dans MinIO, import/export par route dédiée.'
+    user -> browser.viewer 'crée une remarque sur un élément IFC'
+    browser.viewer -> web.actions 'envoie GlobalId, commentaire et viewpoint'
+    web.actions -> web.usecases 'autorise et valide la remarque'
+    web.usecases -> postgres 'enregistre topic, commentaire et caméra'
+    web.usecases -> minio 'signe le dépôt du screenshot'
+    browser.viewer -> minio 'envoie le screenshot par URL signée'
+    browser.viewer -> web.protocols 'importe ou exporte une archive BCF'
+    web.protocols -> web.usecases 'mappe BCF 2.1/3.0 et contrôle les droits'
+    web.usecases -> postgres 'lit ou écrit les topics BCF'
+    web.usecases -> minio 'lit ou écrit les snapshots'
+  }
+}

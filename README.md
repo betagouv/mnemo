@@ -51,6 +51,20 @@ Do not use `migrate reset` on an existing project database.
 Use `make start-detached` to run it in the background and `make help` to list
 the other lifecycle commands.
 
+The interactive [LikeC4 architecture model](./docs/architecture/mnemo.c4)
+shows the components and the upload, processing, rendering, BCF, and assistant
+data flows. It runs independently of the application stack:
+
+```bash
+make architecture
+make architecture-validate
+```
+
+Open <http://localhost:3202>. The `docs` Compose profile keeps the LikeC4
+image out of ordinary `make start`; edits to `docs/architecture/*.c4` reload
+the diagrams. The architecture port can be overridden with
+`MNEMO_ARCHITECTURE_PORT`.
+
 The default local endpoints are:
 
 - application: <http://localhost:3200>

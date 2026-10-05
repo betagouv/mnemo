@@ -2,7 +2,7 @@ COMPOSE ?= docker compose
 
 .DEFAULT_GOAL := help
 
-.PHONY: help start start-detached stop down restart logs status config
+.PHONY: help start start-detached stop down restart logs status config architecture architecture-validate
 
 help: ## Afficher les commandes disponibles
 	@awk 'BEGIN {FS = ":.*## "; printf "Commandes Mnemo :\n\n"} /^[a-zA-Z_-]+:.*## / {printf "  %-16s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -30,3 +30,9 @@ status: ## Afficher l'état des services
 
 config: ## Valider la configuration Docker Compose
 	$(COMPOSE) config --quiet
+
+architecture: ## Afficher l’architecture LikeC4 sur http://localhost:3202
+	$(COMPOSE) --profile docs up --detach architecture
+
+architecture-validate: ## Valider le modèle LikeC4
+	$(COMPOSE) --profile docs run --rm --no-deps architecture validate
