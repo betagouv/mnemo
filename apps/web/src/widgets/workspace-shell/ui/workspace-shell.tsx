@@ -20,7 +20,7 @@ export function WorkspaceShell({
         <nav aria-label="Navigation de l’espace de travail">
           <Link className={styles.activeLink} href="/projets">
             <span className="fr-icon-folder-2-line" aria-hidden="true" />
-            Projets
+            Mes dossiers
           </Link>
         </nav>
         <div className={styles.actor} title="Authentification à venir">

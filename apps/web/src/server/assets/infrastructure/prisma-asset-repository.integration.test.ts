@@ -29,7 +29,7 @@ describe("PrismaAssetRepository", () => {
     await database.db.projects.create({
       data: {
         id: projectId,
-        name: "Asset repository project",
+        title: "Asset repository project",
         created_by: actorId,
         project_members: { create: { user_id: actorId, role: "owner" } },
       },

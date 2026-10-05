@@ -1,46 +1,21 @@
 .form {
-  position: sticky;
-  top: 6.5rem;
-  display: grid;
-  gap: 1.5rem;
-  padding: 1.75rem;
-  border-top: 0.35rem solid var(--mnemo-blue);
-  background: var(--mnemo-soft);
+  padding: 1.5rem;
+  border: 1px solid var(--border-default-grey);
+  background: var(--background-default-grey);
 }
 
 .form h2 {
-  margin: 0 0 0.5rem;
-  font-size: 1.5rem;
-}
-
-.eyebrow {
-  margin: 0 0 0.5rem;
-  color: var(--mnemo-blue);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
+  margin-bottom: 0.5rem;
 }
 
 .intro {
-  margin: 0;
   color: var(--text-mention-grey);
-  font-size: 0.9rem;
-  line-height: 1.5;
 }
 
 .textarea {
-  min-height: 7rem;
-  resize: vertical;
+  min-height: 6rem;
 }
 
 .error {
-  margin: 0;
   color: var(--text-default-error);
-  font-size: 0.9rem;
-}
-
-@media (width <= 62rem) {
-  .form {
-    position: static;
-  }
 }

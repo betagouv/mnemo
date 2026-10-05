@@ -30,7 +30,7 @@ describe("PrismaPointCloudSettingsRepository", () => {
     await database.db.projects.create({
       data: {
         id: projectId,
-        name: "Point-cloud settings project",
+        title: "Point-cloud settings project",
         created_by: actorId,
         project_members: { create: { user_id: actorId, role: "owner" } },
       },

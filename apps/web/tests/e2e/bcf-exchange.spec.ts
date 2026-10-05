@@ -7,8 +7,9 @@ test("imports, exports and deduplicates a BCF archive", async ({
 }) => {
   const projectName = `Projet BCF Playwright ${Date.now()}`;
   await page.goto("/projets");
-  await page.getByLabel("Nom du projet").fill(projectName);
-  await page.getByRole("button", { name: "Créer le projet" }).click();
+  await page.getByRole("button", { name: "Nouveau dossier" }).click();
+  await page.getByLabel("Titre du dossier").fill(projectName);
+  await page.getByRole("button", { name: "Créer le dossier" }).click();
   await expect(page.getByRole("heading", { name: projectName })).toBeVisible();
   const projectHref = await page
     .getByRole("link", { name: new RegExp(projectName) })

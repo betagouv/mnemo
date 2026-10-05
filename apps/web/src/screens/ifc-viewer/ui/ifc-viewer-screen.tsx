@@ -111,7 +111,7 @@ export async function IfcViewerScreen({
       pointCloudSources={pointCloudSources}
       processing={selectIfcProcessing(result.asset.sizeBytes)}
       projectId={project.id}
-      projectName={project.name}
+      projectName={project.title}
     />
   );
 }

@@ -3,11 +3,20 @@ import type { ProjectRole } from "@mnemo/domain/project";
 
 export type ProjectForActor = {
   id: string;
-  name: string;
+  title: string;
+  address: string | null;
   description: string | null;
   role: ProjectRole;
   createdAt: Date;
   updatedAt: Date;
+  assetStats?: {
+    assetCount: number;
+    ifcCount: number;
+    pointCloudCount: number;
+    processingCount: number;
+    failedCount: number;
+    totalSizeBytes: bigint;
+  };
 };
 
 export interface ProjectRepository {

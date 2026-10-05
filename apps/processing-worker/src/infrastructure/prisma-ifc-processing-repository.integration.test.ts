@@ -30,7 +30,7 @@ describe("PrismaIfcProcessingRepository", () => {
     await database.db.projects.create({
       data: {
         id: projectId,
-        name: "IFC processing project",
+        title: "IFC processing project",
         created_by: actorId,
         project_members: { create: { user_id: actorId, role: "owner" } },
       },

@@ -9,20 +9,62 @@ import type {
 export class PrismaProjectRepository implements ProjectRepository {
   constructor(private readonly database: MnemoPrismaDatabase) {}
 
+  private async assetStatsForProjects(projectIds: string[]) {
+    const stats = new Map<string, NonNullable<ProjectForActor["assetStats"]>>();
+    if (projectIds.length === 0) return stats;
+
+    const groups = await this.database.assets.groupBy({
+      by: ["project_id", "kind", "status"],
+      where: { project_id: { in: projectIds }, status: { not: "deleting" } },
+      _count: { _all: true },
+      _sum: { size_bytes: true },
+    });
+    for (const group of groups) {
+      const current = stats.get(group.project_id) ?? {
+        assetCount: 0,
+        ifcCount: 0,
+        pointCloudCount: 0,
+        processingCount: 0,
+        failedCount: 0,
+        totalSizeBytes: 0n,
+      };
+      const count = group._count._all;
+      current.assetCount += count;
+      if (group.kind === "ifc") current.ifcCount += count;
+      if (group.kind === "point_cloud") current.pointCloudCount += count;
+      if (
+        group.status === "upload_pending" ||
+        group.status === "uploaded" ||
+        group.status === "processing"
+      ) {
+        current.processingCount += count;
+      }
+      if (group.status === "failed") current.failedCount += count;
+      current.totalSizeBytes += group._sum.size_bytes ?? 0n;
+      stats.set(group.project_id, current);
+    }
+    return stats;
+  }
+
   async listForActor(actorId: string): Promise<ProjectForActor[]> {
     const memberships = await this.database.project_members.findMany({
       where: { user_id: actorId, projects: { archived_at: null } },
       include: { projects: true },
       orderBy: { projects: { updated_at: "desc" } },
     });
+    const stats = await this.assetStatsForProjects(
+      memberships.map((membership) => membership.project_id),
+    );
 
     return memberships.map(({ role, projects: project }) => ({
       id: project.id,
-      name: project.name,
+      title: project.title,
+      address: project.address,
       description: project.description,
       role,
       createdAt: project.created_at,
       updatedAt: project.updated_at,
+      assetStats: stats.get(project.id),
     }));
   }
 
@@ -38,13 +80,16 @@ export class PrismaProjectRepository implements ProjectRepository {
     });
 
     if (!membership || membership.projects.archived_at) return undefined;
+    const stats = await this.assetStatsForProjects([projectId]);
     return {
       id: membership.projects.id,
-      name: membership.projects.name,
+      title: membership.projects.title,
+      address: membership.projects.address,
       description: membership.projects.description,
       role: membership.role,
       createdAt: membership.projects.created_at,
       updatedAt: membership.projects.updated_at,
+      assetStats: stats.get(projectId),
     };
   }
 
@@ -54,7 +99,8 @@ export class PrismaProjectRepository implements ProjectRepository {
   ): Promise<ProjectForActor> {
     const project = await this.database.projects.create({
       data: {
-        name: input.name,
+        title: input.title,
+        address: input.address || null,
         description: input.description || null,
         created_by: actorId,
         project_members: { create: { user_id: actorId, role: "owner" } },
@@ -63,7 +109,8 @@ export class PrismaProjectRepository implements ProjectRepository {
 
     return {
       id: project.id,
-      name: project.name,
+      title: project.title,
+      address: project.address,
       description: project.description,
       role: "owner",
       createdAt: project.created_at,

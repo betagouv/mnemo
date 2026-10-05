@@ -34,7 +34,7 @@ describe("PrismaBcfTopicRepository", () => {
     await database.db.projects.create({
       data: {
         id: projectId,
-        name: "BCF project",
+        title: "BCF project",
         created_by: actorId,
         project_members: { create: { user_id: actorId, role: "owner" } },
       },

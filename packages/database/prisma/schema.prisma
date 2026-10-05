@@ -247,7 +247,8 @@ model project_members {
 
 model projects {
   id                String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name              String              @db.VarChar(160)
+  title             String              @db.VarChar(160)
+  address           String?             @db.VarChar(320)
   description       String?
   created_by        String              @db.Uuid
   archived_at       DateTime?           @db.Timestamptz(6)

@@ -35,7 +35,7 @@ describe("project membership persistence", () => {
     await database.db.projects.create({
       data: {
         id: projectId,
-        name: "Integration test project",
+        title: "Integration test project",
         created_by: ownerId,
         project_members: {
           create: [
@@ -63,11 +63,11 @@ describe("project membership persistence", () => {
     expect(
       rows.map((row) => ({
         projectId: row.projects.id,
-        projectName: row.projects.name,
+        projectTitle: row.projects.title,
         role: row.role,
       })),
     ).toEqual([
-      { projectId, projectName: "Integration test project", role: "editor" },
+      { projectId, projectTitle: "Integration test project", role: "editor" },
     ]);
   });
 });

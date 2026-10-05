@@ -3,47 +3,78 @@ import Link from "next/link";
 
 import styles from "./project-card.module.css";
 
-const roleLabels = {
-  owner: "Propriétaire",
-  editor: "Éditeur",
-  viewer: "Lecture",
-} as const;
-
 const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
   day: "numeric",
   month: "short",
   year: "numeric",
 });
 
+const sizeFormatter = new Intl.NumberFormat("fr-FR", {
+  maximumFractionDigits: 1,
+});
+
+function formatSize(bytesValue: string) {
+  const bytes = BigInt(bytesValue);
+  if (bytes >= 1_000_000_000n)
+    return `${sizeFormatter.format(Number(bytes) / 1_000_000_000)} Go`;
+  if (bytes >= 1_000_000n)
+    return `${sizeFormatter.format(Number(bytes) / 1_000_000)} Mo`;
+  if (bytes >= 1_000n)
+    return `${sizeFormatter.format(Number(bytes) / 1_000)} Ko`;
+  return `${bytes} o`;
+}
+
 export function ProjectCard({ project }: { project: ProjectSummary }) {
+  const status =
+    project.failedCount > 0
+      ? "Erreur de traitement"
+      : project.processingCount > 0
+        ? "Traitement en cours"
+        : project.assetCount > 0
+          ? "À jour"
+          : "Vide";
+
   return (
-    <Link
-      aria-label={`Ouvrir le projet ${project.name}`}
-      className={styles.link}
-      href={`/projets/${project.id}`}
-    >
-      <article className={styles.card}>
-        <div className={styles.preview} aria-hidden="true">
-          <span className="fr-icon-building-line" />
+    <article className={`fr-card ${styles.card}`}>
+      <div className={styles.body}>
+        <div className={styles.icon} aria-hidden="true">
+          <span className="fr-icon-folder-2-line" />
         </div>
-        <div className={styles.body}>
-          <div className={styles.meta}>
-            <span>{roleLabels[project.role]}</span>
-            <time dateTime={project.updatedAt}>
-              Modifié le {dateFormatter.format(new Date(project.updatedAt))}
-            </time>
-          </div>
-          <h2>{project.name}</h2>
-          <p>
-            {project.description ??
-              "Ajoutez une maquette IFC ou un nuage de points pour commencer."}
-          </p>
-          <div className={styles.footer}>
-            <span>Ouvrir l’espace projet</span>
-            <span className="fr-icon-arrow-right-line" aria-hidden="true" />
-          </div>
+        <h2 className={styles.title}>
+          <Link href={`/projets/${project.id}`}>{project.title}</Link>
+        </h2>
+        <p className={styles.address}>
+          {project.address ?? "Adresse non renseignée"}
+        </p>
+        <div className={styles.tags}>
+          {project.ifcCount > 0 && (
+            <span className="fr-tag">BIM IFC · {project.ifcCount}</span>
+          )}
+          {project.pointCloudCount > 0 && (
+            <span className="fr-tag">Scan 3D · {project.pointCloudCount}</span>
+          )}
         </div>
-      </article>
-    </Link>
+        <p className={styles.fileCount}>
+          {project.assetCount} {project.assetCount > 1 ? "fichiers" : "fichier"}{" "}
+          · {formatSize(project.totalSizeBytes)}
+        </p>
+      </div>
+      <div className={styles.footer}>
+        <span
+          data-status={
+            project.failedCount > 0
+              ? "error"
+              : project.processingCount > 0
+                ? "processing"
+                : "ready"
+          }
+        >
+          {status}
+        </span>
+        <time dateTime={project.updatedAt}>
+          {dateFormatter.format(new Date(project.updatedAt))}
+        </time>
+      </div>
+    </article>
   );
 }

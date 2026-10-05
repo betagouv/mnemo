@@ -229,10 +229,10 @@ export class BcfTopicService {
     return {
       bytes: await this.archives.encode({
         projectId,
-        projectName: project.name,
+        projectName: project.title,
         topics: exportTopics,
       }),
-      fileName: `${this.safeFileName(project.name)}.bcfzip`,
+      fileName: `${this.safeFileName(project.title)}.bcfzip`,
     };
   }
 

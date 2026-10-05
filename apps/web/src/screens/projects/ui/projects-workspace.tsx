@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import Button from "@codegouvfr/react-dsfr/Button";
+import { useMemo, useState } from "react";
 
 import { ProjectCard } from "@/entities/project";
 import { CreateProjectForm } from "@/features/create-project";
@@ -10,62 +11,119 @@ import styles from "./projects-screen.module.css";
 
 export function ProjectsWorkspace({ initialProjects }: ProjectsWorkspaceProps) {
   const [projects, setProjects] = useState(initialProjects);
+  const [showCreate, setShowCreate] = useState(false);
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<"recent" | "title">("recent");
+
+  const visibleProjects = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase("fr");
+    return projects
+      .filter((project) =>
+        `${project.title} ${project.address ?? ""}`
+          .toLocaleLowerCase("fr")
+          .includes(query),
+      )
+      .sort((a, b) =>
+        sort === "title"
+          ? a.title.localeCompare(b.title, "fr")
+          : Date.parse(b.updatedAt) - Date.parse(a.updatedAt),
+      );
+  }, [projects, search, sort]);
+  const fileCount = projects.reduce(
+    (sum, project) => sum + project.assetCount,
+    0,
+  );
 
   return (
     <div className={`fr-container ${styles.page}`}>
+      <div className="fr-callout fr-callout--blue-france">
+        <h2 className="fr-callout__title">
+          Vos données patrimoniales, au même endroit
+        </h2>
+        <p className="fr-callout__text">
+          Créez un dossier par bâtiment ou opération, puis ajoutez-y vos
+          maquettes IFC et vos nuages de points.
+        </p>
+      </div>
+
       <header className={styles.heading}>
         <div>
-          <p className={styles.eyebrow}>ESPACE DE TRAVAIL</p>
-          <h1>Vos projets</h1>
+          <h1>Mes dossiers</h1>
           <p>
-            Retrouvez les opérations auxquelles vous participez et reprenez le
-            travail là où vous l’aviez laissé.
+            {projects.length} {projects.length > 1 ? "dossiers" : "dossier"} ·{" "}
+            {fileCount} {fileCount > 1 ? "fichiers" : "fichier"}
           </p>
         </div>
-        <div
-          className={styles.count}
-          aria-label={`${projects.length} ${projects.length > 1 ? "projets" : "projet"}`}
+        <Button
+          iconId="fr-icon-add-line"
+          nativeButtonProps={{
+            type: "button",
+            "aria-expanded": showCreate,
+            onClick: () => setShowCreate((current) => !current),
+          }}
         >
-          <strong>{projects.length}</strong>
-          <span>{projects.length > 1 ? "projets" : "projet"}</span>
-        </div>
+          Nouveau dossier
+        </Button>
       </header>
 
-      <div className={styles.layout}>
-        <section aria-labelledby="project-list-title">
-          <div className={styles.listHeading}>
-            <h2 id="project-list-title">Projets récents</h2>
-            <span>Triés par dernière modification</span>
-          </div>
-          {projects.length === 0 ? (
-            <div className={styles.empty}>
-              <span className="fr-icon-folder-2-line" aria-hidden="true" />
-              <h2>Aucun projet pour le moment</h2>
-              <p>
-                Créez votre premier espace pour préparer l’import d’un IFC ou
-                d’un nuage de points.
-              </p>
-            </div>
-          ) : (
-            <div className={styles.list}>
-              {projects.map((project) => (
-                <ProjectCard key={project.id} project={project} />
-              ))}
-            </div>
-          )}
-        </section>
-
-        <aside aria-label="Créer un projet">
+      {showCreate && (
+        <div className={styles.createPanel}>
           <CreateProjectForm
-            onCreated={(project) =>
-              setProjects((current) => [
-                project,
-                ...current.filter((item) => item.id !== project.id),
-              ])
-            }
+            onCreated={(project) => {
+              setProjects((current) => [project, ...current]);
+              setShowCreate(false);
+            }}
           />
-        </aside>
+        </div>
+      )}
+
+      <div className={styles.controls}>
+        <div className="fr-input-group">
+          <label className="fr-label" htmlFor="project-search">
+            Rechercher un dossier
+          </label>
+          <input
+            className="fr-input"
+            id="project-search"
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Titre ou adresse"
+            type="search"
+            value={search}
+          />
+        </div>
+        <div className="fr-select-group">
+          <label className="fr-label" htmlFor="project-sort">
+            Trier par
+          </label>
+          <select
+            className="fr-select"
+            id="project-sort"
+            onChange={(event) =>
+              setSort(event.target.value as "recent" | "title")
+            }
+            value={sort}
+          >
+            <option value="recent">Modification récente</option>
+            <option value="title">Titre (A–Z)</option>
+          </select>
+        </div>
       </div>
+
+      {projects.length === 0 ? (
+        <div className={styles.empty}>
+          <span className="fr-icon-folder-2-line" aria-hidden="true" />
+          <h2>Aucun dossier pour le moment</h2>
+          <p>Créez votre premier dossier pour y rassembler vos fichiers.</p>
+        </div>
+      ) : visibleProjects.length === 0 ? (
+        <p role="status">Aucun dossier ne correspond à votre recherche.</p>
+      ) : (
+        <div className={styles.grid} aria-label="Liste des dossiers">
+          {visibleProjects.map((project) => (
+            <ProjectCard key={project.id} project={project} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

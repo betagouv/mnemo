@@ -49,7 +49,8 @@ describe("PrismaProjectRepository", () => {
   it("creates an owner membership and scopes listing to the actor", async () => {
     const repository = new PrismaProjectRepository(database.db);
     const created = await repository.createForActor(actorId, {
-      name: "Projet dépôt",
+      title: "Projet dépôt",
+      address: "2 rue des Arts",
       description: "Transaction atomique",
     });
     expect(created.role).toBe("owner");
@@ -67,7 +68,7 @@ describe("PrismaProjectRepository", () => {
   it("archives a project and snapshots original and derived keys", async () => {
     const repository = new PrismaProjectRepository(database.db);
     const created = await repository.createForActor(actorId, {
-      name: "Projet à supprimer",
+      title: "Projet à supprimer",
     });
     deletionResourceIds.push(created.id);
     const assetId = randomUUID();
@@ -109,6 +110,24 @@ describe("PrismaProjectRepository", () => {
         },
       ],
     });
+    const [listed] = (await repository.listForActor(actorId)).filter(
+      (project) => project.id === created.id,
+    );
+    expect(listed?.assetStats).toEqual({
+      assetCount: 2,
+      ifcCount: 1,
+      pointCloudCount: 1,
+      processingCount: 0,
+      failedCount: 0,
+      totalSizeBytes: 126n,
+    });
+    await database.db.assets.update({
+      where: { id: assetId },
+      data: { status: "processing" },
+    });
+    expect(
+      (await repository.findForActor(actorId, created.id))?.assetStats,
+    ).toMatchObject({ processingCount: 1 });
     await database.db.point_cloud_processing_results.create({
       data: {
         asset_id: pointCloudAssetId,

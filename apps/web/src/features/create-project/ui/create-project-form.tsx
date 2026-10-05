@@ -13,7 +13,8 @@ export function CreateProjectForm({
 }: {
   onCreated: (project: ProjectSummary) => void;
 }) {
-  const [name, setName] = useState("");
+  const [title, setTitle] = useState("");
+  const [address, setAddress] = useState("");
   const [description, setDescription] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(false);
@@ -22,9 +23,10 @@ export function CreateProjectForm({
     setPending(true);
     setError(false);
     try {
-      const project = await createProject({ name, description });
+      const project = await createProject({ title, address, description });
       onCreated(project);
-      setName("");
+      setTitle("");
+      setAddress("");
       setDescription("");
     } catch {
       setError(true);
@@ -42,27 +44,43 @@ export function CreateProjectForm({
       }}
     >
       <div>
-        <p className={styles.eyebrow}>NOUVEL ESPACE</p>
-        <h2>Créer un projet</h2>
+        <h2>Créer un dossier</h2>
         <p className={styles.intro}>
-          Regroupez les maquettes, relevés et remarques d’une même opération.
+          Regroupez les fichiers d’un bâtiment ou d’une opération.
         </p>
       </div>
 
       <div className="fr-input-group">
-        <label className="fr-label" htmlFor="project-name">
-          Nom du projet
+        <label className="fr-label" htmlFor="project-title">
+          Titre du dossier
           <span className="fr-hint-text">2 à 160 caractères</span>
         </label>
         <input
           className="fr-input"
-          id="project-name"
+          id="project-title"
           maxLength={160}
           minLength={2}
-          onChange={(event) => setName(event.target.value)}
+          onChange={(event) => setTitle(event.target.value)}
           placeholder="Ex. Hôtel de la Marine"
           required
-          value={name}
+          value={title}
+        />
+      </div>
+
+      <div className="fr-input-group">
+        <label className="fr-label" htmlFor="project-address">
+          Adresse
+          <span className="fr-hint-text">
+            Facultatif · bâtiment ou site concerné
+          </span>
+        </label>
+        <input
+          className="fr-input"
+          id="project-address"
+          maxLength={320}
+          onChange={(event) => setAddress(event.target.value)}
+          placeholder="Ex. 2 place de la Concorde, Paris"
+          value={address}
         />
       </div>
 
@@ -88,11 +106,11 @@ export function CreateProjectForm({
       ) : null}
 
       <Button
-        disabled={pending || name.trim().length < 2}
+        disabled={pending || title.trim().length < 2}
         iconId="fr-icon-add-line"
         nativeButtonProps={{ type: "submit" }}
       >
-        {pending ? "Création…" : "Créer le projet"}
+        {pending ? "Création…" : "Créer le dossier"}
       </Button>
     </form>
   );

@@ -45,7 +45,8 @@ function projects(role: "owner" | "editor" | "viewer"): ProjectRepository {
     listForActor: async () => [],
     findForActor: async () => ({
       id: projectId,
-      name: "Projet",
+      title: "Projet",
+      address: null,
       description: null,
       role,
       createdAt: now,

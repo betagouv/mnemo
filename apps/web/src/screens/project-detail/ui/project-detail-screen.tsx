@@ -40,15 +40,17 @@ export async function ProjectDetailScreen({
     <div className={`fr-container ${styles.page}`}>
       <Link className={styles.back} href="/projets">
         <span className="fr-icon-arrow-left-line" aria-hidden="true" />
-        Tous les projets
+        Tous les dossiers
       </Link>
 
       <header className={styles.heading}>
         <div>
           <p className={styles.eyebrow}>PROJET · {roleLabels[project.role]}</p>
-          <h1>{project.name}</h1>
+          <h1>{project.title}</h1>
           <p>
-            {project.description ??
+            {[project.address, project.description]
+              .filter(Boolean)
+              .join(" · ") ||
               "Cet espace est prêt à recevoir ses premières données."}
           </p>
         </div>
@@ -60,7 +62,7 @@ export async function ProjectDetailScreen({
           {project.role === "owner" ? (
             <DeleteProjectButton
               projectId={project.id}
-              projectName={project.name}
+              projectName={project.title}
             />
           ) : null}
         </div>

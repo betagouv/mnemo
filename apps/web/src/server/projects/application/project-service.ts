@@ -8,8 +8,15 @@ import { hasProjectPermission } from "@mnemo/domain/project";
 import type { ProjectForActor, ProjectRepository } from "./project-repository";
 
 function toProjectSummary(project: ProjectForActor): ProjectSummary {
+  const { assetStats, ...details } = project;
   return {
-    ...project,
+    ...details,
+    assetCount: assetStats?.assetCount ?? 0,
+    ifcCount: assetStats?.ifcCount ?? 0,
+    pointCloudCount: assetStats?.pointCloudCount ?? 0,
+    processingCount: assetStats?.processingCount ?? 0,
+    failedCount: assetStats?.failedCount ?? 0,
+    totalSizeBytes: (assetStats?.totalSizeBytes ?? 0n).toString(),
     createdAt: project.createdAt.toISOString(),
     updatedAt: project.updatedAt.toISOString(),
   };

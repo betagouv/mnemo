@@ -38,7 +38,7 @@ describe("PrismaAssistantThreadRepository", () => {
     await database.db.projects.create({
       data: {
         id: projectId,
-        name: "Assistant persistence",
+        title: "Assistant persistence",
         created_by: actorId,
         project_members: { create: { user_id: actorId, role: "owner" } },
       },

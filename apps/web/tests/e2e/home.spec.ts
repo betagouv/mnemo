@@ -35,6 +35,25 @@ test("keeps the landing page usable on mobile", async ({ page }) => {
   ).toBe(true);
 });
 
+test("keeps the dossier dashboard usable on mobile", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/projets");
+
+  await expect(
+    page.getByRole("heading", { name: "Mes dossiers" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Nouveau dossier" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Nouveau dossier" }).click();
+  await expect(page.getByLabel("Titre du dossier")).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+});
+
 test("exposes a healthy application endpoint", async ({ request }) => {
   const response = await request.get("/api/health");
 
@@ -61,11 +80,13 @@ test("creates, reloads, opens and deletes a project asset", async ({
   const projectName = `Projet Playwright ${Date.now()}`;
 
   await page.goto("/projets");
-  await page.getByLabel("Nom du projet").fill(projectName);
+  await page.getByRole("button", { name: "Nouveau dossier" }).click();
+  await page.getByLabel("Titre du dossier").fill(projectName);
+  await page.getByLabel("Adresse").fill("2 place de la Concorde, Paris");
   await page
     .getByLabel("Description")
     .fill("Projet créé par le parcours navigateur automatisé.");
-  await page.getByRole("button", { name: "Créer le projet" }).click();
+  await page.getByRole("button", { name: "Créer le dossier" }).click();
 
   await expect(page.getByRole("heading", { name: projectName })).toBeVisible();
 
@@ -80,6 +101,20 @@ test("creates, reloads, opens and deletes a project asset", async ({
     await expect(
       page.getByRole("heading", { name: projectName }),
     ).toBeVisible();
+
+    await page
+      .getByRole("searchbox", { name: "Rechercher un dossier" })
+      .fill("aucun dossier avec ce texte 123456789");
+    await expect(page.getByRole("status")).toContainText(
+      "Aucun dossier ne correspond",
+    );
+    await page
+      .getByRole("searchbox", { name: "Rechercher un dossier" })
+      .fill(projectName);
+    await expect(page.getByRole("article")).toHaveCount(1);
+    await page
+      .getByRole("combobox", { name: "Trier par" })
+      .selectOption("title");
 
     await page.getByRole("link", { name: new RegExp(projectName) }).click();
     await expect(page).toHaveURL(/\/projets\/[0-9a-f-]+$/);

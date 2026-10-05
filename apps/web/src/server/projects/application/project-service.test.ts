@@ -17,11 +17,12 @@ class InMemoryProjectRepository implements ProjectRepository {
 
   async createForActor(
     _actorId: string,
-    input: { name: string; description?: string },
+    input: { title: string; address?: string; description?: string },
   ) {
     const project: ProjectForActor = {
       id: "bb668746-147b-4e44-bcd8-307e3869d7f2",
-      name: input.name,
+      title: input.title,
+      address: input.address ?? null,
       description: input.description ?? null,
       role: "owner",
       createdAt: new Date("2026-09-09T10:00:00.000Z"),
@@ -44,11 +45,13 @@ describe("ProjectService", () => {
 
     await expect(
       service.create("actor-id", {
-        name: "Musée des Arts",
+        title: "Musée des Arts",
+        address: "2 rue des Arts",
         description: "Scan et maquette",
       }),
     ).resolves.toMatchObject({
-      name: "Musée des Arts",
+      title: "Musée des Arts",
+      address: "2 rue des Arts",
       description: "Scan et maquette",
       role: "owner",
       createdAt: "2026-09-09T10:00:00.000Z",
@@ -58,7 +61,7 @@ describe("ProjectService", () => {
   it("returns only projects supplied for the current actor", async () => {
     const repository = new InMemoryProjectRepository();
     const service = new ProjectService(repository);
-    await service.create("actor-id", { name: "Projet partagé" });
+    await service.create("actor-id", { title: "Projet partagé" });
 
     await expect(service.list("actor-id")).resolves.toHaveLength(1);
   });
@@ -74,7 +77,7 @@ describe("ProjectService", () => {
   it("lets only an owner request project deletion", async () => {
     const repository = new InMemoryProjectRepository();
     const service = new ProjectService(repository);
-    const project = await service.create("actor-id", { name: "À supprimer" });
+    const project = await service.create("actor-id", { title: "À supprimer" });
 
     await expect(service.delete("actor-id", project.id)).resolves.toEqual({
       accepted: true,

@@ -17,7 +17,8 @@ import { AssetService } from "./asset-service";
 const now = new Date("2026-09-09T10:00:00.000Z");
 const project: ProjectForActor = {
   id: "8017a38c-385e-4ef4-87da-7cc1fb2a5e3b",
-  name: "Projet test",
+  title: "Projet test",
+  address: null,
   description: null,
   role: "owner",
   createdAt: now,

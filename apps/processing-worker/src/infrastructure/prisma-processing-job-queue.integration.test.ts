@@ -71,7 +71,7 @@ describe("PrismaProcessingJobQueue", () => {
     await database.db.projects.create({
       data: {
         id: projectId,
-        name: "Worker queue project",
+        title: "Worker queue project",
         created_by: actorId,
         project_members: { create: { user_id: actorId, role: "owner" } },
       },
