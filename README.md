@@ -61,9 +61,10 @@ make architecture-validate
 ```
 
 Open <http://localhost:3202>. The `docs` Compose profile keeps the LikeC4
-image out of ordinary `make start`; edits to `docs/architecture/*.c4` reload
-the diagrams. The architecture port can be overridden with
-`MNEMO_ARCHITECTURE_PORT`.
+image out of ordinary `make start`. The service builds a static preview on
+startup rather than watching the Git worktree; run `make architecture` again
+after editing `docs/architecture/*.c4` to regenerate it. The architecture port
+can be overridden with `MNEMO_ARCHITECTURE_PORT`.
 
 The default local endpoints are:
 

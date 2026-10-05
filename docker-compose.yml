@@ -6,13 +6,11 @@ services:
     profiles: [docs]
     init: true
     working_dir: /data
-    command: ["serve", "--port", "5173", "--hmr-port", "24700"]
-    environment:
-      CHOKIDAR_USEPOLLING: "1"
-      CHOKIDAR_INTERVAL: "200"
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - likec4 build --output /tmp/mnemo-architecture && likec4 preview --output /tmp/mnemo-architecture --listen 0.0.0.0
     ports:
-      - "127.0.0.1:${MNEMO_ARCHITECTURE_PORT:-3202}:5173"
-      - "127.0.0.1:${MNEMO_ARCHITECTURE_HMR_PORT:-24700}:24700"
+      - "127.0.0.1:${MNEMO_ARCHITECTURE_PORT:-3202}:62001"
     volumes:
       - ./docs/architecture:/data:ro
 

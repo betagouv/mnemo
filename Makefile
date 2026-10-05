@@ -32,7 +32,7 @@ config: ## Valider la configuration Docker Compose
 	$(COMPOSE) config --quiet
 
 architecture: ## Afficher l’architecture LikeC4 sur http://localhost:3202
-	$(COMPOSE) --profile docs up --detach architecture
+	$(COMPOSE) --profile docs up --detach --force-recreate architecture
 
 architecture-validate: ## Valider le modèle LikeC4
-	$(COMPOSE) --profile docs run --rm --no-deps architecture validate
+	$(COMPOSE) --profile docs run --rm --no-deps --entrypoint likec4 architecture validate
