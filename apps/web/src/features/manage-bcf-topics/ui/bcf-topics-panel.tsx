@@ -14,7 +14,13 @@ import type {
 import Image from "next/image";
 import { useMemo, useState, type FormEvent } from "react";
 
-import { useTRPCClient } from "@/shared/api/trpc";
+import {
+  addBcfComment,
+  beginBcfViewpointCapture,
+  completeBcfViewpointCapture,
+  createBcfTopic,
+  updateBcfTopicStatus,
+} from "@/server/bcf/actions";
 
 import styles from "./bcf-topics-panel.module.css";
 
@@ -56,7 +62,6 @@ export function BcfTopicsPanel({
   projectId: string;
   selection: IfcElementDetails | null;
 }) {
-  const client = useTRPCClient();
   const [topics, setTopics] = useState(initialTopics);
   const [activeTopicId, setActiveTopicId] = useState<string | null>(
     initialTopics[0]?.id ?? null,
@@ -88,7 +93,7 @@ export function BcfTopicsPanel({
     setPending("topic");
     setMessage(null);
     try {
-      const topic = await client.bcf.create.mutate({
+      const topic = await createBcfTopic({
         projectId,
         title,
         description: description || undefined,
@@ -123,7 +128,7 @@ export function BcfTopicsPanel({
     setPending("comment");
     setMessage(null);
     try {
-      const topic = await client.bcf.addComment.mutate({
+      const topic = await addBcfComment({
         projectId,
         topicId: activeTopic.id,
         comment,
@@ -144,7 +149,7 @@ export function BcfTopicsPanel({
     setMessage(null);
     try {
       replaceTopic(
-        await client.bcf.updateStatus.mutate({
+        await updateBcfTopicStatus({
           projectId,
           topicId: activeTopic.id,
           status,
@@ -165,7 +170,7 @@ export function BcfTopicsPanel({
 
     try {
       const capture = await onCaptureViewpoint();
-      const result = await client.bcf.beginViewpointCapture.mutate({
+      const result = await beginBcfViewpointCapture({
         projectId,
         topicId: activeTopic.id,
         data: capture.data,
@@ -193,7 +198,7 @@ export function BcfTopicsPanel({
           throw new Error(`Snapshot upload returned HTTP ${response.status}`);
         }
         replaceTopic(
-          await client.bcf.completeViewpointCapture.mutate({
+          await completeBcfViewpointCapture({
             projectId,
             topicId: activeTopic.id,
             viewpointId: result.viewpointId,

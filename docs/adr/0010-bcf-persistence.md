@@ -23,7 +23,7 @@ snapshots, and archive import/export.
   Express ID are optional navigation hints; deleting an asset clears its foreign
   key but preserves the BCF component and its `GlobalId`.
 - Topic writes pass through application services and project permissions, not
-  directly from tRPC procedures or React components.
+  directly from transport handlers or React components.
 - Viewpoint camera, selection, visibility, and coloring are normalized through
   `@ifc-lite/bcf` and stored in PostgreSQL. Snapshot binaries are uploaded
   directly to S3/MinIO through short-lived signed URLs.
@@ -36,7 +36,7 @@ snapshots, and archive import/export.
   parse standard BCF archives and to map viewer camera/visibility state. It does
   not own Mnemo's database schema or UI.
 - BCF ZIP exchange uses a dedicated binary route rather than encoding archives
-  inside tRPC JSON. The route delegates authorization and mapping to the BCF
+  inside JSON. The route delegates authorization and mapping to the BCF
   application service.
 - Imported BCF topic, comment, and viewpoint GUIDs are stored separately from
   Mnemo record IDs. A per-project uniqueness constraint makes repeated imports

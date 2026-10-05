@@ -1,6 +1,6 @@
 # ADR 0005: Share runtime contracts through tRPC and Zod
 
-- Status: accepted
+- Status: superseded by ADR 0014
 - Date: 2026-09-09
 
 ## Context

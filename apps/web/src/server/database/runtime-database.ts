@@ -1,24 +1,24 @@
 import "server-only";
 
-import { createDatabase, type MnemoDatabase } from "@mnemo/database";
+import {
+  createPrismaDatabase,
+  type MnemoPrismaDatabase,
+} from "@mnemo/database";
 
 const globalDatabase = globalThis as typeof globalThis & {
-  mnemoDatabase?: MnemoDatabase;
+  mnemoPrismaDatabase?: MnemoPrismaDatabase;
 };
 
-export function getRuntimeDatabase(): MnemoDatabase {
-  if (globalDatabase.mnemoDatabase) {
-    return globalDatabase.mnemoDatabase;
-  }
+export function getRuntimePrismaDatabase(): MnemoPrismaDatabase {
+  if (globalDatabase.mnemoPrismaDatabase)
+    return globalDatabase.mnemoPrismaDatabase;
 
   const connectionString = process.env.DATABASE_URL;
-
   if (!connectionString) {
     throw new Error("DATABASE_URL is required to access project data");
   }
 
-  const { db } = createDatabase({ connectionString });
-  globalDatabase.mnemoDatabase = db;
-
+  const { db } = createPrismaDatabase({ connectionString });
+  globalDatabase.mnemoPrismaDatabase = db;
   return db;
 }

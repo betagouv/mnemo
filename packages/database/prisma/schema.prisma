@@ -1,0 +1,336 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model asset_processing_results {
+  asset_id              String   @id @db.Uuid
+  processor             String   @db.VarChar(80)
+  processor_version     String   @db.VarChar(80)
+  cache_key             String
+  entity_count          BigInt
+  geometry_entity_count BigInt
+  mesh_count            BigInt
+  cache_hit             Boolean
+  processed_at          DateTime @db.Timestamptz(6)
+  created_at            DateTime @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  assets                assets   @relation(fields: [asset_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "asset_processing_results_asset_id_assets_id_fk")
+}
+
+model assets {
+  id                             String                          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project_id                     String                          @db.Uuid
+  kind                           asset_kind
+  original_file_name             String                          @db.VarChar(512)
+  media_type                     String                          @db.VarChar(255)
+  size_bytes                     BigInt
+  original_object_key            String                          @unique(map: "assets_original_object_key_unique")
+  status                         asset_status                    @default(upload_pending)
+  error_message                  String?
+  created_by                     String                          @db.Uuid
+  upload_expires_at              DateTime                        @db.Timestamptz(6)
+  uploaded_at                    DateTime?                       @db.Timestamptz(6)
+  created_at                     DateTime                        @default(now()) @db.Timestamptz(6)
+  updated_at                     DateTime                        @default(now()) @updatedAt @db.Timestamptz(6)
+  asset_processing_results       asset_processing_results?
+  users                          users                           @relation(fields: [created_by], references: [id], onUpdate: NoAction, map: "assets_created_by_users_id_fk")
+  projects                       projects                        @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "assets_project_id_projects_id_fk")
+  assistant_threads              assistant_threads[]
+  bcf_topic_components           bcf_topic_components[]
+  point_cloud_processing_results point_cloud_processing_results?
+  point_cloud_settings           point_cloud_settings?
+  processing_jobs                processing_jobs[]
+
+  @@index([project_id])
+  @@index([status])
+}
+
+model assistant_messages {
+  id                String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  thread_id         String            @db.Uuid
+  ordinal           Int
+  payload           Json
+  created_at        DateTime          @default(now()) @db.Timestamptz(6)
+  assistant_threads assistant_threads @relation(fields: [thread_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "assistant_messages_thread_id_assistant_threads_id_fk")
+
+  @@unique([thread_id, ordinal], map: "assistant_messages_thread_ordinal_unique")
+  @@index([thread_id])
+}
+
+model assistant_threads {
+  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project_id         String               @db.Uuid
+  asset_id           String               @db.Uuid
+  created_by         String               @db.Uuid
+  title              String               @default("Nouvelle conversation") @db.VarChar(160)
+  created_at         DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime             @default(now()) @updatedAt @db.Timestamptz(6)
+  assistant_messages assistant_messages[]
+  assets             assets               @relation(fields: [asset_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "assistant_threads_asset_id_assets_id_fk")
+  users              users                @relation(fields: [created_by], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "assistant_threads_created_by_users_id_fk")
+  projects           projects             @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "assistant_threads_project_id_projects_id_fk")
+
+  @@index([created_by, project_id, asset_id, updated_at], map: "assistant_threads_context_idx")
+}
+
+model bcf_comments {
+  id                 String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  topic_id           String     @db.Uuid
+  author_id          String     @db.Uuid
+  comment            String
+  created_at         DateTime   @default(now()) @db.Timestamptz(6)
+  bcf_guid           String     @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  external_author    String?    @db.VarChar(320)
+  viewpoint_bcf_guid String?    @db.Uuid
+  users              users      @relation(fields: [author_id], references: [id], onUpdate: NoAction, map: "bcf_comments_author_id_users_id_fk")
+  bcf_topics         bcf_topics @relation(fields: [topic_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "bcf_comments_topic_id_bcf_topics_id_fk")
+
+  @@unique([topic_id, bcf_guid], map: "bcf_comments_topic_guid_unique")
+  @@index([topic_id])
+}
+
+model bcf_topic_components {
+  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  topic_id   String     @db.Uuid
+  asset_id   String?    @db.Uuid
+  global_id  String     @db.VarChar(64)
+  express_id Int?
+  created_at DateTime   @default(now()) @db.Timestamptz(6)
+  assets     assets?    @relation(fields: [asset_id], references: [id], onUpdate: NoAction, map: "bcf_topic_components_asset_id_assets_id_fk")
+  bcf_topics bcf_topics @relation(fields: [topic_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "bcf_topic_components_topic_id_bcf_topics_id_fk")
+
+  @@index([asset_id])
+  @@index([global_id])
+  @@index([topic_id])
+}
+
+model bcf_topics {
+  id                   String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project_id           String                 @db.Uuid
+  title                String                 @db.VarChar(255)
+  description          String?
+  type                 bcf_topic_type         @default(issue)
+  status               bcf_topic_status       @default(open)
+  priority             bcf_priority           @default(normal)
+  created_by           String                 @db.Uuid
+  created_at           DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime               @default(now()) @updatedAt @db.Timestamptz(6)
+  bcf_guid             String                 @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  external_author      String?                @db.VarChar(320)
+  bcf_comments         bcf_comments[]
+  bcf_topic_components bcf_topic_components[]
+  users                users                  @relation(fields: [created_by], references: [id], onUpdate: NoAction, map: "bcf_topics_created_by_users_id_fk")
+  projects             projects               @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "bcf_topics_project_id_projects_id_fk")
+  bcf_viewpoints       bcf_viewpoints[]
+
+  @@unique([project_id, bcf_guid], map: "bcf_topics_project_guid_unique")
+  @@index([project_id])
+  @@index([status])
+}
+
+model bcf_viewpoints {
+  id                     String     @id @db.Uuid
+  topic_id               String     @db.Uuid
+  data                   Json
+  target_distance        Float
+  snapshot_object_key    String?
+  snapshot_media_type    String?    @db.VarChar(64)
+  snapshot_expected_size BigInt?
+  snapshot_uploaded_at   DateTime?  @db.Timestamptz(6)
+  created_by             String     @db.Uuid
+  created_at             DateTime   @default(now()) @db.Timestamptz(6)
+  bcf_guid               String     @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  external_author        String?    @db.VarChar(320)
+  users                  users      @relation(fields: [created_by], references: [id], onUpdate: NoAction, map: "bcf_viewpoints_created_by_users_id_fk")
+  bcf_topics             bcf_topics @relation(fields: [topic_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "bcf_viewpoints_topic_id_bcf_topics_id_fk")
+
+  @@unique([topic_id, bcf_guid], map: "bcf_viewpoints_topic_guid_unique")
+  @@index([created_by])
+  @@index([topic_id])
+}
+
+model deletion_jobs {
+  id           String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  resource_id  String                @db.Uuid
+  type         deletion_job_type
+  object_keys  String[]
+  status       processing_job_status @default(queued)
+  attempts     Int                   @default(0)
+  max_attempts Int                   @default(5)
+  available_at DateTime              @default(now()) @db.Timestamptz(6)
+  locked_at    DateTime?             @db.Timestamptz(6)
+  locked_by    String?               @db.VarChar(160)
+  completed_at DateTime?             @db.Timestamptz(6)
+  last_error   String?
+  created_at   DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime              @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@unique([resource_id, type], map: "deletion_jobs_resource_type_unique")
+  @@index([status, available_at], map: "deletion_jobs_poll_idx")
+}
+
+model point_cloud_processing_results {
+  asset_id             String   @id @db.Uuid
+  format               String   @db.VarChar(40)
+  processor            String   @db.VarChar(80)
+  processor_version    String   @db.VarChar(80)
+  metadata_object_key  String
+  hierarchy_object_key String
+  octree_object_key    String
+  point_count          BigInt
+  spacing              Float
+  processed_at         DateTime @db.Timestamptz(6)
+  created_at           DateTime @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  assets               assets   @relation(fields: [asset_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "point_cloud_processing_results_asset_id_assets_id_fk")
+
+  @@index([processed_at], map: "point_cloud_results_processed_at_idx")
+}
+
+model point_cloud_settings {
+  asset_id   String   @id @db.Uuid
+  position_x Float    @default(0)
+  position_y Float    @default(0)
+  position_z Float    @default(0)
+  rotation_x Float    @default(-90)
+  rotation_y Float    @default(0)
+  rotation_z Float    @default(0)
+  scale_x    Float    @default(1)
+  scale_y    Float    @default(1)
+  scale_z    Float    @default(1)
+  source_crs String?  @db.VarChar(160)
+  target_crs String?  @db.VarChar(160)
+  updated_by String   @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  assets     assets   @relation(fields: [asset_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "point_cloud_settings_asset_id_assets_id_fk")
+  users      users    @relation(fields: [updated_by], references: [id], onUpdate: NoAction, map: "point_cloud_settings_updated_by_users_id_fk")
+}
+
+model processing_jobs {
+  id           String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  asset_id     String                @db.Uuid
+  type         processing_job_type
+  status       processing_job_status @default(queued)
+  attempts     Int                   @default(0)
+  max_attempts Int                   @default(3)
+  available_at DateTime              @default(now()) @db.Timestamptz(6)
+  locked_at    DateTime?             @db.Timestamptz(6)
+  locked_by    String?               @db.VarChar(160)
+  completed_at DateTime?             @db.Timestamptz(6)
+  last_error   String?
+  created_at   DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime              @default(now()) @updatedAt @db.Timestamptz(6)
+  assets       assets                @relation(fields: [asset_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "processing_jobs_asset_id_assets_id_fk")
+
+  @@unique([asset_id, type], map: "processing_jobs_asset_type_unique")
+  @@index([status, available_at], map: "processing_jobs_poll_idx")
+}
+
+model project_members {
+  project_id String       @db.Uuid
+  user_id    String       @db.Uuid
+  role       project_role @default(viewer)
+  joined_at  DateTime     @default(now()) @db.Timestamptz(6)
+  projects   projects     @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "project_members_project_id_projects_id_fk")
+  users      users        @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "project_members_user_id_users_id_fk")
+
+  @@id([project_id, user_id], map: "project_members_project_id_user_id_pk")
+  @@index([project_id])
+  @@index([user_id])
+}
+
+model projects {
+  id                String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name              String              @db.VarChar(160)
+  description       String?
+  created_by        String              @db.Uuid
+  archived_at       DateTime?           @db.Timestamptz(6)
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime            @default(now()) @updatedAt @db.Timestamptz(6)
+  assets            assets[]
+  assistant_threads assistant_threads[]
+  bcf_topics        bcf_topics[]
+  project_members   project_members[]
+  users             users               @relation(fields: [created_by], references: [id], onUpdate: NoAction, map: "projects_created_by_users_id_fk")
+
+  @@index([created_by])
+}
+
+model users {
+  id                   String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                String                 @unique(map: "users_email_unique") @db.VarChar(320)
+  display_name         String                 @db.VarChar(160)
+  created_at           DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime               @default(now()) @updatedAt @db.Timestamptz(6)
+  assets               assets[]
+  assistant_threads    assistant_threads[]
+  bcf_comments         bcf_comments[]
+  bcf_topics           bcf_topics[]
+  bcf_viewpoints       bcf_viewpoints[]
+  point_cloud_settings point_cloud_settings[]
+  project_members      project_members[]
+  projects             projects[]
+}
+
+enum asset_kind {
+  ifc
+  point_cloud
+}
+
+enum asset_status {
+  upload_pending
+  uploaded
+  processing
+  ready
+  failed
+  deleting
+}
+
+enum bcf_priority {
+  low
+  normal
+  high
+  critical
+}
+
+enum bcf_topic_status {
+  open
+  in_progress
+  resolved
+  closed
+}
+
+enum bcf_topic_type {
+  issue
+  request
+  comment
+}
+
+enum deletion_job_type {
+  delete_asset
+  delete_project
+}
+
+enum processing_job_status {
+  queued
+  running
+  succeeded
+  failed
+}
+
+enum processing_job_type {
+  process_ifc
+  process_point_cloud
+}
+
+enum project_role {
+  owner
+  editor
+  viewer
+}

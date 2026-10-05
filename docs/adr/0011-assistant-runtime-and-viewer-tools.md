@@ -36,8 +36,8 @@ milestone rather than being embedded into this HTTP handler.
 
 - A new viewer action is added by defining a Zod schema and one tool registry
   entry around a controller command.
-- The chat route is protocol-specific and remains outside tRPC; normal JSON
-  application operations continue to use tRPC.
+- The chat stream keeps a dedicated protocol-specific route. Other application
+  mutations use named Server Actions and browser reads use focused GET routes.
 - A missing OpenRouter key disables the composer explicitly instead of failing
   after the user sends a message.
 - Model answers render GitHub-flavoured Markdown through

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { useTRPCClient } from "@/shared/api/trpc";
+import { deleteAsset as deleteAssetAction } from "@/server/assets/actions";
 
 import styles from "./delete-button.module.css";
 
@@ -17,7 +17,6 @@ export function DeleteAssetButton({
   onDeleted: (assetId: string) => void;
   projectId: string;
 }) {
-  const client = useTRPCClient();
   const [pending, setPending] = useState(false);
 
   async function deleteAsset() {
@@ -27,7 +26,7 @@ export function DeleteAssetButton({
 
     setPending(true);
     try {
-      await client.assets.delete.mutate({ assetId, projectId });
+      await deleteAssetAction({ assetId, projectId });
       onDeleted(assetId);
     } finally {
       setPending(false);

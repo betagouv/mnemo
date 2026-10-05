@@ -80,9 +80,9 @@ test("imports, exports and deduplicates a BCF archive", async ({
       ]),
     );
   } finally {
-    const deleted = await request.post("/api/trpc/projects.delete", {
-      data: { projectId },
-    });
-    expect(deleted.ok()).toBe(true);
+    await page.goto(projectHref);
+    page.once("dialog", (dialog) => void dialog.accept());
+    await page.getByRole("button", { name: "Supprimer le projet" }).click();
+    await expect(page).toHaveURL(/\/projets$/);
   }
 });

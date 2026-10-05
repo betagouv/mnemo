@@ -7,8 +7,8 @@ This repository is a clean rewrite of the validated prototype. Features are rein
 ## Planned stack
 
 - Next.js, React, TypeScript, and DSFR
-- tRPC and Zod
-- PostgreSQL and Drizzle ORM
+- Next.js Server Actions, focused Route Handlers, and domain Zod schemas
+- PostgreSQL and Prisma ORM
 - S3-compatible storage with MinIO locally
 - IFC-Lite browser packages and Rust server
 - IFC-Lite MCP and OpenRouter
@@ -29,8 +29,27 @@ pnpm dev
 To run the complete local stack:
 
 ```bash
-docker compose up --build
+make start
 ```
+
+On a fresh PostgreSQL volume, Compose applies the Prisma baseline before
+starting the web application and worker. If this is an existing Mnemo database
+created with Drizzle, verify that it matches the Prisma baseline, then mark the
+baseline as applied once before starting the new stack:
+
+```bash
+DATABASE_URL=postgresql://mnemo:mnemo@localhost:5436/mnemo \
+  pnpm --filter @mnemo/database exec prisma migrate diff \
+  --from-config-datasource --to-schema prisma/schema.prisma --exit-code
+DATABASE_URL=postgresql://mnemo:mnemo@localhost:5436/mnemo \
+  pnpm --filter @mnemo/database exec prisma migrate resolve --applied 0_baseline
+```
+
+The diff command must report no differences before resolving the baseline.
+Do not use `migrate reset` on an existing project database.
+
+Use `make start-detached` to run it in the background and `make help` to list
+the other lifecycle commands.
 
 The default local endpoints are:
 
@@ -88,9 +107,9 @@ apps/
   web/                 Next.js application and HTTP boundary
   processing-worker/   asynchronous processing runtime
 packages/
-  contracts/           shared Zod and tRPC contracts
+  contracts/           shared domain schemas and DTOs
   bcf-adapter/         BCF 2.1/3.0 archive interoperability
-  database/            Drizzle schema and PostgreSQL adapter
+  database/            Prisma schema and PostgreSQL adapter
   domain/              framework-independent business rules and ports
   ifc-viewer-adapter/  stable bridge to the IFC-Lite WebGPU runtime
   ifc-mcp-adapter/     safe read-only MCP tool and session boundary

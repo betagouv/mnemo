@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { useTRPCClient } from "@/shared/api/trpc";
+import { deleteProject as deleteProjectAction } from "@/server/projects/actions";
 
 import styles from "./delete-project-button.module.css";
 
@@ -14,7 +14,6 @@ export function DeleteProjectButton({
   projectId: string;
   projectName: string;
 }) {
-  const client = useTRPCClient();
   const router = useRouter();
   const [pending, setPending] = useState(false);
 
@@ -29,7 +28,7 @@ export function DeleteProjectButton({
 
     setPending(true);
     try {
-      await client.projects.delete.mutate({ projectId });
+      await deleteProjectAction({ projectId });
       router.push("/projets");
       router.refresh();
     } finally {

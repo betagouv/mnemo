@@ -2,10 +2,9 @@
 
 import type { ProjectSummary } from "@mnemo/contracts/projects";
 import Button from "@codegouvfr/react-dsfr/Button";
-import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { useTRPC } from "@/shared/api/trpc";
+import { createProject } from "@/server/projects/actions";
 
 import styles from "./create-project-form.module.css";
 
@@ -14,25 +13,32 @@ export function CreateProjectForm({
 }: {
   onCreated: (project: ProjectSummary) => void;
 }) {
-  const trpc = useTRPC();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const creation = useMutation(
-    trpc.projects.create.mutationOptions({
-      onSuccess(project) {
-        onCreated(project);
-        setName("");
-        setDescription("");
-      },
-    }),
-  );
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState(false);
+
+  async function submit() {
+    setPending(true);
+    setError(false);
+    try {
+      const project = await createProject({ name, description });
+      onCreated(project);
+      setName("");
+      setDescription("");
+    } catch {
+      setError(true);
+    } finally {
+      setPending(false);
+    }
+  }
 
   return (
     <form
       className={styles.form}
       onSubmit={(event) => {
         event.preventDefault();
-        creation.mutate({ name, description });
+        void submit();
       }}
     >
       <div>
@@ -75,18 +81,18 @@ export function CreateProjectForm({
         />
       </div>
 
-      {creation.error ? (
+      {error ? (
         <p className={styles.error} role="alert">
           Le projet n’a pas pu être créé. Réessayez dans un instant.
         </p>
       ) : null}
 
       <Button
-        disabled={creation.isPending || name.trim().length < 2}
+        disabled={pending || name.trim().length < 2}
         iconId="fr-icon-add-line"
         nativeButtonProps={{ type: "submit" }}
       >
-        {creation.isPending ? "Création…" : "Créer le projet"}
+        {pending ? "Création…" : "Créer le projet"}
       </Button>
     </form>
   );

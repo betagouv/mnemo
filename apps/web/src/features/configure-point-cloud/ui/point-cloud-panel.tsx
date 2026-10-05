@@ -6,7 +6,7 @@ import type {
 } from "@mnemo/ifc-viewer-adapter";
 import { useState } from "react";
 
-import { useTRPCClient } from "@/shared/api/trpc";
+import { updatePointCloudSettings } from "@/server/point-clouds/actions";
 
 import styles from "./point-cloud-panel.module.css";
 
@@ -59,7 +59,6 @@ export function PointCloudPanel({
   pointSize: number;
   projectId: string;
 }) {
-  const client = useTRPCClient();
   const [budgetDraft, setBudgetDraft] = useState(maxPoints);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<Record<string, string>>({});
@@ -88,7 +87,7 @@ export function PointCloudPanel({
     setSavingId(configuration.assetId);
     setSaveMessage((current) => ({ ...current, [configuration.assetId]: "" }));
     try {
-      await client.pointClouds.updateSettings.mutate({
+      await updatePointCloudSettings({
         projectId,
         assetId: configuration.assetId,
         transform: configuration.transform,

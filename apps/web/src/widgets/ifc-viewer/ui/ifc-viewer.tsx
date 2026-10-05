@@ -6,8 +6,12 @@ import {
   type LoadPointCloudInput,
   type IfcViewerSnapshot,
 } from "@mnemo/ifc-viewer-adapter";
-import type { PointCloudSettings } from "@mnemo/contracts/point-clouds";
-import type { PointCloudSource } from "@mnemo/contracts/point-clouds";
+import {
+  pointCloudSourceSchema,
+  type PointCloudSettings,
+  type PointCloudSource,
+} from "@mnemo/contracts/point-clouds";
+import { openAssetResultSchema } from "@mnemo/contracts/assets";
 import type { BcfTopic } from "@mnemo/contracts/bcf";
 import type {
   AssistantThreadHistory,
@@ -24,7 +28,7 @@ import {
   PointCloudPanel,
   type PointCloudConfiguration,
 } from "@/features/configure-point-cloud";
-import { useTRPCClient } from "@/shared/api/trpc";
+import { fetchJson } from "@/shared/lib/fetch-json";
 
 import styles from "./ifc-viewer.module.css";
 
@@ -135,7 +139,6 @@ export function IfcViewer({
   );
   const initialProcessingRef = useRef(processing);
   const pointCloudSourcesRef = useRef(pointCloudSources);
-  const trpcClient = useTRPCClient();
   const getViewer = useCallback(() => controllerRef.current, []);
 
   const loadPointCloud = useCallback(
@@ -155,10 +158,10 @@ export function IfcViewer({
               mode: "octree" as const,
               access: source.source,
               refreshAccess: async () => {
-                const refreshed = await trpcClient.pointClouds.source.query({
-                  assetId: source.assetId,
-                  projectId,
-                });
+                const refreshed = await fetchJson(
+                  `/api/projects/${projectId}/assets/${source.assetId}/point-cloud/source`,
+                  pointCloudSourceSchema,
+                );
                 if (refreshed.mode !== "octree") {
                   throw new Error(
                     "L’octree du nuage de points n’est plus disponible.",
@@ -185,7 +188,7 @@ export function IfcViewer({
         });
       }
     },
-    [projectId, trpcClient],
+    [projectId],
   );
   const initialLoadPointCloudRef = useRef(loadPointCloud);
 
@@ -244,10 +247,10 @@ export function IfcViewer({
     await Promise.allSettled(
       pointCloudSourcesRef.current.map(async (source) => {
         if (source.source.mode === "octree") return;
-        const access = await trpcClient.pointClouds.source.query({
-          assetId: source.assetId,
-          projectId,
-        });
+        const access = await fetchJson(
+          `/api/projects/${projectId}/assets/${source.assetId}/point-cloud/source`,
+          pointCloudSourceSchema,
+        );
         const configuration = pointCloudConfigurations.find(
           (item) => item.assetId === source.assetId,
         );
@@ -274,7 +277,10 @@ export function IfcViewer({
     setAccessError(null);
 
     try {
-      const access = await trpcClient.assets.open.query({ assetId, projectId });
+      const access = await fetchJson(
+        `/api/projects/${projectId}/assets/${assetId}/access`,
+        openAssetResultSchema,
+      );
       await controller.loadIfc({
         downloadUrl: access.downloadUrl,
         processing,
@@ -288,7 +294,7 @@ export function IfcViewer({
     } finally {
       setRetrying(false);
     }
-  }, [assetId, processing, projectId, trpcClient]);
+  }, [assetId, processing, projectId]);
 
   const isBusy =
     snapshot.phase === "initializing" ||

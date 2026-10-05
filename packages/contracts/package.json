@@ -10,8 +10,7 @@
     "./assets": "./src/assets.ts",
     "./bcf": "./src/bcf.ts",
     "./projects": "./src/projects.ts",
-    "./point-clouds": "./src/point-clouds.ts",
-    "./system": "./src/system.ts"
+    "./point-clouds": "./src/point-clouds.ts"
   },
   "scripts": {
     "lint": "eslint src",

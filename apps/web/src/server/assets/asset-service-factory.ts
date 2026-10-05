@@ -1,16 +1,16 @@
-import { getRuntimeDatabase } from "@/server/database/runtime-database";
-import { DrizzleProjectRepository } from "@/server/projects/infrastructure/drizzle-project-repository";
+import { getRuntimePrismaDatabase } from "@/server/database/runtime-database";
+import { PrismaProjectRepository } from "@/server/projects/infrastructure/prisma-project-repository";
 import { getRuntimeObjectStorage } from "@/server/storage/runtime-object-storage";
 
 import { AssetService } from "./application/asset-service";
-import { DrizzleAssetRepository } from "./infrastructure/drizzle-asset-repository";
+import { PrismaAssetRepository } from "./infrastructure/prisma-asset-repository";
 
 export function getAssetService() {
-  const database = getRuntimeDatabase();
+  const database = getRuntimePrismaDatabase();
 
   return new AssetService(
-    new DrizzleAssetRepository(database),
-    new DrizzleProjectRepository(database),
+    new PrismaAssetRepository(database),
+    new PrismaProjectRepository(database),
     getRuntimeObjectStorage(),
   );
 }

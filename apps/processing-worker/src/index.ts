@@ -1,4 +1,4 @@
-import { createDatabase } from "@mnemo/database";
+import { createPrismaDatabase } from "@mnemo/database";
 import { IfcLiteServerProcessor } from "@mnemo/ifc-processing-adapter";
 import { PotreeConverterProcessor } from "@mnemo/point-cloud-processing-adapter";
 import { S3ObjectStorage } from "@mnemo/storage";
@@ -16,18 +16,18 @@ import {
   BackgroundWorker,
   ProcessingWorker,
 } from "./application/processing-worker";
-import { DrizzleDeletedResourceRepository } from "./infrastructure/drizzle-deleted-resource-repository";
-import { DrizzleDeletionJobQueue } from "./infrastructure/drizzle-deletion-job-queue";
-import { DrizzleProcessingJobQueue } from "./infrastructure/drizzle-processing-job-queue";
-import { DrizzleIfcProcessingRepository } from "./infrastructure/drizzle-ifc-processing-repository";
-import { DrizzlePointCloudProcessingRepository } from "./infrastructure/drizzle-point-cloud-processing-repository";
+import { PrismaDeletedResourceRepository } from "./infrastructure/prisma-deleted-resource-repository";
+import { PrismaDeletionJobQueue } from "./infrastructure/prisma-deletion-job-queue";
+import { PrismaProcessingJobQueue } from "./infrastructure/prisma-processing-job-queue";
+import { PrismaIfcProcessingRepository } from "./infrastructure/prisma-ifc-processing-repository";
+import { PrismaPointCloudProcessingRepository } from "./infrastructure/prisma-point-cloud-processing-repository";
 import { LocalIfcMcpCacheCleaner } from "./infrastructure/local-ifc-mcp-cache-cleaner";
 import { PotreePointCloudArtifactBuilder } from "./infrastructure/potree-point-cloud-artifact-builder";
 import { getWorkerConfig } from "./runtime-config";
 
 async function main() {
   const config = getWorkerConfig();
-  const database = createDatabase({
+  const database = createPrismaDatabase({
     connectionString: config.databaseUrl,
     maxConnections: 2,
   });
@@ -37,12 +37,12 @@ async function main() {
   });
   const handlers: ProcessingJobHandlers = {
     process_ifc: createProcessIfcAssetHandler({
-      repository: new DrizzleIfcProcessingRepository(database.db),
+      repository: new PrismaIfcProcessingRepository(database.db),
       storage,
       processor: new IfcLiteServerProcessor(config.ifcLiteServerUrl),
     }),
     process_point_cloud: createProcessPointCloudAssetHandler({
-      repository: new DrizzlePointCloudProcessingRepository(database.db),
+      repository: new PrismaPointCloudProcessingRepository(database.db),
       storage,
       artifacts: new PotreePointCloudArtifactBuilder(
         storage,
@@ -53,12 +53,12 @@ async function main() {
     }),
   };
   const worker = new ProcessingWorker(
-    new DrizzleProcessingJobQueue(database.db),
+    new PrismaProcessingJobQueue(database.db),
     handlers,
     config,
   );
   const deletionHandler = createDeleteResourceHandler({
-    resources: new DrizzleDeletedResourceRepository(database.db),
+    resources: new PrismaDeletedResourceRepository(database.db),
     storage,
     workingCopies: new LocalIfcMcpCacheCleaner(config.ifcMcpCacheDirectory),
   });
@@ -66,7 +66,7 @@ async function main() {
     DeletionJobType,
     DeletionJobLease
   >(
-    new DrizzleDeletionJobQueue(database.db),
+    new PrismaDeletionJobQueue(database.db),
     Object.fromEntries(
       deletionJobTypes.map((type) => [type, deletionHandler]),
     ) as Record<DeletionJobType, typeof deletionHandler>,

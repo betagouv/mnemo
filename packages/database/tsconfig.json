@@ -7,5 +7,5 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["drizzle.config.ts", "src/**/*.ts"]
+  "include": ["prisma.config.ts", "src/**/*.ts"]
 }

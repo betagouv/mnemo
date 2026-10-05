@@ -4,10 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "prebuild": "pnpm --filter @mnemo/database db:generate",
     "build": "tsup && node scripts/copy-parquet-wasm.mjs",
     "dev": "tsx watch src/index.ts",
     "lint": "eslint src tsup.config.ts vitest.integration.config.ts",
-    "start": "node dist/index.cjs",
+    "start": "node dist/index.js",
     "test": "vitest run --exclude '**/*.integration.test.ts'",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
@@ -25,7 +26,6 @@
     "@mnemo/ifc-processing-adapter": "workspace:*",
     "@mnemo/point-cloud-processing-adapter": "workspace:*",
     "@mnemo/storage": "workspace:*",
-    "drizzle-orm": "0.45.2",
     "parquet-wasm": "0.7.2"
   }
 }

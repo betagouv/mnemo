@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 
 import { IfcViewerScreen } from "@/screens/ifc-viewer";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Visionneuse IFC",
 };

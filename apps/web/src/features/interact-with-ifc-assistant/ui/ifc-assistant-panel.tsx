@@ -15,12 +15,17 @@ import type {
   AssistantThreadHistory,
   AssistantThreadSummary,
 } from "@mnemo/contracts/assistant";
+import { assistantThreadHistorySchema } from "@mnemo/contracts/assistant";
 import type { IfcViewerController } from "@mnemo/ifc-viewer-adapter";
 import type { UIMessage } from "ai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import remarkGfm from "remark-gfm";
 
-import { useTRPCClient } from "@/shared/api/trpc";
+import {
+  createAssistantThread,
+  deleteAssistantThread,
+} from "@/server/assistant/actions";
+import { fetchJson } from "@/shared/lib/fetch-json";
 
 import { createViewerToolActions } from "../model/viewer-tool-actions";
 import { createViewerAssistantToolkit } from "../model/viewer-toolkit";
@@ -209,7 +214,6 @@ export function IfcAssistantPanel({
     [actions],
   );
   const config = AuiConfig({ tools: Tools({ toolkit }) });
-  const trpcClient = useTRPCClient();
   const [threads, setThreads] = useState(initialThreads);
   const [history, setHistory] = useState(initialHistory);
   const [loading, setLoading] = useState(false);
@@ -221,11 +225,10 @@ export function IfcAssistantPanel({
       setLoading(true);
       setThreadError(null);
       try {
-        const nextHistory = await trpcClient.assistant.history.query({
-          projectId,
-          assetId,
-          threadId,
-        });
+        const nextHistory = await fetchJson(
+          `/api/projects/${projectId}/assets/${assetId}/assistant/threads/${threadId}`,
+          assistantThreadHistorySchema,
+        );
         setHistory(nextHistory);
       } catch {
         setThreadError("La conversation n’a pas pu être chargée.");
@@ -233,14 +236,14 @@ export function IfcAssistantPanel({
         setLoading(false);
       }
     },
-    [assetId, projectId, trpcClient],
+    [assetId, projectId],
   );
 
   const createThread = useCallback(async () => {
     setLoading(true);
     setThreadError(null);
     try {
-      const thread = await trpcClient.assistant.create.mutate({
+      const thread = await createAssistantThread({
         projectId,
         assetId,
       });
@@ -251,7 +254,7 @@ export function IfcAssistantPanel({
     } finally {
       setLoading(false);
     }
-  }, [assetId, projectId, trpcClient]);
+  }, [assetId, projectId]);
 
   useEffect(() => {
     if (
@@ -272,7 +275,7 @@ export function IfcAssistantPanel({
     setLoading(true);
     setThreadError(null);
     try {
-      await trpcClient.assistant.delete.mutate({
+      await deleteAssistantThread({
         projectId,
         assetId,
         threadId: history.thread.id,
@@ -282,11 +285,10 @@ export function IfcAssistantPanel({
       );
       setThreads(remaining);
       if (remaining[0]) {
-        const nextHistory = await trpcClient.assistant.history.query({
-          projectId,
-          assetId,
-          threadId: remaining[0].id,
-        });
+        const nextHistory = await fetchJson(
+          `/api/projects/${projectId}/assets/${assetId}/assistant/threads/${remaining[0].id}`,
+          assistantThreadHistorySchema,
+        );
         setHistory(nextHistory);
       } else {
         setHistory(null);
@@ -297,7 +299,7 @@ export function IfcAssistantPanel({
     } finally {
       setLoading(false);
     }
-  }, [assetId, history, projectId, threads, trpcClient]);
+  }, [assetId, history, projectId, threads]);
 
   const updateCurrentThreadTitle = useCallback(
     (messages: UIMessage[]) => {

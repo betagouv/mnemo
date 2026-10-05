@@ -12,11 +12,11 @@ These instructions apply to the whole repository.
 
 ## Repository layout
 
-- `apps/web`: Next.js application, including UI, server components, route handlers, and tRPC transport.
+- `apps/web`: Next.js application, including UI, server components, and typed route handlers.
 - `apps/processing-worker`: asynchronous jobs that must not run in an HTTP request lifecycle.
 - `packages/domain`: framework-free domain types and invariants.
 - `packages/contracts`: shared Zod schemas, DTOs, and event contracts.
-- `packages/database`: Drizzle schema, migrations, and database adapters.
+- `packages/database`: Prisma schema, migrations, and PostgreSQL client.
 - `packages/storage`: object-storage ports and S3/MinIO adapters.
 - `packages/*-adapter`: vendor-specific integrations behind application-owned interfaces.
 - `infra`: local infrastructure and container configuration.
@@ -42,13 +42,14 @@ app -> screens -> widgets -> features -> entities -> shared
 
 ## Server boundaries
 
-- Route handlers and tRPC procedures are transport adapters. They must not contain SQL, S3 calls, or substantial business rules.
+- Route handlers are transport adapters. They must not contain SQL, S3 calls, or substantial business rules.
 - Server flow is `transport -> application use case -> port -> infrastructure adapter`.
 - Validate every external input at runtime with Zod even when TypeScript types are shared.
-- Use tRPC for ordinary first-party JSON operations. Use dedicated route handlers for protocol-specific streaming such as assistant-ui/AI SDK, authentication callbacks, and byte-range delivery when unavoidable.
+- Use Server Components for initial reads and Server Actions for first-party mutations. Keep explicit Route Handlers for browser-driven reads, streaming, archives, authentication callbacks, and byte-range delivery when needed. Do not add a catch-all RPC dispatcher.
 - Server Components call server application services directly; they must not fetch the application's own HTTP API.
 - Large uploads go directly from the browser to S3/MinIO through short-lived presigned URLs.
 - Long-running conversion, deletion, and processing work belongs in an idempotent background job.
+- Prisma owns schema evolution. Preserve the baselined PostgreSQL schema and data; use parameterized Prisma raw SQL only for database features the model API cannot express, such as atomic `SKIP LOCKED` job claims.
 
 ## Viewer boundaries
 

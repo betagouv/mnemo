@@ -27,6 +27,8 @@ services:
       IFC_MCP_MODEL_DIR: /app/models
       IFC_MCP_MAX_SESSIONS: ${IFC_MCP_MAX_SESSIONS:-2}
     depends_on:
+      database-migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       create-bucket:
@@ -70,6 +72,8 @@ services:
       WORKER_LEASE_TIMEOUT_MS: 900000
       WORKER_RETRY_BASE_DELAY_MS: 5000
     depends_on:
+      database-migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       create-bucket:
@@ -140,6 +144,18 @@ services:
       timeout: 3s
       retries: 12
       start_period: 5s
+
+  database-migrate:
+    build:
+      context: .
+      dockerfile: packages/database/Dockerfile
+    image: mnemo-database-migrate:0.1.0
+    environment:
+      DATABASE_URL: postgresql://mnemo:mnemo@postgres:5432/mnemo
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
 
   postgres:
     image: postgres:17-alpine

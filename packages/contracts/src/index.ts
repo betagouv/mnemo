@@ -75,7 +75,6 @@ export {
   type ProjectList,
   type ProjectSummary,
 } from "./projects";
-export { systemInfoSchema, type SystemInfo } from "./system";
 export {
   pointCloudSourceSchema,
   pointCloudSettingsInputSchema,

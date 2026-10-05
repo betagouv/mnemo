@@ -1,0 +1,134 @@
+import type { MnemoPrismaDatabase, PrismaAssetRecord } from "@mnemo/database";
+import { processingJobTypeForAsset } from "@mnemo/domain/processing-job";
+
+import type {
+  AssetForActor,
+  AssetRepository,
+  PendingAsset,
+} from "../application/asset-repository";
+
+function toAsset(row: PrismaAssetRecord): AssetForActor {
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    kind: row.kind,
+    originalFileName: row.original_file_name,
+    mediaType: row.media_type,
+    sizeBytes: Number(row.size_bytes),
+    originalObjectKey: row.original_object_key,
+    status: row.status,
+    errorMessage: row.error_message,
+    uploadExpiresAt: row.upload_expires_at,
+    uploadedAt: row.uploaded_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export class PrismaAssetRepository implements AssetRepository {
+  constructor(private readonly database: MnemoPrismaDatabase) {}
+
+  async listForActor(
+    actorId: string,
+    projectId: string,
+  ): Promise<AssetForActor[]> {
+    const rows = await this.database.assets.findMany({
+      where: {
+        project_id: projectId,
+        status: { not: "deleting" },
+        projects: { project_members: { some: { user_id: actorId } } },
+      },
+      orderBy: { created_at: "desc" },
+    });
+    return rows.map(toAsset);
+  }
+
+  async findForActor(actorId: string, projectId: string, assetId: string) {
+    const membership = await this.database.project_members.findUnique({
+      where: {
+        project_id_user_id: { project_id: projectId, user_id: actorId },
+      },
+    });
+    if (!membership) return undefined;
+    const row = await this.database.assets.findFirst({
+      where: { id: assetId, project_id: projectId },
+    });
+    return row ? { asset: toAsset(row), role: membership.role } : undefined;
+  }
+
+  async createPending(input: PendingAsset): Promise<AssetForActor> {
+    const row = await this.database.assets.create({
+      data: {
+        id: input.id,
+        project_id: input.projectId,
+        kind: input.kind,
+        original_file_name: input.originalFileName,
+        media_type: input.mediaType,
+        size_bytes: BigInt(input.sizeBytes),
+        original_object_key: input.originalObjectKey,
+        status: "upload_pending",
+        created_by: input.createdBy,
+        upload_expires_at: input.uploadExpiresAt,
+      },
+    });
+    return toAsset(row);
+  }
+
+  async markUploadedAndEnqueue(assetId: string, uploadedAt: Date) {
+    return this.database.$transaction(async (transaction) => {
+      await transaction.assets.updateMany({
+        where: { id: assetId, status: "upload_pending" },
+        data: {
+          status: "uploaded",
+          uploaded_at: uploadedAt,
+          updated_at: uploadedAt,
+        },
+      });
+      const row = await transaction.assets.findUnique({
+        where: { id: assetId },
+      });
+      if (!row) throw new Error("Asset update returned no record");
+      await transaction.processing_jobs.createMany({
+        data: [{ asset_id: row.id, type: processingJobTypeForAsset(row.kind) }],
+        skipDuplicates: true,
+      });
+      return toAsset(row);
+    });
+  }
+
+  async requestDeletion(assetId: string, requestedAt: Date) {
+    await this.database.$transaction(async (transaction) => {
+      const row = await transaction.assets.findUnique({
+        where: { id: assetId },
+        include: { point_cloud_processing_results: true },
+      });
+      if (!row) return;
+
+      await transaction.assets.update({
+        where: { id: assetId },
+        data: { status: "deleting", updated_at: requestedAt },
+      });
+      const result = row.point_cloud_processing_results;
+      await transaction.deletion_jobs.createMany({
+        data: [
+          {
+            resource_id: assetId,
+            type: "delete_asset",
+            object_keys: [
+              row.original_object_key,
+              ...(result
+                ? [
+                    result.metadata_object_key,
+                    result.hierarchy_object_key,
+                    result.octree_object_key,
+                  ]
+                : []),
+            ],
+            available_at: requestedAt,
+          },
+        ],
+        skipDuplicates: true,
+      });
+    });
+  }
+}

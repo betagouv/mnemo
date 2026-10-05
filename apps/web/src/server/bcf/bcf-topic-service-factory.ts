@@ -4,19 +4,19 @@ import {
   encodeBcfArchive,
 } from "@mnemo/bcf-adapter";
 
-import { getRuntimeDatabase } from "@/server/database/runtime-database";
-import { DrizzleProjectRepository } from "@/server/projects/infrastructure/drizzle-project-repository";
+import { getRuntimePrismaDatabase } from "@/server/database/runtime-database";
+import { PrismaProjectRepository } from "@/server/projects/infrastructure/prisma-project-repository";
 import { getRuntimeObjectStorage } from "@/server/storage/runtime-object-storage";
 
 import { BcfTopicService } from "./application/bcf-topic-service";
 import { BcfArchiveTooLargeError } from "./application/bcf-topic-errors";
-import { DrizzleBcfTopicRepository } from "./infrastructure/drizzle-bcf-topic-repository";
+import { PrismaBcfTopicRepository } from "./infrastructure/prisma-bcf-topic-repository";
 
 export function getBcfTopicService() {
-  const database = getRuntimeDatabase();
+  const database = getRuntimePrismaDatabase();
   return new BcfTopicService(
-    new DrizzleBcfTopicRepository(database),
-    new DrizzleProjectRepository(database),
+    new PrismaBcfTopicRepository(database),
+    new PrismaProjectRepository(database),
     getRuntimeObjectStorage(),
     {
       decode: async (bytes) => {

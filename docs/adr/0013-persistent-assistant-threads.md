@@ -18,8 +18,9 @@ first authorizes the IFC asset for the current actor. Messages keep their whole
 validated JSON payload so tool traces and model metadata are not flattened or
 lost.
 
-The JSON thread lifecycle uses the typed tRPC API. The model stream remains a
-dedicated route because it speaks the AI SDK SSE protocol. That route requires
+Thread mutations use named Server Actions and history uses an authenticated GET
+route. The model stream remains a dedicated route because it speaks the AI SDK
+SSE protocol. That route requires
 an authorized thread ID and uses AI SDK v7 `originalMessages` plus `onEnd` to
 atomically replace the ordered message snapshot after every streamed step. A
 failure to persist is logged with the asset and thread IDs but does not corrupt

@@ -1,8 +1,17 @@
-import { assetIdSchema } from "@mnemo/contracts/assets";
-import { projectIdSchema } from "@mnemo/contracts/projects";
+import { assetIdSchema, type OpenAssetResult } from "@mnemo/contracts/assets";
+import {
+  projectIdSchema,
+  type ProjectSummary,
+} from "@mnemo/contracts/projects";
 import { notFound } from "next/navigation";
 
-import { getServerCaller } from "@/server/trpc/server-caller";
+import { getAssetService } from "@/server/assets/asset-service-factory";
+import { getAssistantThreadService } from "@/server/assistant/assistant-thread-service-factory";
+import { resolveActor } from "@/server/auth/resolve-actor";
+import { getBcfTopicService } from "@/server/bcf/bcf-topic-service-factory";
+import { getPointCloudSettingsService } from "@/server/point-clouds/point-cloud-settings-service-factory";
+import { getPointCloudSourceService } from "@/server/point-clouds/point-cloud-source-service-factory";
+import { getProjectService } from "@/server/projects/project-service-factory";
 import { isAssistantConfigured } from "@/shared/config/assistant/server-only";
 import { selectIfcProcessing } from "@/shared/config/ifc-processing/server-only";
 import { isIfcMcpConfigured } from "@/shared/config/ifc-mcp/server-only";
@@ -22,14 +31,14 @@ export async function IfcViewerScreen({
     notFound();
   }
 
-  const caller = await getServerCaller();
-  let result: Awaited<ReturnType<typeof caller.assets.open>> | null = null;
-  let project: Awaited<ReturnType<typeof caller.projects.find>> = null;
+  const actorId = resolveActor().id;
+  let result: OpenAssetResult | null = null;
+  let project: ProjectSummary | null = null;
 
   try {
     [project, result] = await Promise.all([
-      caller.projects.find({ projectId: parsedProjectId.data }),
-      caller.assets.open({
+      getProjectService().find(actorId, parsedProjectId.data),
+      getAssetService().open(actorId, {
         projectId: parsedProjectId.data,
         assetId: parsedAssetId.data,
       }),
@@ -43,15 +52,15 @@ export async function IfcViewerScreen({
   }
 
   const [assets, bcfTopics, assistantThreads] = await Promise.all([
-    caller.assets.list({ projectId: project.id }),
-    caller.bcf.list({ projectId: project.id }),
-    caller.assistant.list({
+    getAssetService().list(actorId, project.id),
+    getBcfTopicService().list(actorId, project.id),
+    getAssistantThreadService().list(actorId, {
       projectId: project.id,
       assetId: result.asset.id,
     }),
   ]);
   const initialAssistantHistory = assistantThreads[0]
-    ? await caller.assistant.history({
+    ? await getAssistantThreadService().history(actorId, {
         projectId: project.id,
         assetId: result.asset.id,
         threadId: assistantThreads[0].id,
@@ -66,11 +75,11 @@ export async function IfcViewerScreen({
         .map(async (asset) => {
           try {
             const [access, settings] = await Promise.all([
-              caller.pointClouds.source({
+              getPointCloudSourceService().open(actorId, {
                 projectId: project.id,
                 assetId: asset.id,
               }),
-              caller.pointClouds.settings({
+              getPointCloudSettingsService().get(actorId, {
                 projectId: project.id,
                 assetId: asset.id,
               }),

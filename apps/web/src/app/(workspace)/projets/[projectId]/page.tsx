@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 
 import { ProjectDetailScreen } from "@/screens/project-detail";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Espace projet",
 };

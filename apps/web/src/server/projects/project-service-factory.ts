@@ -1,8 +1,10 @@
-import { getRuntimeDatabase } from "@/server/database/runtime-database";
+import { getRuntimePrismaDatabase } from "@/server/database/runtime-database";
 
 import { ProjectService } from "./application/project-service";
-import { DrizzleProjectRepository } from "./infrastructure/drizzle-project-repository";
+import { PrismaProjectRepository } from "./infrastructure/prisma-project-repository";
 
 export function getProjectService() {
-  return new ProjectService(new DrizzleProjectRepository(getRuntimeDatabase()));
+  return new ProjectService(
+    new PrismaProjectRepository(getRuntimePrismaDatabase()),
+  );
 }

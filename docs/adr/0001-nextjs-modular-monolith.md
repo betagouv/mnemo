@@ -9,7 +9,7 @@ Mnemo needs a public static site, authenticated application pages later, a type-
 
 ## Decision
 
-Use the Next.js App Router for the web application and its HTTP boundary. Keep application logic independent from Next.js through use cases and ports. Use tRPC for first-party JSON operations and dedicated route handlers for protocol-specific traffic such as uploads, assistant streams, authentication callbacks, and health checks.
+Use the Next.js App Router for the web application and its HTTP boundary. Keep application logic independent from Next.js through use cases and ports. Server Components handle initial reads, named Server Actions handle first-party mutations, and explicit route handlers serve browser-driven reads and protocol-specific traffic. ADR 0014 records this transport decision in detail.
 
 Long-running work is never performed in an HTTP request. It runs in the processing worker. The IFC-Lite Rust and MCP servers remain dedicated runtimes behind application-owned adapters.
 

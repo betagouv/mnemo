@@ -1,12 +1,12 @@
 import type { ProjectSummary } from "@mnemo/contracts/projects";
 
-import { getServerCaller } from "@/server/trpc/server-caller";
+import { resolveActor } from "@/server/auth/resolve-actor";
+import { getProjectService } from "@/server/projects/project-service-factory";
 
 import { ProjectsWorkspace } from "./projects-workspace";
 
 export async function ProjectsScreen() {
-  const caller = await getServerCaller();
-  const projects = await caller.projects.list();
+  const projects = await getProjectService().list(resolveActor().id);
 
   return <ProjectsWorkspace initialProjects={projects} />;
 }

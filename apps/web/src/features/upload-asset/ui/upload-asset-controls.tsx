@@ -1,10 +1,9 @@
 "use client";
 
 import type { AssetKind, AssetSummary } from "@mnemo/contracts/assets";
-import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { useTRPC } from "@/shared/api/trpc";
+import { beginAssetUpload, completeAssetUpload } from "@/server/assets/actions";
 
 import styles from "./upload-asset-controls.module.css";
 import { uploadFile } from "./upload-file";
@@ -21,16 +20,10 @@ export function UploadAssetControls({
   projectId: string;
   onUploaded: (asset: AssetSummary) => void;
 }) {
-  const trpc = useTRPC();
-  const beginUpload = useMutation(trpc.assets.beginUpload.mutationOptions());
-  const completeUpload = useMutation(
-    trpc.assets.completeUpload.mutationOptions(),
-  );
   const [progress, setProgress] = useState<number | null>(null);
   const [currentFile, setCurrentFile] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const isUploading =
-    beginUpload.isPending || completeUpload.isPending || progress !== null;
+  const isUploading = progress !== null;
 
   async function startUpload(kind: AssetKind, file: File) {
     setError(null);
@@ -38,7 +31,7 @@ export function UploadAssetControls({
     setProgress(0);
 
     try {
-      const target = await beginUpload.mutateAsync({
+      const target = await beginAssetUpload({
         projectId,
         kind,
         fileName: file.name,
@@ -51,7 +44,7 @@ export function UploadAssetControls({
         headers: target.requiredHeaders,
         onProgress: setProgress,
       });
-      const asset = await completeUpload.mutateAsync({
+      const asset = await completeAssetUpload({
         projectId,
         assetId: target.asset.id,
       });

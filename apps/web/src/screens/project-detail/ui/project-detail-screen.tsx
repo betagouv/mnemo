@@ -2,7 +2,9 @@ import { projectIdSchema } from "@mnemo/contracts/projects";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { getServerCaller } from "@/server/trpc/server-caller";
+import { getAssetService } from "@/server/assets/asset-service-factory";
+import { resolveActor } from "@/server/auth/resolve-actor";
+import { getProjectService } from "@/server/projects/project-service-factory";
 import { DeleteProjectButton } from "@/features/delete-project";
 import { ProjectAssets } from "@/widgets/project-assets";
 
@@ -25,16 +27,14 @@ export async function ProjectDetailScreen({
     notFound();
   }
 
-  const caller = await getServerCaller();
-  const project = await caller.projects.find({
-    projectId: parsedProjectId.data,
-  });
+  const actorId = resolveActor().id;
+  const project = await getProjectService().find(actorId, parsedProjectId.data);
 
   if (!project) {
     notFound();
   }
 
-  const assets = await caller.assets.list({ projectId: project.id });
+  const assets = await getAssetService().list(actorId, project.id);
 
   return (
     <div className={`fr-container ${styles.page}`}>
