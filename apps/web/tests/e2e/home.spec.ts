@@ -5,10 +5,34 @@ test("renders the application foundation", async ({ page }) => {
   await page.goto("/");
 
   await expect(
-    page.getByRole("heading", { name: "Comprendre une maquette, ensemble." }),
+    page.getByRole("heading", {
+      name: "Piloter vos décisions numériques pour le bâtiment patrimonial",
+    }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Explorer mes dossiers" }),
+  ).toHaveAttribute("href", "/projets");
   await expect(page.getByRole("banner")).toContainText("Mnemo");
   await expect(page.getByRole("contentinfo")).toBeVisible();
+});
+
+test("keeps the landing page usable on mobile", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+
+  await expect(
+    page.getByRole("heading", {
+      name: "Accéder à vos fichiers et à vos données",
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Explorer mes dossiers" }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
 });
 
 test("exposes a healthy application endpoint", async ({ request }) => {

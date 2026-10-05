@@ -2,159 +2,64 @@ import Button from "@codegouvfr/react-dsfr/Button";
 
 import styles from "./home-screen.module.css";
 
-const capabilities = [
-  {
-    icon: "fr-icon-building-line",
-    title: "Comprendre la maquette",
-    description:
-      "Explorez la structure IFC, sélectionnez un objet et retrouvez ses propriétés sans perdre le contexte 3D.",
-  },
-  {
-    icon: "fr-icon-focus-3-line",
-    title: "Comparer au réel",
-    description:
-      "Superposez un nuage de points avec un rendu progressif et conservez précisément son alignement.",
-  },
-  {
-    icon: "fr-icon-discuss-line",
-    title: "Partager les décisions",
-    description:
-      "Centralisez les remarques BCF, les points de vue et les échanges liés aux éléments de la maquette.",
-  },
-] as const;
-
-const steps = [
-  [
-    "01",
-    "Créez un projet",
-    "Un espace durable pour une opération et ses membres.",
-  ],
-  [
-    "02",
-    "Ajoutez vos relevés",
-    "IFC et nuages de points restent disponibles ensemble.",
-  ],
-  [
-    "03",
-    "Explorez et échangez",
-    "Filtres, propriétés, assistant et remarques au même endroit.",
-  ],
-] as const;
-
 export function HomeScreen() {
   return (
-    <main>
-      <section className={styles.hero} id="decouvrir">
-        <div className={`fr-container ${styles.heroGrid}`}>
-          <div className={styles.heroCopy}>
-            <p className={styles.eyebrow}>PATRIMOINE · BIM · COLLABORATION</p>
-            <h1>Comprendre une maquette, ensemble.</h1>
-            <p className={styles.lead}>
-              Mnemo réunit modèles IFC, nuages de points et remarques métier
-              dans une vue claire, fluide et partageable.
-            </p>
-            <div className={styles.actions}>
-              <Button
-                iconId="fr-icon-arrow-right-line"
-                iconPosition="right"
-                linkProps={{ href: "#demarrer" }}
-                size="large"
-              >
-                Découvrir l’espace projet
-              </Button>
-              <Button
-                linkProps={{ href: "#fonctionnalites" }}
-                priority="tertiary"
-                size="large"
-              >
-                Voir les fonctionnalités
-              </Button>
-            </div>
-          </div>
-
-          <div className={styles.viewerPreview} aria-hidden="true">
-            <div className={styles.previewTopbar}>
-              <span />
-              <span />
-              <span />
-              <p>Vue coordonnée</p>
-            </div>
-            <div className={styles.previewCanvas}>
-              <div className={styles.blueprintGrid} />
-              <div className={styles.modelBlock} />
-              <div className={styles.modelTower} />
-              <div className={styles.pointCloud} />
-              <div className={styles.selectionPin} />
-              <p className={styles.previewLabel}>IFC + NUAGE DE POINTS</p>
-            </div>
-          </div>
+    <main className={styles.panels}>
+      <section className={styles.panel} aria-labelledby="mission-title">
+        <div className={styles.content}>
+          <p className="fr-badge fr-badge--sm">Comprendre ses données</p>
+          <h1 id="mission-title">
+            Piloter vos décisions numériques pour le bâtiment patrimonial
+          </h1>
+          <p className="fr-text--lead">
+            Maquettes BIM, relevés 3D et documents techniques : rassemblez les
+            données de vos bâtiments pour mieux les explorer et les partager.
+          </p>
+          <p>
+            Un même espace relie vos fichiers, la vue 3D et les remarques sur le
+            projet.
+          </p>
+          <Button
+            iconId="fr-icon-arrow-right-line"
+            iconPosition="right"
+            linkProps={{ href: "#acces" }}
+            priority="secondary"
+            size="large"
+          >
+            Accéder à mon espace
+          </Button>
         </div>
       </section>
 
       <section
-        className={`fr-container ${styles.capabilities}`}
-        id="fonctionnalites"
-        aria-labelledby="capabilities-title"
+        className={`${styles.panel} ${styles.accessPanel}`}
+        id="acces"
+        aria-labelledby="access-title"
       >
-        <div className={styles.sectionHeading}>
-          <p className={styles.eyebrow}>UN SEUL ESPACE DE TRAVAIL</p>
-          <h2 id="capabilities-title">Du modèle à la décision</h2>
-          <p>
-            Les outils restent au service de la lecture du bâtiment, sans
-            encombrer la scène 3D.
+        <div className={styles.content}>
+          <p className="fr-badge fr-badge--sm">Espace de travail</p>
+          <h2 id="access-title">Accéder à vos fichiers et à vos données</h2>
+          <p className="fr-text--lead">
+            Retrouvez vos dossiers, leurs maquettes IFC et leurs nuages de
+            points au même endroit.
           </p>
-        </div>
-        <div className={styles.capabilityGrid}>
-          {capabilities.map((capability) => (
-            <article className={styles.capability} key={capability.title}>
-              <span
-                className={`${capability.icon} ${styles.capabilityIcon}`}
-                aria-hidden="true"
-              />
-              <h3>{capability.title}</h3>
-              <p>{capability.description}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className={styles.method} id="methode">
-        <div className="fr-container">
-          <div className={styles.methodHeading}>
-            <p className={styles.eyebrow}>UNE MÉTHODE SIMPLE</p>
-            <h2>Conserver le fil du projet</h2>
+          <div className="fr-callout">
+            <p className="fr-callout__text">
+              L’authentification sera ajoutée ultérieurement. Pour l’instant,
+              l’espace utilise un compte local de démonstration.
+            </p>
           </div>
-          <ol className={styles.steps}>
-            {steps.map(([number, title, description]) => (
-              <li key={number}>
-                <span>{number}</span>
-                <div>
-                  <h3>{title}</h3>
-                  <p>{description}</p>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </div>
-      </section>
-
-      <section className={`fr-container ${styles.start}`} id="demarrer">
-        <div>
-          <p className={styles.eyebrow}>PRÊT À EXPLORER ?</p>
-          <h2>Votre projet mérite une vue commune.</h2>
-          <p>
-            Le prochain espace réunira vos fichiers, leur état de traitement et
-            l’accès au viewer.
+          <Button
+            iconId="fr-icon-folder-2-line"
+            linkProps={{ href: "/projets" }}
+            size="large"
+          >
+            Explorer mes dossiers
+          </Button>
+          <p className="fr-hint-text">
+            IFC, LAS, LAZ, PLY et E57 peuvent être ajoutés à un dossier.
           </p>
         </div>
-        <Button
-          iconId="fr-icon-arrow-right-line"
-          iconPosition="right"
-          linkProps={{ href: "/projets" }}
-          size="large"
-        >
-          Accéder aux projets
-        </Button>
       </section>
     </main>
   );

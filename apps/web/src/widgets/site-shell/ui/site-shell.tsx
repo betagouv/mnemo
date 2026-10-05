@@ -26,24 +26,10 @@ export function SiteShell({
         homeLinkProps={homeLinkProps}
         serviceTitle="Mnemo"
         serviceTagline="Espace BIM collaboratif"
-        navigation={[
-          {
-            text: "Découvrir",
-            linkProps: { href: "/#decouvrir" },
-          },
-          {
-            text: "Fonctionnalités",
-            linkProps: { href: "/#fonctionnalites" },
-          },
-          {
-            text: "Méthode",
-            linkProps: { href: "/#methode" },
-          },
-        ]}
         quickAccessItems={[
           {
             iconId: "fr-icon-folder-2-line",
-            text: "Accéder aux projets",
+            text: "Mes dossiers",
             linkProps: { href: "/projets" },
           },
         ]}
