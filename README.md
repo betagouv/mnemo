@@ -23,8 +23,15 @@ Prerequisites: Node.js 22+, pnpm 10+, and Docker Compose.
 ```bash
 cp .env.example .env
 pnpm install
-pnpm dev
+make dev
 ```
+
+`make dev` starts PostgreSQL, MinIO, IFC-Lite, IFC MCP, and the processing worker
+in Docker, then runs the Next.js web server locally with hot reload at
+<http://localhost:3200>. It stops the production `web` container if it was
+already running on that port. Press `Ctrl+C` to stop the development web server;
+`make stop` stops the supporting containers. A shared local IFC MCP cache lives
+under `.data/` so model queries also work in development.
 
 To run the complete local stack:
 
