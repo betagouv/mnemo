@@ -9,6 +9,7 @@ These instructions apply to the whole repository.
 - Use a modular monolith. The only separate runtimes are the Next.js application, background processing workers, IFC-Lite Rust server, and IFC MCP server.
 - Prefer explicit domain boundaries and small vertical slices over framework-level abstractions.
 - Do not reproduce functionality already provided by current IFC-Lite packages. Verify the current documentation and installed TypeScript declarations before integrating an IFC-Lite API.
+- For implementation examples, coding agents may inspect the sibling `../ifc-lite/apps/viewer/` application, especially its viewer components. Treat it as a reference, not an API contract: verify Mnemo's installed IFC-Lite types and adapt the behavior rather than copying code blindly.
 
 ## Repository layout
 

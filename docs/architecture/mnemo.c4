@@ -18,14 +18,14 @@ model {
     technology 'React, DSFR, WebGPU'
 
     workspace = component 'Espace projets' 'Pages, formulaires et panneaux'
-    viewer = component 'Viewer BIM' 'IFC-Lite WebGPU, géométrie IFC et point cloud LOD'
+    viewer = component 'Scène de projet' 'Contrôleur WebGPU unique, couches IFC fédérées, relevés 3D LOD et panneaux DSFR'
     assistantUi = component 'Chat' 'assistant-ui et outils de scène'
   }
 
   web = application 'Application Mnemo' {
     technology 'Next.js App Router'
 
-    pages = component 'Server Components' 'Lectures initiales des projets, fichiers et BCF'
+    pages = component 'Server Components' 'Projet, fichiers prêts, réglages, BCF et fils de conversation'
     actions = component 'Server Actions' 'Mutations validées par Zod'
     reads = component 'GET Route Handlers' 'Accès autorisé aux originaux et sources point cloud'
     protocols = component 'Routes dédiées' 'Streaming assistant et archives BCF'
@@ -106,16 +106,17 @@ views {
 
   dynamic view rendering {
     title 'Ouverture IFC et nuage de points'
-    description 'Le navigateur rend la géométrie IFC et charge seulement les nœuds utiles de l’octree.'
-    user -> browser.viewer 'ouvre la scène'
-    browser.viewer -> web.reads 'demande les sources autorisées'
+    description 'Un projet réunit plusieurs IFC et relevés 3D dans un seul renderer et une seule caméra ; l’octree ne charge que les nœuds utiles.'
+    user -> browser.viewer 'ouvre la scène du projet'
+    web.pages -> browser.viewer 'fournit les fichiers prêts et les réglages initiaux'
+    browser.viewer -> web.reads 'demande les sources autorisées de chaque fichier'
     web.reads -> web.usecases 'vérifie les droits du projet'
     web.usecases -> postgres 'lit les fichiers et transformations'
     web.usecases -> minio 'signe originaux et octree'
     web.reads -> browser.viewer 'URLs et réglages'
     browser.viewer -> minio 'télécharge l’IFC et lit l’octree par plages d’octets'
     browser.viewer -> rust 'reçoit la géométrie IFC en lots Parquet'
-    browser.viewer -> browser.viewer 'rend avec IFC-Lite WebGPU et LOD'
+    browser.viewer -> browser.viewer 'fédère les IFC, règle les couches et rend avec IFC-Lite WebGPU et LOD'
   }
 
   dynamic view assistant {

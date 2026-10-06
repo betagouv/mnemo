@@ -4,7 +4,7 @@ Mnemo is a web BIM workspace for IFC models, large point clouds, BCF collaborati
 
 This repository is a clean rewrite of the validated prototype. Features are reintroduced incrementally behind explicit domain and rendering boundaries.
 
-## Planned stack
+## Stack
 
 - Next.js, React, TypeScript, and DSFR
 - Next.js Server Actions, focused Route Handlers, and domain Zod schemas
@@ -86,6 +86,15 @@ The default local endpoints are:
 Ports can be changed through the variables documented in [`.env.example`](./.env.example).
 
 The standalone browser parser handles IFC files below 25 MiB by default. Larger files use the IFC-Lite Rust server and progressive Parquet batches. Docker Compose sets the threshold to zero so the server path is exercised for every local IFC; change `IFC_BROWSER_PROCESSING_MAX_BYTES` to test the browser path.
+
+A project opens as one scene at `/projets/[projectId]/viewer`: all ready IFC
+models and point clouds are loaded into the same IFC-Lite WebGPU renderer. The
+DSFR BIM and Relevé 3D panels control layers per file. BIM visibility can be
+set to visible, translucent, or hidden at model, storey, class, and element
+level; point clouds have independent visibility, LOD budget, point size, and
+persisted alignment. React owns the panels and access/retry flow, while a
+long-lived viewer controller owns the renderer, camera, selection, and GPU
+resources. UI changes do not recreate the scene or reset the camera.
 
 LAS, LAZ, PLY, and E57 point clouds can be attached to a project and overlaid in
 the IFC viewer. LAS/LAZ originals are converted asynchronously by
