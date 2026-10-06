@@ -475,6 +475,34 @@ export class IfcViewerController {
     if (this.disposed) return;
     const camera = this.renderer.getCamera();
     if (camera.getProjectionMode() === mode) return;
+
+    if (mode === "perspective") {
+      // IFC-Lite matches perspective -> ortho scale, but leaves the camera
+      // distance untouched when switching back after an orthographic zoom.
+      const position = camera.getPosition();
+      const target = camera.getTarget();
+      const offset = {
+        x: position.x - target.x,
+        y: position.y - target.y,
+        z: position.z - target.z,
+      };
+      const distance = Math.hypot(offset.x, offset.y, offset.z);
+      const halfFovTangent = Math.tan(camera.getFOV() / 2);
+      const equivalentDistance = camera.getOrthoSize() / halfFovTangent;
+      const ratio = equivalentDistance / distance;
+
+      if (Number.isFinite(ratio) && ratio > 0 && Math.abs(ratio - 1) > 1e-9) {
+        const nextPosition = {
+          x: target.x + offset.x * ratio,
+          y: target.y + offset.y * ratio,
+          z: target.z + offset.z * ratio,
+        };
+        if (Object.values(nextPosition).every(Number.isFinite)) {
+          camera.setPosition(nextPosition.x, nextPosition.y, nextPosition.z);
+        }
+      }
+    }
+
     camera.setProjectionMode(mode);
     this.renderer.requestRender();
     this.notifyProjectionMode(camera.getProjectionMode());

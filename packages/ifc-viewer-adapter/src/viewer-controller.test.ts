@@ -51,6 +51,7 @@ function createHarness({
   let cameraTarget = { x: 2, y: 3, z: 4 };
   let cameraUp = { x: 0, y: 1, z: 0 };
   let projection: "perspective" | "orthographic" = "perspective";
+  let orthoSize = 10;
   let cameraRotation = { azimuth: 0, elevation: 0 };
   let cameraBounds: {
     min: { x: number; y: number; z: number };
@@ -90,9 +91,17 @@ function createHarness({
           : { azimuth: 90, elevation: 0 };
     },
     getProjectionMode: () => projection,
-    getOrthoSize: () => 10,
+    getOrthoSize: () => orthoSize,
     stopInertia: () => undefined,
     setProjectionMode: (value: "perspective" | "orthographic") => {
+      if (projection === "perspective" && value === "orthographic") {
+        orthoSize =
+          Math.hypot(
+            cameraPosition.x - cameraTarget.x,
+            cameraPosition.y - cameraTarget.y,
+            cameraPosition.z - cameraTarget.z,
+          ) * Math.tan(Math.PI / 6);
+      }
       projection = value;
       calls.cameraPosesApplied += 1;
     },
@@ -111,7 +120,8 @@ function createHarness({
     setFOV: () => {
       calls.cameraPosesApplied += 1;
     },
-    setOrthoSize: () => {
+    setOrthoSize: (size: number) => {
+      orthoSize = size;
       calls.cameraPosesApplied += 1;
     },
   };
@@ -462,6 +472,17 @@ function createHarness({
     setExternalProjectionMode(mode: "perspective" | "orthographic") {
       projection = mode;
     },
+    getCameraPose() {
+      return {
+        position: { ...cameraPosition },
+        target: { ...cameraTarget },
+        projection,
+        orthoSize,
+      };
+    },
+    zoomOrthographic(factor: number) {
+      orthoSize *= factor;
+    },
     setPickExpressId(id: number) {
       pickExpressId = id;
     },
@@ -495,6 +516,50 @@ describe("IfcViewerController", () => {
     expect(modes).toEqual(["perspective", "orthographic", "perspective"]);
 
     unsubscribe();
+    controller.dispose();
+  });
+
+  it("keeps the same camera framing when returning from an orthographic zoom", async () => {
+    for (const zoomFactor of [0.4, 2]) {
+      const { calls, controller, getCameraPose, zoomOrthographic } =
+        createHarness();
+      await controller.init();
+      const initial = getCameraPose();
+
+      controller.setProjectionMode("orthographic");
+      zoomOrthographic(zoomFactor);
+      const orthoSize = getCameraPose().orthoSize;
+      controller.setProjectionMode("perspective");
+      const perspective = getCameraPose();
+
+      expect(perspective.target).toEqual(initial.target);
+      for (const axis of ["x", "y", "z"] as const) {
+        expect(
+          perspective.position[axis] - perspective.target[axis],
+        ).toBeCloseTo(
+          (initial.position[axis] - initial.target[axis]) * zoomFactor,
+          8,
+        );
+      }
+
+      controller.setProjectionMode("orthographic");
+      expect(getCameraPose().orthoSize).toBeCloseTo(orthoSize, 8);
+      expect(calls.fitToView).toBe(0);
+      expect(calls.rendererCreated).toBe(1);
+      controller.dispose();
+    }
+  });
+
+  it("does not move the camera when toggling projection without zooming", async () => {
+    const { controller, getCameraPose } = createHarness();
+    await controller.init();
+    const initial = getCameraPose();
+
+    controller.setProjectionMode("orthographic");
+    controller.setProjectionMode("perspective");
+
+    expect(getCameraPose().position).toEqual(initial.position);
+    expect(getCameraPose().target).toEqual(initial.target);
     controller.dispose();
   });
 
