@@ -33,6 +33,7 @@ function createHarness({
     presetViews: [] as { view: string; bounds: object }[],
     orbit: 0,
     pan: 0,
+    panDeltas: [] as { x: number; y: number }[],
     zoom: 0,
     pick: 0,
     orbitCenter: null as { x: number; y: number; z: number } | null,
@@ -47,6 +48,11 @@ function createHarness({
   };
   let renderRequested = false;
   let pickExpressId = 42;
+  let pickWorldXYZ: { x: number; y: number; z: number } | null = {
+    x: 1,
+    y: 3,
+    z: 5,
+  };
   let cameraPosition = { x: 12, y: 8, z: 20 };
   let cameraTarget = { x: 2, y: 3, z: 4 };
   let cameraUp = { x: 0, y: 1, z: 0 };
@@ -57,14 +63,20 @@ function createHarness({
     min: { x: number; y: number; z: number };
     max: { x: number; y: number; z: number };
   } | null = null;
+  let raycastDepth: number | null | undefined;
+  let pickedBounds = {
+    min: { x: 0, y: 2, z: 4 },
+    max: { x: 2, y: 4, z: 6 },
+  };
   let frameCallback: ((time: number) => void) | null = null;
   const camera = {
     update: () => false,
     orbit: () => {
       calls.orbit += 1;
     },
-    pan: () => {
+    pan: (x: number, y: number) => {
       calls.pan += 1;
+      calls.panDeltas.push({ x, y });
     },
     zoom: () => {
       calls.zoom += 1;
@@ -73,6 +85,21 @@ function createHarness({
       calls.orbitCenter = center;
     },
     getPosition: () => cameraPosition,
+    unprojectToRay: () => {
+      const distance = Math.hypot(
+        cameraTarget.x - cameraPosition.x,
+        cameraTarget.y - cameraPosition.y,
+        cameraTarget.z - cameraPosition.z,
+      );
+      return {
+        origin: cameraPosition,
+        direction: {
+          x: (cameraTarget.x - cameraPosition.x) / distance,
+          y: (cameraTarget.y - cameraPosition.y) / distance,
+          z: (cameraTarget.z - cameraPosition.z) / distance,
+        },
+      };
+    },
     getViewProjMatrix: () => ({
       m: new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),
     }),
@@ -126,15 +153,14 @@ function createHarness({
     },
   };
   const scene = {
+    raycast: () =>
+      raycastDepth === null ? null : { expressId: 42, distance: raycastDepth },
     clear: () => {
       calls.sceneCleared += 1;
     },
     hasQueuedMeshes: () => false,
     flushPending: () => false,
-    getEntityBoundingBox: () => ({
-      min: { x: 0, y: 2, z: 4 },
-      max: { x: 2, y: 4, z: 6 },
-    }),
+    getEntityBoundingBox: () => pickedBounds,
     getBounds: () => ({
       min: { x: 0, y: 2, z: 4 },
       max: { x: 2, y: 4, z: 6 },
@@ -158,6 +184,26 @@ function createHarness({
     resize: () => undefined,
     getScene: () => scene,
     getCamera: () => camera,
+    raycastScene: () => {
+      if (raycastDepth === null) return null;
+      const ray = camera.unprojectToRay();
+      const depth =
+        raycastDepth ??
+        Math.hypot(
+          cameraTarget.x - cameraPosition.x,
+          cameraTarget.y - cameraPosition.y,
+          cameraTarget.z - cameraPosition.z,
+        );
+      return {
+        intersection: {
+          point: {
+            x: ray.origin.x + ray.direction.x * depth,
+            y: ray.origin.y + ray.direction.y * depth,
+            z: ray.origin.z + ray.direction.z * depth,
+          },
+        },
+      };
+    },
     getGPUDevice: () => ({}),
     getPipeline: () => ({}),
     addMeshes: (meshes: MeshData[]) => {
@@ -181,7 +227,7 @@ function createHarness({
       calls.pick += 1;
       return {
         expressId: pickExpressId,
-        worldXYZ: { x: 1, y: 3, z: 5 },
+        ...(pickWorldXYZ ? { worldXYZ: pickWorldXYZ } : {}),
       };
     },
     beginPointCloudStream: () => {
@@ -252,8 +298,8 @@ function createHarness({
   } as unknown as IfcParser;
   const canvasListeners = new Map<string, (event: Event) => void>();
   const canvas = {
-    width: 0,
-    height: 0,
+    width: 1_000,
+    height: 700,
     style: {},
     addEventListener: (
       type: string,
@@ -469,6 +515,15 @@ function createHarness({
     setCameraBounds(bounds: NonNullable<typeof cameraBounds>) {
       cameraBounds = bounds;
     },
+    setRaycastDepth(depth: number | null) {
+      raycastDepth = depth;
+    },
+    setPickWorldXYZ(point: typeof pickWorldXYZ) {
+      pickWorldXYZ = point;
+    },
+    setPickedBounds(bounds: typeof pickedBounds) {
+      pickedBounds = bounds;
+    },
     setExternalProjectionMode(mode: "perspective" | "orthographic") {
       projection = mode;
     },
@@ -502,9 +557,9 @@ describe("IfcViewerController", () => {
     );
 
     await controller.init();
-    controller.setProjectionMode("orthographic");
+    await controller.setProjectionMode("orthographic");
     const poseChanges = calls.cameraPosesApplied;
-    controller.setProjectionMode("orthographic");
+    await controller.setProjectionMode("orthographic");
     expect(calls.cameraPosesApplied).toBe(poseChanges);
     advanceFrame();
     expect(modes).toEqual(["perspective", "orthographic"]);
@@ -526,14 +581,14 @@ describe("IfcViewerController", () => {
       await controller.init();
       const initial = getCameraPose();
 
-      controller.setProjectionMode("orthographic");
+      await controller.setProjectionMode("orthographic");
       zoomOrthographic(zoomFactor);
       const orthoSize = getCameraPose().orthoSize;
-      controller.setProjectionMode("perspective");
+      await controller.setProjectionMode("perspective");
       const perspective = getCameraPose();
 
-      expect(perspective.target).toEqual(initial.target);
       for (const axis of ["x", "y", "z"] as const) {
+        expect(perspective.target[axis]).toBeCloseTo(initial.target[axis]);
         expect(
           perspective.position[axis] - perspective.target[axis],
         ).toBeCloseTo(
@@ -542,7 +597,7 @@ describe("IfcViewerController", () => {
         );
       }
 
-      controller.setProjectionMode("orthographic");
+      await controller.setProjectionMode("orthographic");
       expect(getCameraPose().orthoSize).toBeCloseTo(orthoSize, 8);
       expect(calls.fitToView).toBe(0);
       expect(calls.rendererCreated).toBe(1);
@@ -550,16 +605,143 @@ describe("IfcViewerController", () => {
     }
   });
 
+  it("anchors projection scale to visible geometry instead of a distant camera target", async () => {
+    const {
+      calls,
+      controller,
+      getCameraPose,
+      setRaycastDepth,
+      zoomOrthographic,
+    } = createHarness();
+    setRaycastDepth(5);
+    await controller.init();
+    const initial = getCameraPose();
+    const initialDistance = Math.hypot(
+      initial.target.x - initial.position.x,
+      initial.target.y - initial.position.y,
+      initial.target.z - initial.position.z,
+    );
+    const direction = {
+      x: (initial.target.x - initial.position.x) / initialDistance,
+      y: (initial.target.y - initial.position.y) / initialDistance,
+      z: (initial.target.z - initial.position.z) / initialDistance,
+    };
+    const visibleSurface = {
+      x: initial.position.x + direction.x * 5,
+      y: initial.position.y + direction.y * 5,
+      z: initial.position.z + direction.z * 5,
+    };
+
+    await controller.setProjectionMode("orthographic");
+    expect(getCameraPose().orthoSize).toBeCloseTo(5 * Math.tan(Math.PI / 6));
+    zoomOrthographic(0.4);
+    const zoomedOrthoSize = getCameraPose().orthoSize;
+    await controller.setProjectionMode("perspective");
+    const perspective = getCameraPose();
+
+    for (const axis of ["x", "y", "z"] as const) {
+      expect(perspective.target[axis]).toBeCloseTo(visibleSurface[axis]);
+      expect(perspective.position[axis]).toBeCloseTo(
+        visibleSurface[axis] -
+          direction[axis] * (zoomedOrthoSize / Math.tan(Math.PI / 6)),
+      );
+    }
+    expect(calls.fitToView).toBe(0);
+    expect(calls.rendererCreated).toBe(1);
+    controller.dispose();
+  });
+
+  it("uses the picked entity bounds when a large model has released CPU triangles", async () => {
+    const {
+      calls,
+      controller,
+      getCameraPose,
+      setRaycastDepth,
+      setPickWorldXYZ,
+      setPickedBounds,
+    } = createHarness();
+    setRaycastDepth(null);
+    setPickWorldXYZ(null);
+    const initial = getCameraPose();
+    const distance = Math.hypot(
+      initial.target.x - initial.position.x,
+      initial.target.y - initial.position.y,
+      initial.target.z - initial.position.z,
+    );
+    const surface = {
+      x:
+        initial.position.x +
+        ((initial.target.x - initial.position.x) / distance) * 5,
+      y:
+        initial.position.y +
+        ((initial.target.y - initial.position.y) / distance) * 5,
+      z:
+        initial.position.z +
+        ((initial.target.z - initial.position.z) / distance) * 5,
+    };
+    setPickedBounds({
+      min: { x: surface.x - 1, y: surface.y - 1, z: surface.z - 1 },
+      max: { x: surface.x + 1, y: surface.y + 1, z: surface.z + 1 },
+    });
+
+    await controller.init();
+    await controller.setProjectionMode("orthographic");
+
+    expect(calls.pick).toBe(1);
+    expect(getCameraPose().orthoSize).toBeGreaterThan(
+      2 * Math.tan(Math.PI / 6),
+    );
+    expect(getCameraPose().orthoSize).toBeLessThan(5 * Math.tan(Math.PI / 6));
+    controller.dispose();
+  });
+
+  it("uses IFC-Lite's picked world point when no IFC surface is raycastable", async () => {
+    const {
+      calls,
+      controller,
+      getCameraPose,
+      setRaycastDepth,
+      setPickWorldXYZ,
+    } = createHarness();
+    setRaycastDepth(null);
+    const initial = getCameraPose();
+    const distance = Math.hypot(
+      initial.target.x - initial.position.x,
+      initial.target.y - initial.position.y,
+      initial.target.z - initial.position.z,
+    );
+    setPickWorldXYZ({
+      x:
+        initial.position.x +
+        ((initial.target.x - initial.position.x) / distance) * 5,
+      y:
+        initial.position.y +
+        ((initial.target.y - initial.position.y) / distance) * 5,
+      z:
+        initial.position.z +
+        ((initial.target.z - initial.position.z) / distance) * 5,
+    });
+
+    await controller.init();
+    await controller.setProjectionMode("orthographic");
+
+    expect(calls.pick).toBe(1);
+    expect(getCameraPose().orthoSize).toBeCloseTo(5 * Math.tan(Math.PI / 6));
+    controller.dispose();
+  });
+
   it("does not move the camera when toggling projection without zooming", async () => {
     const { controller, getCameraPose } = createHarness();
     await controller.init();
     const initial = getCameraPose();
 
-    controller.setProjectionMode("orthographic");
-    controller.setProjectionMode("perspective");
+    await controller.setProjectionMode("orthographic");
+    await controller.setProjectionMode("perspective");
 
     expect(getCameraPose().position).toEqual(initial.position);
-    expect(getCameraPose().target).toEqual(initial.target);
+    for (const axis of ["x", "y", "z"] as const) {
+      expect(getCameraPose().target[axis]).toBeCloseTo(initial.target[axis]);
+    }
     controller.dispose();
   });
 
@@ -838,6 +1020,51 @@ describe("IfcViewerController", () => {
 
     expect(calls.orbit).toBe(1);
     expect(calls.zoom).toBe(1);
+    expect(calls.fitToView).toBe(0);
+    expect(calls.rendererCreated).toBe(1);
+    controller.dispose();
+  });
+
+  it("scales Shift-drag panning with orthographic zoom", async () => {
+    const {
+      calls,
+      controller,
+      dispatch,
+      getCameraPose,
+      setExternalProjectionMode,
+      zoomOrthographic,
+    } = createHarness();
+    await controller.init();
+
+    const drag = (pointerId: number) => {
+      dispatch("pointerdown", {
+        button: 0,
+        shiftKey: true,
+        clientX: 100,
+        clientY: 100,
+        pointerId,
+      });
+      dispatch("pointermove", {
+        clientX: 140,
+        clientY: 120,
+        pointerId,
+      });
+      dispatch("pointerup", { button: 0, pointerId, type: "pointerup" });
+    };
+
+    drag(1);
+    expect(calls.panDeltas[0]).toEqual({ x: 40, y: 20 });
+
+    setExternalProjectionMode("orthographic");
+    zoomOrthographic((20 * Math.tan(Math.PI / 6)) / getCameraPose().orthoSize);
+    drag(2);
+    expect(calls.panDeltas[1].x).toBeCloseTo(40);
+    expect(calls.panDeltas[1].y).toBeCloseTo(20);
+
+    zoomOrthographic(0.25);
+    drag(3);
+    expect(calls.panDeltas[2].x).toBeCloseTo(10);
+    expect(calls.panDeltas[2].y).toBeCloseTo(5);
     expect(calls.fitToView).toBe(0);
     expect(calls.rendererCreated).toBe(1);
     controller.dispose();

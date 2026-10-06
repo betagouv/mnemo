@@ -72,8 +72,20 @@ export class SceneInteractions {
       this.moved = true;
     }
     const camera = this.host.renderer.getCamera();
-    if (this.mode === "pan") camera.pan(deltaX, deltaY, false);
-    else camera.orbit(deltaX, deltaY, false);
+    if (this.mode === "pan") {
+      let panScale = 1;
+      if (camera.getProjectionMode() === "orthographic") {
+        // IFC-Lite bases pan speed on camera distance, but orthographic zoom
+        // changes only orthoSize. Match the speed to the visible scale.
+        const referenceSize =
+          camera.getDistance() * Math.tan(camera.getFOV() / 2);
+        const scale = camera.getOrthoSize() / referenceSize;
+        if (Number.isFinite(scale) && scale > 0) panScale = scale;
+      }
+      camera.pan(deltaX * panScale, deltaY * panScale, false);
+    } else {
+      camera.orbit(deltaX, deltaY, false);
+    }
 
     this.x = event.clientX;
     this.y = event.clientY;
