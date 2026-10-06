@@ -17,6 +17,9 @@ export {
   type PointCloudOptionsSnapshot,
   type PointCloudPhase,
   type PointCloudSnapshot,
+  type ViewerCameraRotation,
+  type ViewerPresetView,
+  type ViewerProjectionMode,
 } from "./viewer-controller";
 export type { PointCloudTransform } from "@mnemo/point-cloud-viewer-adapter";
 export { createEmptyViewerSnapshot } from "./viewer-snapshot";

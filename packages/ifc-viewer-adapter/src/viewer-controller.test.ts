@@ -30,6 +30,7 @@ function createHarness({
     batchesAdded: 0,
     meshIds: [] as number[][],
     fitToView: 0,
+    presetViews: [] as { view: string; bounds: object }[],
     orbit: 0,
     pan: 0,
     zoom: 0,
@@ -50,6 +51,12 @@ function createHarness({
   let cameraTarget = { x: 2, y: 3, z: 4 };
   let cameraUp = { x: 0, y: 1, z: 0 };
   let projection: "perspective" | "orthographic" = "perspective";
+  let cameraRotation = { azimuth: 0, elevation: 0 };
+  let cameraBounds: {
+    min: { x: number; y: number; z: number };
+    max: { x: number; y: number; z: number };
+  } | null = null;
+  let frameCallback: ((time: number) => void) | null = null;
   const camera = {
     update: () => false,
     orbit: () => {
@@ -73,6 +80,15 @@ function createHarness({
     getFOV: () => Math.PI / 3,
     getAspect: () => 16 / 9,
     getDistance: () => 20,
+    getRotation: () => ({ ...cameraRotation }),
+    getSceneBounds: () => cameraBounds,
+    setPresetView: (view: string, bounds: object) => {
+      calls.presetViews.push({ view, bounds });
+      cameraRotation =
+        view === "top"
+          ? { azimuth: 0, elevation: 90 }
+          : { azimuth: 90, elevation: 0 };
+    },
     getProjectionMode: () => projection,
     getOrthoSize: () => 10,
     stopInertia: () => undefined,
@@ -106,6 +122,10 @@ function createHarness({
     hasQueuedMeshes: () => false,
     flushPending: () => false,
     getEntityBoundingBox: () => ({
+      min: { x: 0, y: 2, z: 4 },
+      max: { x: 2, y: 4, z: 6 },
+    }),
+    getBounds: () => ({
       min: { x: 0, y: 2, z: 4 },
       max: { x: 2, y: 4, z: 6 },
     }),
@@ -419,7 +439,10 @@ function createHarness({
       quantitySets: [],
     }),
     fetch: async () => new Response(Uint8Array.of(1, 2, 3)),
-    requestFrame: () => 1,
+    requestFrame: (callback) => {
+      frameCallback = callback;
+      return 1;
+    },
     cancelFrame: () => undefined,
     createResizeObserver: () => ({
       observe: () => undefined,
@@ -430,6 +453,15 @@ function createHarness({
   return {
     calls,
     controller: new IfcViewerController(canvas, runtime),
+    advanceFrame(time = 16) {
+      frameCallback?.(time);
+    },
+    setCameraBounds(bounds: NonNullable<typeof cameraBounds>) {
+      cameraBounds = bounds;
+    },
+    setExternalProjectionMode(mode: "perspective" | "orthographic") {
+      projection = mode;
+    },
     setPickExpressId(id: number) {
       pickExpressId = id;
     },
@@ -440,6 +472,84 @@ function createHarness({
 }
 
 describe("IfcViewerController", () => {
+  it("switches projection without reframing and reflects external camera changes", async () => {
+    const { calls, controller, advanceFrame, setExternalProjectionMode } =
+      createHarness();
+    const modes: string[] = [];
+    const unsubscribe = controller.subscribeProjectionMode((mode) =>
+      modes.push(mode),
+    );
+
+    await controller.init();
+    controller.setProjectionMode("orthographic");
+    const poseChanges = calls.cameraPosesApplied;
+    controller.setProjectionMode("orthographic");
+    expect(calls.cameraPosesApplied).toBe(poseChanges);
+    advanceFrame();
+    expect(modes).toEqual(["perspective", "orthographic"]);
+    expect(calls.fitToView).toBe(0);
+    expect(calls.rendererCreated).toBe(1);
+
+    setExternalProjectionMode("perspective");
+    advanceFrame(32);
+    expect(modes).toEqual(["perspective", "orthographic", "perspective"]);
+
+    unsubscribe();
+    controller.dispose();
+  });
+
+  it("uses IFC-Lite camera presets and streams orientation without rebuilding the renderer", async () => {
+    const { calls, controller, advanceFrame, setCameraBounds } =
+      createHarness();
+    const rotations: { azimuth: number; elevation: number }[] = [];
+    const unsubscribe = controller.subscribeCameraRotation((rotation) =>
+      rotations.push(rotation),
+    );
+
+    await controller.init();
+    controller.setPresetView("top");
+    advanceFrame();
+
+    expect(calls.presetViews).toEqual([
+      {
+        view: "top",
+        bounds: {
+          min: { x: 0, y: 2, z: 4 },
+          max: { x: 2, y: 4, z: 6 },
+        },
+      },
+    ]);
+    expect(rotations).toEqual([
+      { azimuth: 0, elevation: 0 },
+      { azimuth: 0, elevation: 90 },
+    ]);
+
+    const combinedBounds = {
+      min: { x: -10, y: -10, z: -10 },
+      max: { x: 20, y: 20, z: 20 },
+    };
+    setCameraBounds(combinedBounds);
+    controller.setPresetView("left");
+    advanceFrame(32);
+    advanceFrame(48);
+
+    expect(calls.presetViews[1]).toEqual({
+      view: "left",
+      bounds: combinedBounds,
+    });
+    expect(rotations.at(-1)).toEqual({ azimuth: 90, elevation: 0 });
+    expect(rotations).toHaveLength(3);
+    expect(calls.rendererCreated).toBe(1);
+    expect(calls.fitToView).toBe(0);
+
+    controller.orbitFromViewCube(8, -4);
+    expect(calls.orbit).toBe(1);
+    expect(calls.rendererCreated).toBe(1);
+
+    unsubscribe();
+    controller.dispose();
+  });
+
   it("initializes one renderer and one geometry processor", async () => {
     const { calls, controller } = createHarness();
 

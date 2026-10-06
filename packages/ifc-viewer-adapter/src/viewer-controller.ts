@@ -33,6 +33,16 @@ import type {
 
 const maxCanvasDimension = 8_192;
 
+export type ViewerPresetView = Parameters<
+  ReturnType<Renderer["getCamera"]>["setPresetView"]
+>[0];
+export type ViewerCameraRotation = ReturnType<
+  ReturnType<Renderer["getCamera"]>["getRotation"]
+>;
+export type ViewerProjectionMode = ReturnType<
+  ReturnType<Renderer["getCamera"]>["getProjectionMode"]
+>;
+
 export type {
   BimLayerTarget,
   CapturedBcfViewpoint,
@@ -95,6 +105,14 @@ export class IfcViewerController {
   private readonly renderer: Renderer;
   private readonly modelLoader: IfcModelLoader;
   private readonly listeners = new Set<(snapshot: IfcViewerSnapshot) => void>();
+  private readonly cameraRotationListeners = new Set<
+    (rotation: ViewerCameraRotation) => void
+  >();
+  private lastCameraRotation: ViewerCameraRotation | null = null;
+  private readonly projectionModeListeners = new Set<
+    (mode: ViewerProjectionMode) => void
+  >();
+  private lastProjectionMode: ViewerProjectionMode | null = null;
   private readonly runtime: IfcViewerRuntime;
   private readonly federation = new FederationRegistry();
   private readonly models = new Map<string, LoadedIfcModel>();
@@ -165,6 +183,30 @@ export class IfcViewerController {
 
     return () => {
       this.listeners.delete(listener);
+    };
+  }
+
+  subscribeCameraRotation(listener: (rotation: ViewerCameraRotation) => void) {
+    if (this.disposed) return () => undefined;
+    this.cameraRotationListeners.add(listener);
+    const rotation = this.renderer.getCamera().getRotation();
+    this.lastCameraRotation = rotation;
+    listener(rotation);
+
+    return () => {
+      this.cameraRotationListeners.delete(listener);
+    };
+  }
+
+  subscribeProjectionMode(listener: (mode: ViewerProjectionMode) => void) {
+    if (this.disposed) return () => undefined;
+    this.projectionModeListeners.add(listener);
+    const mode = this.renderer.getCamera().getProjectionMode();
+    this.lastProjectionMode = mode;
+    listener(mode);
+
+    return () => {
+      this.projectionModeListeners.delete(listener);
     };
   }
 
@@ -411,6 +453,33 @@ export class IfcViewerController {
     }
   }
 
+  setPresetView(view: ViewerPresetView) {
+    if (this.disposed) return;
+
+    const camera = this.renderer.getCamera();
+    const bounds =
+      camera.getSceneBounds() ?? this.renderer.getScene().getBounds();
+    if (!bounds) return;
+
+    camera.setPresetView(view, bounds);
+    this.renderer.requestRender();
+  }
+
+  orbitFromViewCube(deltaX: number, deltaY: number) {
+    if (this.disposed) return;
+    this.renderer.getCamera().orbit(deltaX, deltaY, false);
+    this.renderer.requestRender();
+  }
+
+  setProjectionMode(mode: ViewerProjectionMode) {
+    if (this.disposed) return;
+    const camera = this.renderer.getCamera();
+    if (camera.getProjectionMode() === mode) return;
+    camera.setProjectionMode(mode);
+    this.renderer.requestRender();
+    this.notifyProjectionMode(camera.getProjectionMode());
+  }
+
   frameSelection() {
     const expressId = this.snapshot.selection?.expressId;
     const modelId = this.snapshot.activeModelId;
@@ -624,6 +693,8 @@ export class IfcViewerController {
     this.models.clear();
     this.federation.clear();
     this.listeners.clear();
+    this.cameraRotationListeners.clear();
+    this.projectionModeListeners.clear();
   }
 
   private async initialize() {
@@ -681,6 +752,23 @@ export class IfcViewerController {
       }
 
       const cameraAnimating = this.renderer.getCamera().update(delta);
+      if (this.cameraRotationListeners.size > 0) {
+        const rotation = this.renderer.getCamera().getRotation();
+        if (
+          !this.lastCameraRotation ||
+          rotation.azimuth !== this.lastCameraRotation.azimuth ||
+          rotation.elevation !== this.lastCameraRotation.elevation
+        ) {
+          this.lastCameraRotation = rotation;
+          for (const listener of this.cameraRotationListeners)
+            listener(rotation);
+        }
+      }
+      if (this.projectionModeListeners.size > 0) {
+        this.notifyProjectionMode(
+          this.renderer.getCamera().getProjectionMode(),
+        );
+      }
       this.pointCloudLayers.updateLod();
       if (
         queueFlushed ||
@@ -720,6 +808,12 @@ export class IfcViewerController {
     };
 
     this.frameHandle = this.runtime.requestFrame(frame);
+  }
+
+  private notifyProjectionMode(mode: ViewerProjectionMode) {
+    if (mode === this.lastProjectionMode) return;
+    this.lastProjectionMode = mode;
+    for (const listener of this.projectionModeListeners) listener(mode);
   }
 
   private resizeCanvas() {

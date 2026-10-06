@@ -20,6 +20,7 @@ import type {
 
 import styles from "./ifc-viewer.module.css";
 import { ProjectLayers } from "./project-layers";
+import { ViewCube } from "./view-cube";
 
 type AssistantSession = {
   threads: AssistantThreadSummary[];
@@ -166,6 +167,15 @@ export function ProjectViewer({
             className={styles.canvas}
             ref={canvasRef}
           />
+
+          {snapshot.meshCount > 0 ||
+          snapshot.pointClouds.some((cloud) => cloud.pointCount > 0) ? (
+            <ViewCube
+              getViewer={getViewer}
+              phase={snapshot.phase}
+              projectId={projectId}
+            />
+          ) : null}
 
           {isBusy ? (
             <div className={styles.loadCard} role="status" aria-live="polite">

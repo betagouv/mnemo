@@ -1,0 +1,141 @@
+.container {
+  position: absolute;
+  z-index: 2;
+  top: 0.75rem;
+  right: 3.5rem;
+  display: flex;
+  width: 6.25rem;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  /* border: 1px solid #dddde3; */
+  /* background: rgb(255 255 255 / 92%); */
+  /* box-shadow: 0 2px 8px rgb(0 0 0 / 8%); */
+}
+
+.perspective {
+  width: 4rem;
+  height: 4rem;
+  perspective: 13rem;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.perspective:active {
+  cursor: grabbing;
+}
+
+.projectionSwitch {
+  display: flex;
+  width: 100%;
+  border: 1px solid #dddde3;
+  background: #fff;
+}
+
+.projectionButton {
+  display: flex;
+  min-width: 0;
+  width: 50%;
+  height: 2.6rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.12rem;
+  border: 0;
+  color: #3a3a3a;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.57rem;
+  line-height: 1;
+}
+
+.projectionButton + .projectionButton {
+  border-left: 1px solid #dddde3;
+}
+
+.projectionButton[aria-pressed="true"] {
+  color: #000091;
+  background: #e3e3fd;
+  font-weight: 700;
+}
+
+.projectionButton:hover {
+  background: #f5f5fe;
+}
+
+.projectionButton:focus-visible {
+  outline: 2px solid #000091;
+  outline-offset: -3px;
+}
+
+.projectionButton svg {
+  width: 1.2rem;
+  height: 1.2rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.4;
+}
+
+.cube {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform: rotateX(-20deg) rotateY(-35deg);
+  transform-style: preserve-3d;
+}
+
+.face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  place-items: center;
+  border: 1px solid #8d8dff;
+  border-radius: 0;
+  color: #000091;
+  background: #f5f5fe;
+  backface-visibility: hidden;
+  cursor: pointer;
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.face:hover,
+.face:focus-visible {
+  border-color: #000091;
+  outline: 2px solid #000091;
+  outline-offset: -3px;
+  background: #dedeff;
+}
+
+.front {
+  transform: translateZ(2rem);
+}
+
+.back {
+  transform: rotateY(180deg) translateZ(2rem);
+}
+
+.top {
+  transform: rotateX(90deg) translateZ(2rem);
+}
+
+.bottom {
+  transform: rotateX(-90deg) translateZ(2rem);
+}
+
+.right {
+  transform: rotateY(90deg) translateZ(2rem);
+}
+
+.left {
+  transform: rotateY(-90deg) translateZ(2rem);
+}
