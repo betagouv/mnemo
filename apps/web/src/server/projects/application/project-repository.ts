@@ -29,5 +29,11 @@ export interface ProjectRepository {
     actorId: string,
     input: CreateProjectInput,
   ): Promise<ProjectForActor>;
+  updateForActor(
+    actorId: string,
+    projectId: string,
+    input: CreateProjectInput,
+    updatedAt: Date,
+  ): Promise<ProjectForActor | undefined>;
   requestDeletion(projectId: string, requestedAt: Date): Promise<string[]>;
 }

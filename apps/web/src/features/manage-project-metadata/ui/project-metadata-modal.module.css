@@ -1,0 +1,19 @@
+.modal :global(.fr-modal__content) {
+  margin-bottom: 1rem;
+}
+
+.textarea {
+  min-height: 6rem;
+}
+
+.error {
+  color: var(--text-default-error);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1rem;
+}

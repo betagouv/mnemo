@@ -1,8 +1,10 @@
 import { openAssetResultSchema } from "@mnemo/contracts/assets";
 import { expect, test } from "@playwright/test";
 
+import { gotoHydrated, waitForHydration } from "./hydration";
+
 test("renders the application foundation", async ({ page }) => {
-  await page.goto("/");
+  await gotoHydrated(page, "/");
 
   await expect(
     page.getByRole("heading", {
@@ -18,7 +20,7 @@ test("renders the application foundation", async ({ page }) => {
 
 test("keeps the landing page usable on mobile", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/");
+  await gotoHydrated(page, "/");
 
   await expect(
     page.getByRole("heading", {
@@ -37,7 +39,7 @@ test("keeps the landing page usable on mobile", async ({ page }) => {
 
 test("keeps the dossier dashboard usable on mobile", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/projets");
+  await gotoHydrated(page, "/projets");
 
   await expect(
     page.getByRole("heading", { name: "Mes dossiers" }),
@@ -46,10 +48,30 @@ test("keeps the dossier dashboard usable on mobile", async ({ page }) => {
     page.getByRole("button", { name: "Nouveau dossier" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Nouveau dossier" }).click();
+  await expect(
+    page.getByRole("dialog", { name: "Créer un dossier" }),
+  ).toBeVisible();
   await expect(page.getByLabel("Titre du dossier")).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+});
+
+test("fits the project modal in a desktop viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await gotoHydrated(page, "/projets");
+  await page.getByRole("button", { name: "Nouveau dossier" }).click();
+  await expect(
+    page.getByRole("dialog", { name: "Créer un dossier" }),
+  ).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+
+  const modalBody = page.locator(".fr-modal__body");
+  expect(
+    await modalBody.evaluate(
+      (element) => element.scrollHeight <= element.clientHeight,
     ),
   ).toBe(true);
 });
@@ -73,13 +95,73 @@ test("rejects invalid asset access on its explicit route", async ({
   expect(response.status()).toBe(404);
 });
 
+test("creates and edits dossier metadata in DSFR modals", async ({ page }) => {
+  const originalTitle = `Dossier initial ${Date.now()}`;
+  const updatedTitle = `Dossier modifié ${Date.now()}`;
+
+  await gotoHydrated(page, "/projets");
+  await page.getByRole("button", { name: "Nouveau dossier" }).click();
+  const createDialog = page.getByRole("dialog", { name: "Créer un dossier" });
+  await expect(createDialog).toBeVisible();
+  await createDialog.getByLabel("Titre du dossier").fill(originalTitle);
+  await createDialog.getByLabel("Adresse").fill("Adresse initiale");
+  await createDialog.getByRole("button", { name: "Créer le dossier" }).click();
+  await expect(createDialog).not.toBeVisible();
+
+  const projectHref = await page
+    .getByRole("link", { name: originalTitle })
+    .getAttribute("href");
+  if (!projectHref) throw new Error("The created project has no URL");
+
+  try {
+    await gotoHydrated(page, projectHref);
+    await page.getByRole("button", { name: "Modifier le dossier" }).click();
+    const editDialog = page.getByRole("dialog", {
+      name: "Modifier le dossier",
+    });
+    await expect(editDialog).toBeVisible();
+    await expect(editDialog.getByLabel("Adresse")).toHaveValue(
+      "Adresse initiale",
+    );
+    await editDialog.getByLabel("Titre du dossier").fill(updatedTitle);
+    await editDialog
+      .getByLabel("Adresse")
+      .fill("2 place de la Concorde, Paris");
+    await editDialog.getByLabel("Description").fill("Description enregistrée");
+    await editDialog.getByRole("button", { name: "Enregistrer" }).click();
+    await expect(editDialog).not.toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: updatedTitle, level: 1 }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("2 place de la Concorde, Paris · Description enregistrée"),
+    ).toBeVisible();
+
+    await page.reload();
+    await waitForHydration(page);
+    await expect(
+      page.getByRole("heading", { name: updatedTitle, level: 1 }),
+    ).toBeVisible();
+    await gotoHydrated(page, "/projets");
+    await page
+      .getByRole("searchbox", { name: "Rechercher un dossier" })
+      .fill(updatedTitle);
+    await expect(page.getByRole("link", { name: updatedTitle })).toBeVisible();
+  } finally {
+    await gotoHydrated(page, projectHref);
+    page.once("dialog", (dialog) => void dialog.accept());
+    await page.getByRole("button", { name: "Supprimer le projet" }).click();
+    await expect(page).toHaveURL(/\/projets$/);
+  }
+});
+
 test("creates, reloads, opens and deletes a project asset", async ({
   page,
   request,
 }) => {
   const projectName = `Projet Playwright ${Date.now()}`;
 
-  await page.goto("/projets");
+  await gotoHydrated(page, "/projets");
   await page.getByRole("button", { name: "Nouveau dossier" }).click();
   await page.getByLabel("Titre du dossier").fill(projectName);
   await page.getByLabel("Adresse").fill("2 place de la Concorde, Paris");
@@ -98,6 +180,7 @@ test("creates, reloads, opens and deletes a project asset", async ({
 
   try {
     await page.reload();
+    await waitForHydration(page);
     await expect(
       page.getByRole("heading", { name: projectName }),
     ).toBeVisible();
@@ -134,15 +217,17 @@ test("creates, reloads, opens and deletes a project asset", async ({
 
     await expect(page.getByRole("heading", { name: fileName })).toBeVisible();
     await page.reload();
+    await waitForHydration(page);
     await expect(page.getByRole("heading", { name: fileName })).toBeVisible();
 
-    const viewerHref = await page
-      .getByRole("link", { name: "Ouvrir" })
-      .getAttribute("href");
     const projectId = projectHref.split("/").at(-1);
-    const assetId = viewerHref?.split("/").at(-1);
+    const assetId = await page
+      .getByRole("article")
+      .filter({ hasText: fileName })
+      .getAttribute("data-asset-id");
     expect(projectId).toMatch(/^[0-9a-f-]{36}$/);
     expect(assetId).toMatch(/^[0-9a-f-]{36}$/);
+    await expect(page.getByRole("link", { name: "Ouvrir" })).toHaveCount(0);
     const response = await request.get(
       `/api/projects/${projectId}/assets/${assetId}/access`,
     );
@@ -151,7 +236,7 @@ test("creates, reloads, opens and deletes a project asset", async ({
       assetId,
     );
   } finally {
-    await page.goto(projectHref);
+    await gotoHydrated(page, projectHref);
     page.once("dialog", (dialog) => void dialog.accept());
     await page.getByRole("button", { name: "Supprimer le projet" }).click();
     await expect(page).toHaveURL(/\/projets$/);

@@ -64,6 +64,7 @@ export {
 } from "./bcf";
 export {
   createProjectInputSchema,
+  updateProjectInputSchema,
   getProjectInputSchema,
   projectIdSchema,
   projectListSchema,
@@ -74,6 +75,7 @@ export {
   type ProjectId,
   type ProjectList,
   type ProjectSummary,
+  type UpdateProjectInput,
 } from "./projects";
 export {
   pointCloudSourceSchema,

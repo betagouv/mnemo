@@ -4,10 +4,6 @@ import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 
 import {
-  isPotreeConvertibleFile,
-  type PointCloudProcessor,
-} from "@mnemo/point-cloud-processing-adapter";
-import {
   buildPointCloudArtifactObjectKey,
   type ObjectStorage,
 } from "@mnemo/storage";
@@ -16,6 +12,10 @@ import type {
   PointCloudArtifactBuilder,
   PointCloudAssetForProcessing,
 } from "../application/process-point-cloud-asset";
+import {
+  isPotreeConvertibleFile,
+  type PointCloudProcessor,
+} from "./potree-converter";
 
 const outputFiles = {
   metadata: { name: "metadata.json", contentType: "application/json" },

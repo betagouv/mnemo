@@ -38,6 +38,10 @@ class ProjectRepositoryStub implements ProjectRepository {
     return project;
   }
 
+  async updateForActor(): Promise<ProjectForActor | undefined> {
+    throw new Error("not used");
+  }
+
   async requestDeletion() {
     return [];
   }

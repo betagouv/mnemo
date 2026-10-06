@@ -1,6 +1,4 @@
 import { createPrismaDatabase } from "@mnemo/database";
-import { IfcLiteServerProcessor } from "@mnemo/ifc-processing-adapter";
-import { PotreeConverterProcessor } from "@mnemo/point-cloud-processing-adapter";
 import { S3ObjectStorage } from "@mnemo/storage";
 
 import { createProcessIfcAssetHandler } from "./application/process-ifc-asset";
@@ -22,6 +20,8 @@ import { PrismaProcessingJobQueue } from "./infrastructure/prisma-processing-job
 import { PrismaIfcProcessingRepository } from "./infrastructure/prisma-ifc-processing-repository";
 import { PrismaPointCloudProcessingRepository } from "./infrastructure/prisma-point-cloud-processing-repository";
 import { LocalIfcMcpCacheCleaner } from "./infrastructure/local-ifc-mcp-cache-cleaner";
+import { IfcLiteServerProcessor } from "./infrastructure/ifc-lite-server-processor";
+import { PotreeConverterProcessor } from "./infrastructure/potree-converter";
 import { PotreePointCloudArtifactBuilder } from "./infrastructure/potree-point-cloud-artifact-builder";
 import { getWorkerConfig } from "./runtime-config";
 

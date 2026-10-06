@@ -1,0 +1,36 @@
+.stack {
+  position: fixed;
+  z-index: 1000;
+  top: 4rem;
+  right: 0.75rem;
+  display: grid;
+  gap: 0.5rem;
+  width: min(21rem, calc(100vw - 1.5rem));
+  max-height: min(50dvh, 24rem);
+  overflow-y: auto;
+  pointer-events: none;
+}
+
+.stack > * {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  background-color: #fff;
+  pointer-events: auto;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 12%);
+}
+
+.stack :global(.fr-alert__title) {
+  padding-right: 0.4rem;
+  font-size: 0.8rem;
+  line-height: 1.2rem;
+  overflow-wrap: anywhere;
+}
+
+.stack :global(.fr-alert p) {
+  margin: 0;
+  font-size: 0.7rem;
+  line-height: 1.1rem;
+  overflow-wrap: anywhere;
+}

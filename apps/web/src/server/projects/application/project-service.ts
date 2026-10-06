@@ -2,6 +2,7 @@ import type {
   CreateProjectInput,
   ProjectList,
   ProjectSummary,
+  UpdateProjectInput,
 } from "@mnemo/contracts/projects";
 import { hasProjectPermission } from "@mnemo/domain/project";
 
@@ -51,6 +52,28 @@ export class ProjectService {
         description: input.description || undefined,
       }),
     );
+  }
+
+  async update(
+    actorId: string,
+    input: UpdateProjectInput,
+  ): Promise<ProjectSummary | null> {
+    const project = await this.projects.findForActor(actorId, input.projectId);
+    if (!project || !hasProjectPermission(project.role, "project:update")) {
+      return null;
+    }
+
+    const updated = await this.projects.updateForActor(
+      actorId,
+      input.projectId,
+      {
+        title: input.title,
+        address: input.address,
+        description: input.description,
+      },
+      this.now(),
+    );
+    return updated ? toProjectSummary(updated) : null;
   }
 
   async delete(actorId: string, projectId: string) {

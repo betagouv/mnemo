@@ -2,6 +2,8 @@ export {
   IfcViewerController,
   type CapturedBcfViewpoint,
   type IfcElementDetails,
+  type BimLayerTarget,
+  type LayerVisibility,
   type IfcPropertyValue,
   type IfcValueItem,
   type IfcValueSet,
@@ -17,6 +19,7 @@ export {
   type PointCloudSnapshot,
 } from "./viewer-controller";
 export type { PointCloudTransform } from "@mnemo/point-cloud-viewer-adapter";
+export { createEmptyViewerSnapshot } from "./viewer-snapshot";
 export {
   createIfcServerGeometryClient,
   toBrowserMeshBatch,

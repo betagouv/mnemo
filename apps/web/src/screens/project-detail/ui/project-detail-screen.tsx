@@ -1,12 +1,14 @@
 import { projectIdSchema } from "@mnemo/contracts/projects";
+import { hasProjectPermission } from "@mnemo/domain/project";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { DeleteProjectButton } from "@/features/delete-project";
+import { ProjectMetadataModal } from "@/features/manage-project-metadata";
+import { ProjectAssets } from "@/widgets/project-assets";
 import { getAssetService } from "@/server/assets/asset-service-factory";
 import { resolveActor } from "@/server/auth/resolve-actor";
 import { getProjectService } from "@/server/projects/project-service-factory";
-import { DeleteProjectButton } from "@/features/delete-project";
-import { ProjectAssets } from "@/widgets/project-assets";
 
 import styles from "./project-detail-screen.module.css";
 
@@ -59,6 +61,9 @@ export async function ProjectDetailScreen({
             <span aria-hidden="true" />
             Espace actif
           </div>
+          {hasProjectPermission(project.role, "project:update") ? (
+            <ProjectMetadataModal project={project} />
+          ) : null}
           {project.role === "owner" ? (
             <DeleteProjectButton
               projectId={project.id}

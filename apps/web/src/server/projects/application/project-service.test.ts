@@ -32,6 +32,27 @@ class InMemoryProjectRepository implements ProjectRepository {
     return project;
   }
 
+  async updateForActor(
+    _actorId: string,
+    projectId: string,
+    input: { title: string; address?: string; description?: string },
+    updatedAt: Date,
+  ) {
+    const index = this.projects.findIndex(
+      (project) => project.id === projectId,
+    );
+    if (index < 0) return undefined;
+    const updated = {
+      ...this.projects[index]!,
+      title: input.title,
+      address: input.address || null,
+      description: input.description || null,
+      updatedAt,
+    };
+    this.projects[index] = updated;
+    return updated;
+  }
+
   async requestDeletion(projectId: string) {
     this.deletionRequests.push(projectId);
     return [];
@@ -64,6 +85,34 @@ describe("ProjectService", () => {
     await service.create("actor-id", { title: "Projet partagé" });
 
     await expect(service.list("actor-id")).resolves.toHaveLength(1);
+  });
+
+  it("updates metadata for owners and editors but not viewers", async () => {
+    const repository = new InMemoryProjectRepository();
+    const service = new ProjectService(
+      repository,
+      () => new Date("2026-10-05T10:00:00.000Z"),
+    );
+    const created = await service.create("actor-id", { title: "Ancien titre" });
+    const input = {
+      projectId: created.id,
+      title: "Nouveau titre",
+      address: "3 rue du Musée",
+      description: "Nouvelle description",
+    };
+
+    await expect(service.update("actor-id", input)).resolves.toMatchObject({
+      title: "Nouveau titre",
+      address: "3 rue du Musée",
+      description: "Nouvelle description",
+      updatedAt: "2026-10-05T10:00:00.000Z",
+    });
+    repository.projects[0] = { ...repository.projects[0]!, role: "editor" };
+    await expect(
+      service.update("actor-id", { ...input, address: "" }),
+    ).resolves.toMatchObject({ address: null });
+    repository.projects[0] = { ...repository.projects[0]!, role: "viewer" };
+    await expect(service.update("actor-id", input)).resolves.toBeNull();
   });
 
   it("does not expose a project missing from the actor repository view", async () => {

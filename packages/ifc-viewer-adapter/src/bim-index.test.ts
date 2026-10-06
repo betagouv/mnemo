@@ -56,6 +56,11 @@ describe("createIfcBimIndex", () => {
       { ifcClass: "IfcDoor", elementCount: 1 },
       { ifcClass: "IfcWall", elementCount: 2 },
     ]);
+    expect(index.catalog.unassignedCount).toBe(0);
+    expect(index.classesForStorey(100)).toEqual([
+      { ifcClass: "IfcDoor", elementCount: 1 },
+      { ifcClass: "IfcWall", elementCount: 1 },
+    ]);
     expect(index.catalog.storeys).toEqual([
       {
         expressId: 100,
@@ -84,6 +89,29 @@ describe("createIfcBimIndex", () => {
         name: "Porte N1",
         storeyId: 100,
       },
+    ]);
+  });
+
+  it("pages a storey without building the whole element tree", () => {
+    const index = createIfcBimIndex(createStore(), [1, 2, 3]);
+    const page = index.queryPage(100, 1, 1);
+
+    expect(page).toMatchObject([{ expressId: 2, name: "Porte N1" }]);
+    expect(index.queryPage(100, 1, 1)).toBe(page);
+    expect(index.queryPage(null, 0, 100)).toEqual([]);
+    expect(index.queryPage(100, 0, 100, "IfcWall")).toMatchObject([
+      { expressId: 1, ifcClass: "IfcWall" },
+    ]);
+  });
+
+  it("groups unassigned elements even when their IFC class is unavailable", () => {
+    const index = createIfcBimIndex(createStore(), [1, 2, 3, 4]);
+
+    expect(index.classesForStorey(null)).toEqual([
+      { ifcClass: "IfcEntity", elementCount: 1 },
+    ]);
+    expect(index.queryPage(null, 0, 50, "IfcEntity")).toMatchObject([
+      { expressId: 4, ifcClass: "IfcEntity" },
     ]);
   });
 });

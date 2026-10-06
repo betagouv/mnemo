@@ -1,0 +1,29 @@
+.visibility {
+  display: inline-grid;
+  width: 1.15rem;
+  height: 1.15rem;
+  flex: none;
+  place-items: center;
+  padding: 0;
+  border: 2px solid var(--viewer-accent);
+  border-radius: 2px;
+  color: #fff;
+  background: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.visibility[data-mode="show"] {
+  background: var(--viewer-accent);
+}
+
+.visibility[data-mode="opacity"] {
+  color: var(--viewer-accent);
+}
+
+.visibility[data-exceptions="true"] {
+  outline: 2px solid #e4794a;
+  outline-offset: 2px;
+}

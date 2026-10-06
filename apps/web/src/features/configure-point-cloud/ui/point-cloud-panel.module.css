@@ -1,59 +1,51 @@
 .panel {
-  position: absolute;
-  z-index: 2;
-  top: 1rem;
-  left: 1rem;
-  width: min(22rem, calc(100% - 2rem));
-  border: 1px solid rgb(255 255 255 / 18%);
-  color: #fff;
-  background: rgb(30 30 30 / 94%);
-  backdrop-filter: blur(0.75rem);
+  width: 100%;
+  color: var(--viewer-text);
+  background: #fff;
 }
 
-.panel > summary {
+.cloudRow {
   display: flex;
-  min-height: 2.6rem;
-  gap: 0.55rem;
-  align-items: center;
-  padding: 0.55rem 0.75rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  cursor: pointer;
-  list-style: none;
+  min-width: 0;
+  gap: 0.2rem;
+  align-items: flex-start;
+  border-bottom: 1px solid var(--viewer-border);
 }
 
-.panel > summary::-webkit-details-marker {
-  display: none;
+.cloudRow > .cloud {
+  min-width: 0;
+  flex: 1;
 }
 
-.panel > summary strong {
-  display: inline-grid;
-  min-width: 1.3rem;
-  min-height: 1.3rem;
-  margin-left: auto;
-  place-items: center;
-  border-radius: 1rem;
-  background: #6a6af4;
-  font-size: 0.62rem;
+.cloudRow[data-hidden="true"] {
+  background: var(--viewer-soft);
+}
+
+.cloudRow[data-hidden="true"] :global(.fr-accordion__btn) {
+  color: var(--viewer-muted);
+}
+
+.cloudRow > [role="checkbox"] {
+  margin-top: 0.42rem;
 }
 
 .body {
-  max-height: min(42rem, calc(100dvh - 8rem));
-  overflow: auto;
-  border-top: 1px solid rgb(255 255 255 / 14%);
-  scrollbar-color: #666 transparent;
-  scrollbar-width: thin;
+  border-top: 1px solid var(--viewer-border);
 }
 
-.body section {
-  padding: 0.8rem;
-  border-bottom: 1px solid rgb(255 255 255 / 12%);
+.body > .rendering {
+  padding: 0.55rem 0.35rem;
+  border-bottom: 1px solid var(--viewer-border);
+}
+
+.cloud :global(.fr-collapse) > section {
+  padding: 0.55rem 0.35rem;
 }
 
 .body h2 {
   overflow: hidden;
   margin: 0;
-  color: #fff;
+  color: var(--viewer-text);
   font-size: 0.72rem;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -63,24 +55,24 @@
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 0.25rem 0.5rem;
-  margin-top: 0.65rem;
-  color: #cecece;
+  margin-top: 0.45rem;
+  color: var(--viewer-muted);
   font-size: 0.65rem;
 }
 
 .rendering input {
   grid-column: 1 / -1;
   width: 100%;
-  accent-color: #8585f6;
+  accent-color: var(--viewer-accent);
 }
 
 .rendering button,
 .save {
   width: 100%;
   min-height: 2rem;
-  margin-top: 0.6rem;
-  border: 1px solid #8585f6;
-  color: #fff;
+  margin-top: 0.4rem;
+  border: 1px solid var(--viewer-accent);
+  color: var(--viewer-accent);
   background: transparent;
   font-size: 0.65rem;
   font-weight: 700;
@@ -96,40 +88,32 @@
 .rendering p,
 .cloud p {
   margin: 0.45rem 0 0;
-  color: #aaa;
+  color: var(--viewer-muted);
   font-size: 0.58rem;
   line-height: 1.4;
 }
 
-.cloud header,
-.cloud header > div {
+.cloud header {
   display: flex;
   min-width: 0;
-  gap: 0.5rem;
+  gap: 0.35rem;
   align-items: center;
-}
-
-.cloud header {
   justify-content: space-between;
-}
-
-.cloud header > div {
-  flex: 1;
 }
 
 .cloud header span {
   flex: none;
-  color: #cecece;
+  color: var(--viewer-muted);
   font-size: 0.56rem;
 }
 
 .cloud header span[data-phase="ready"] {
-  color: #3bea7e;
+  color: #18753c;
 }
 
 .cloud header span[data-phase="error"],
 .error {
-  color: #ffbdbd !important;
+  color: #b34000 !important;
 }
 
 .cloud header > strong {
@@ -141,20 +125,20 @@
   width: 100%;
   height: 0.2rem;
   margin-top: 0.5rem;
-  accent-color: #8585f6;
+  accent-color: var(--viewer-accent);
 }
 
 .axisLabels,
 .vector {
   display: grid;
-  grid-template-columns: 4.4rem repeat(3, minmax(0, 1fr));
+  grid-template-columns: 3.7rem repeat(3, minmax(0, 1fr));
   gap: 0.35rem;
   align-items: center;
 }
 
 .axisLabels {
-  margin-top: 0.7rem;
-  color: #999;
+  margin-top: 0.45rem;
+  color: var(--viewer-muted);
   font-size: 0.55rem;
   text-align: center;
 }
@@ -165,7 +149,7 @@
 
 .vector label,
 .crs label {
-  color: #b9b9b9;
+  color: var(--viewer-muted);
   font-size: 0.58rem;
 }
 
@@ -175,28 +159,30 @@
   min-width: 0;
   height: 1.8rem;
   padding: 0.25rem 0.35rem;
-  border: 1px solid rgb(255 255 255 / 18%);
-  color: #fff;
-  background: #292929;
-  font-size: 0.62rem;
+  border: 1px solid var(--viewer-border);
+  color: var(--viewer-text);
+  background: var(--viewer-soft);
+  font-size: 0.72rem;
+}
+
+.vector input[type="number"] {
+  appearance: textfield;
+}
+
+.vector input[type="number"]::-webkit-inner-spin-button,
+.vector input[type="number"]::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
 }
 
 .crs {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.5rem;
-  margin-top: 0.65rem;
+  margin-top: 0.45rem;
 }
 
 .crs label {
   display: grid;
   gap: 0.25rem;
-}
-
-@media (width <= 48rem) {
-  .panel {
-    top: 0.5rem;
-    left: 0.5rem;
-    width: calc(100% - 1rem);
-  }
 }

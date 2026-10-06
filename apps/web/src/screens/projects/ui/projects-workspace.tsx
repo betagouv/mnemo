@@ -1,17 +1,15 @@
 "use client";
 
-import Button from "@codegouvfr/react-dsfr/Button";
 import { useMemo, useState } from "react";
 
 import { ProjectCard } from "@/entities/project";
-import { CreateProjectForm } from "@/features/create-project";
+import { ProjectMetadataModal } from "@/features/manage-project-metadata";
 
 import type { ProjectsWorkspaceProps } from "./projects-screen";
 import styles from "./projects-screen.module.css";
 
 export function ProjectsWorkspace({ initialProjects }: ProjectsWorkspaceProps) {
   const [projects, setProjects] = useState(initialProjects);
-  const [showCreate, setShowCreate] = useState(false);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<"recent" | "title">("recent");
 
@@ -36,16 +34,6 @@ export function ProjectsWorkspace({ initialProjects }: ProjectsWorkspaceProps) {
 
   return (
     <div className={`fr-container ${styles.page}`}>
-      <div className="fr-callout fr-callout--blue-france">
-        <h2 className="fr-callout__title">
-          Vos données patrimoniales, au même endroit
-        </h2>
-        <p className="fr-callout__text">
-          Créez un dossier par bâtiment ou opération, puis ajoutez-y vos
-          maquettes IFC et vos nuages de points.
-        </p>
-      </div>
-
       <header className={styles.heading}>
         <div>
           <h1>Mes dossiers</h1>
@@ -54,28 +42,10 @@ export function ProjectsWorkspace({ initialProjects }: ProjectsWorkspaceProps) {
             {fileCount} {fileCount > 1 ? "fichiers" : "fichier"}
           </p>
         </div>
-        <Button
-          iconId="fr-icon-add-line"
-          nativeButtonProps={{
-            type: "button",
-            "aria-expanded": showCreate,
-            onClick: () => setShowCreate((current) => !current),
-          }}
-        >
-          Nouveau dossier
-        </Button>
+        <ProjectMetadataModal
+          onSaved={(project) => setProjects((current) => [project, ...current])}
+        />
       </header>
-
-      {showCreate && (
-        <div className={styles.createPanel}>
-          <CreateProjectForm
-            onCreated={(project) => {
-              setProjects((current) => [project, ...current]);
-              setShowCreate(false);
-            }}
-          />
-        </div>
-      )}
 
       <div className={styles.controls}>
         <div className="fr-input-group">

@@ -18,7 +18,7 @@ These instructions apply to the whole repository.
 - `packages/contracts`: shared Zod schemas, DTOs, and event contracts.
 - `packages/database`: Prisma schema, migrations, and PostgreSQL client.
 - `packages/storage`: object-storage ports and S3/MinIO adapters.
-- `packages/*-adapter`: vendor-specific integrations behind application-owned interfaces.
+- `packages/*-adapter`: shared vendor-specific integrations behind application-owned interfaces. Keep single-consumer adapters in the consuming app's `infrastructure` folder.
 - `infra`: local infrastructure and container configuration.
 - `docs/adr`: durable architecture decisions.
 

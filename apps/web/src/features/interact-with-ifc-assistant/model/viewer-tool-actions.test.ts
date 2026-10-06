@@ -18,6 +18,7 @@ function createSnapshot(): IfcViewerSnapshot {
     selectionPhase: "idle",
     selectionMessage: null,
     catalog: {
+      unassignedCount: 0,
       types: [
         { ifcClass: "IfcColumn", elementCount: 1 },
         { ifcClass: "IfcWall", elementCount: 3 },
@@ -28,6 +29,8 @@ function createSnapshot(): IfcViewerSnapshot {
       ],
     },
     processing: { engine: "rust", cacheKey: "cache", cacheHit: true },
+    models: [],
+    activeModelId: "model-a",
     visual: {
       mode: "all",
       label: null,
@@ -79,6 +82,16 @@ function createHarness() {
             (!query.ifcClass || element.ifcClass === query.ifcClass) &&
             (!query.storeyId || element.storeyId === query.storeyId),
         ),
+    ),
+    findBimIds: vi.fn(
+      (query: { ifcClass?: string | null; storeyId?: number | null }) =>
+        elements
+          .filter(
+            (element) =>
+              (!query.ifcClass || element.ifcClass === query.ifcClass) &&
+              (!query.storeyId || element.storeyId === query.storeyId),
+          )
+          .map((element) => element.expressId),
     ),
     resetVisuals: vi.fn(),
     selectEntity: vi.fn((expressId: number | null) => {

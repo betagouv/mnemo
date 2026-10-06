@@ -3,9 +3,12 @@
 import {
   createProjectInputSchema,
   deleteProjectInputSchema,
+  updateProjectInputSchema,
   type CreateProjectInput,
   type GetProjectInput,
+  type UpdateProjectInput,
 } from "@mnemo/contracts/projects";
+import { revalidatePath } from "next/cache";
 
 import { disposeIfcMcpAsset } from "@/server/assistant/infrastructure/ifc-mcp-runtime";
 import { resolveActor } from "@/server/auth/resolve-actor";
@@ -17,6 +20,15 @@ export async function createProject(input: CreateProjectInput) {
     resolveActor().id,
     createProjectInputSchema.parse(input),
   );
+}
+
+export async function updateProject(input: UpdateProjectInput) {
+  const parsed = updateProjectInputSchema.parse(input);
+  const updated = await getProjectService().update(resolveActor().id, parsed);
+  if (!updated) throw new Error("Project not found or access denied");
+  revalidatePath("/projets");
+  revalidatePath(`/projets/${updated.id}`);
+  return updated;
 }
 
 export async function deleteProject(input: GetProjectInput) {

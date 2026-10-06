@@ -7,7 +7,7 @@
 .panel {
   display: flex;
   flex-direction: column;
-  background: #1e1e1e;
+  background: #fff;
 }
 
 .panel[hidden] {
@@ -17,7 +17,7 @@
 .thread {
   min-height: 0;
   flex: 1;
-  background: #1e1e1e;
+  background: #fff;
 }
 
 .threadToolbar {
@@ -25,8 +25,8 @@
   grid-template-columns: minmax(0, 1fr) 2rem 2rem;
   gap: 0.35rem;
   padding: 0.45rem 0.55rem;
-  border-bottom: 1px solid rgb(255 255 255 / 12%);
-  background: #242424;
+  border-bottom: 1px solid var(--viewer-border);
+  background: var(--viewer-soft);
 }
 
 .threadToolbar label,
@@ -39,9 +39,9 @@
   height: 2rem;
   padding: 0 1.8rem 0 0.55rem;
   overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 18%);
-  color: #ededed;
-  background: #303030;
+  border: 1px solid var(--viewer-border);
+  color: var(--viewer-text);
+  background: #fff;
   font-size: 0.68rem;
   text-overflow: ellipsis;
 }
@@ -51,15 +51,15 @@
   width: 2rem;
   height: 2rem;
   place-items: center;
-  border: 1px solid rgb(255 255 255 / 18%);
-  color: #ceceff;
-  background: #303030;
+  border: 1px solid var(--viewer-border);
+  color: var(--viewer-accent);
+  background: #fff;
   cursor: pointer;
 }
 
 .threadToolbar button:hover:not(:disabled) {
-  border-color: #8585f6;
-  background: #35355d;
+  border-color: var(--viewer-accent);
+  background: #e3e3fd;
 }
 
 .threadToolbar button:disabled,
@@ -77,13 +77,13 @@
 .threadLoading {
   margin: 0;
   padding: 0.5rem 0.7rem;
-  color: #ddd;
+  color: var(--viewer-muted);
   font-size: 0.68rem;
 }
 
 .threadError {
-  color: #ffbdbd;
-  background: rgb(255 86 86 / 10%);
+  color: #b34000;
+  background: #fff4ed;
 }
 
 .threadLoading {
@@ -97,7 +97,7 @@
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  scrollbar-color: #666 transparent;
+  scrollbar-color: #b6b6bd transparent;
   scrollbar-width: thin;
 }
 
@@ -115,7 +115,7 @@
   place-items: center;
   border-radius: 50%;
   color: #fff;
-  background: #6a6af4;
+  background: var(--viewer-accent);
   font-weight: 800;
 }
 
@@ -130,7 +130,7 @@
 
 .welcome p {
   margin: 0;
-  color: #b9b9b9;
+  color: var(--viewer-muted);
   font-size: 0.72rem;
   line-height: 1.5;
 }
@@ -139,7 +139,7 @@
   display: inline-flex;
   gap: 0.35rem;
   align-items: center;
-  color: #b8fec9;
+  color: #18753c;
   font-size: 0.64rem;
 }
 
@@ -147,7 +147,7 @@
   width: 0.4rem;
   height: 0.4rem;
   border-radius: 50%;
-  background: #3bea7e;
+  background: #18753c;
 }
 
 .suggestions {
@@ -159,9 +159,9 @@
 
 .suggestions button {
   padding: 0.55rem 0.65rem;
-  border: 1px solid rgb(255 255 255 / 16%);
-  color: #e7e7ff;
-  background: rgb(106 106 244 / 9%);
+  border: 1px solid #c5c5f8;
+  color: var(--viewer-accent);
+  background: var(--viewer-soft);
   font-size: 0.68rem;
   line-height: 1.4;
   text-align: left;
@@ -169,8 +169,8 @@
 }
 
 .suggestions button:hover {
-  border-color: #8585f6;
-  background: rgb(106 106 244 / 18%);
+  border-color: var(--viewer-accent);
+  background: #e3e3fd;
 }
 
 .userMessage,
@@ -187,13 +187,13 @@
   max-width: 90%;
   padding: 0.55rem 0.7rem;
   border-radius: 0.75rem 0.75rem 0.15rem;
-  color: #fff;
-  background: #35355d;
+  color: var(--viewer-accent);
+  background: var(--viewer-soft);
 }
 
 .assistantMessage {
   gap: 0.55rem;
-  border-bottom: 1px solid rgb(255 255 255 / 7%);
+  border-bottom: 1px solid var(--viewer-border);
 }
 
 .assistantIdentity {
@@ -210,7 +210,7 @@
 }
 
 .markdown {
-  color: #f3f3f3;
+  color: var(--viewer-text);
   font-size: 0.75rem;
   line-height: 1.55;
   overflow-wrap: anywhere;
@@ -239,8 +239,8 @@
 
 .markdown code {
   padding: 0.08rem 0.22rem;
-  color: #f4f4ff;
-  background: #353535;
+  color: var(--viewer-accent);
+  background: var(--viewer-soft);
   font-size: 0.7rem;
 }
 
@@ -248,8 +248,8 @@
   max-width: 100%;
   padding: 0.6rem;
   overflow-x: auto;
-  border: 1px solid rgb(255 255 255 / 12%);
-  background: #161616;
+  border: 1px solid var(--viewer-border);
+  background: var(--viewer-soft);
 }
 
 .markdown pre code {
@@ -258,7 +258,7 @@
 }
 
 .markdown a {
-  color: #adadff;
+  color: var(--viewer-accent);
 }
 
 .toolTrace {
@@ -267,16 +267,16 @@
   align-items: center;
   margin: 0.35rem 0;
   padding: 0.35rem 0.5rem;
-  border: 1px solid rgb(133 133 246 / 24%);
-  color: #ceceff;
-  background: rgb(106 106 244 / 8%);
+  border: 1px solid #c5c5f8;
+  color: var(--viewer-accent);
+  background: var(--viewer-soft);
 }
 
 .toolTrace > span {
   width: 0.4rem;
   height: 0.4rem;
   border-radius: 50%;
-  background: #6a6af4;
+  background: var(--viewer-accent);
 }
 
 .toolTrace[data-status="running"] > span {
@@ -289,7 +289,7 @@
 
 .messageError {
   margin: 0.5rem 0 0;
-  color: #ffbdbd;
+  color: #b34000;
   font-size: 0.7rem;
 }
 
@@ -301,7 +301,7 @@
   gap: 0.35rem;
   margin-top: auto;
   padding: 0.65rem 0.75rem 0.75rem;
-  background: linear-gradient(transparent, #1e1e1e 1.2rem);
+  background: linear-gradient(transparent, #fff 1.2rem);
 }
 
 .composer {
@@ -310,12 +310,12 @@
   gap: 0.4rem;
   align-items: end;
   padding: 0.45rem;
-  border: 1px solid rgb(255 255 255 / 22%);
-  background: #292929;
+  border: 1px solid var(--viewer-border);
+  background: #fff;
 }
 
 .composer:focus-within {
-  border-color: #8585f6;
+  border-color: var(--viewer-accent);
 }
 
 .input {
@@ -325,7 +325,7 @@
   resize: none;
   border: 0;
   outline: none;
-  color: #fff;
+  color: var(--viewer-text);
   background: transparent;
   font: inherit;
   font-size: 0.72rem;
@@ -333,7 +333,7 @@
 }
 
 .input::placeholder {
-  color: #aaa;
+  color: var(--viewer-muted);
 }
 
 .sendButton,
@@ -342,7 +342,7 @@
   place-items: center;
   border: 0;
   color: #fff;
-  background: #6a6af4;
+  background: var(--viewer-accent);
   cursor: pointer;
 }
 
@@ -360,9 +360,9 @@
   justify-self: center;
   width: 1.8rem;
   height: 1.8rem;
-  border: 1px solid rgb(255 255 255 / 22%);
+  border: 1px solid var(--viewer-border);
   border-radius: 50%;
-  background: #292929;
+  background: var(--viewer-soft);
   font-size: 0.8rem;
 }
 
@@ -371,7 +371,7 @@
 }
 
 .disclaimer {
-  color: #999;
+  color: var(--viewer-muted);
   font-size: 0.58rem;
   text-align: center;
 }
@@ -385,17 +385,17 @@
   justify-items: center;
   margin: auto;
   padding: 1.5rem 1rem;
-  color: #b9b9b9;
+  color: var(--viewer-muted);
   text-align: center;
 }
 
 .notConfigured > span {
-  color: #8585f6;
+  color: var(--viewer-accent);
   font-size: 1.6rem;
 }
 
 .notConfigured strong {
-  color: #fff;
+  color: var(--viewer-text);
   font-size: 0.85rem;
 }
 
@@ -407,7 +407,7 @@
 }
 
 .notConfigured code {
-  color: #fff;
+  color: var(--viewer-text);
 }
 
 @keyframes pulse {

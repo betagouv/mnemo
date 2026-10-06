@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { DsfrProvider, StartDsfrOnHydration } from "@/shared/config/dsfr";
 import { DsfrHead, getHtmlAttributes } from "@/shared/config/dsfr/server-only";
+import { NotificationProvider } from "@/shared/ui/notifications";
 
 import "./globals.css";
 
@@ -32,7 +33,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body>
         <DsfrProvider lang={lang}>
           <StartDsfrOnHydration />
-          {children}
+          <NotificationProvider>{children}</NotificationProvider>
         </DsfrProvider>
       </body>
     </html>

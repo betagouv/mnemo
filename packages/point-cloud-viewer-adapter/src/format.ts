@@ -1,6 +1,6 @@
 import type { DecodeWorkerFormat } from "@ifc-lite/pointcloud";
 
-export const supportedPointCloudFormats = [
+const supportedPointCloudFormats = [
   "las",
   "laz",
   "ply",

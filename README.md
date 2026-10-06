@@ -134,10 +134,10 @@ packages/
   database/            Prisma schema and PostgreSQL adapter
   domain/              framework-independent business rules and ports
   ifc-viewer-adapter/  stable bridge to the IFC-Lite WebGPU runtime
-  ifc-mcp-adapter/     safe read-only MCP tool and session boundary
-  point-cloud-processing-adapter/ PotreeConverter process boundary
   point-cloud-viewer-adapter/ octree LOD, worker decoding and transforms
   storage/             S3-compatible object-storage adapter
+apps/web/src/server/assistant/infrastructure/  IFC-Lite MCP sessions
+apps/processing-worker/src/infrastructure/     IFC-Lite and Potree processors
 docs/adr/              durable architecture decisions
 ```
 
@@ -150,3 +150,6 @@ pnpm test
 pnpm build
 docker compose config
 ```
+
+To run the browser suite against an existing `make dev` server without starting
+another Next.js process: `PLAYWRIGHT_BASE_URL=http://localhost:3200 pnpm test:e2e`.

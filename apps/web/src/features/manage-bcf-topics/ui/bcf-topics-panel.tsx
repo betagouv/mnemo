@@ -40,6 +40,7 @@ const priorityLabels: Record<BcfPriority, string> = {
 
 export function BcfTopicsPanel({
   assetId,
+  availableIfcAssetIds,
   canCaptureViewpoint,
   initialTopics,
   onApplyViewpoint,
@@ -50,6 +51,7 @@ export function BcfTopicsPanel({
   selection,
 }: {
   assetId: string;
+  availableIfcAssetIds: string[];
   canCaptureViewpoint: boolean;
   initialTopics: BcfTopic[];
   onApplyViewpoint: (
@@ -57,7 +59,7 @@ export function BcfTopicsPanel({
     targetDistance: number,
   ) => void;
   onCaptureViewpoint: () => Promise<CapturedBcfViewpoint>;
-  onFocusComponent: (expressId: number) => void;
+  onFocusComponent: (assetId: string, expressId: number) => void;
   onTopicCountChange: (count: number) => void;
   projectId: string;
   selection: IfcElementDetails | null;
@@ -457,10 +459,16 @@ export function BcfTopicsPanel({
           {activeTopic.components.map((component) => (
             <button
               className={styles.component}
-              disabled={component.assetId !== assetId || !component.expressId}
+              disabled={
+                !component.assetId ||
+                !availableIfcAssetIds.includes(component.assetId) ||
+                !component.expressId
+              }
               key={component.id}
               onClick={() =>
-                component.expressId && onFocusComponent(component.expressId)
+                component.assetId &&
+                component.expressId &&
+                onFocusComponent(component.assetId, component.expressId)
               }
               title={component.globalId}
               type="button"

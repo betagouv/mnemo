@@ -29,21 +29,21 @@ importers:
 
   apps/processing-worker:
     dependencies:
+      '@ifc-lite/server-client':
+        specifier: 2.0.0
+        version: 2.0.0(apache-arrow@21.2.0)(parquet-wasm@0.7.2)
       '@mnemo/database':
         specifier: workspace:*
         version: link:../../packages/database
       '@mnemo/domain':
         specifier: workspace:*
         version: link:../../packages/domain
-      '@mnemo/ifc-processing-adapter':
-        specifier: workspace:*
-        version: link:../../packages/ifc-processing-adapter
-      '@mnemo/point-cloud-processing-adapter':
-        specifier: workspace:*
-        version: link:../../packages/point-cloud-processing-adapter
       '@mnemo/storage':
         specifier: workspace:*
         version: link:../../packages/storage
+      apache-arrow:
+        specifier: 21.2.0
+        version: 21.2.0
       parquet-wasm:
         specifier: 0.7.2
         version: 0.7.2
@@ -66,9 +66,9 @@ importers:
 
   apps/web:
     dependencies:
-      '@ai-sdk/react':
-        specifier: ^4.0.99
-        version: 4.0.99(react@19.2.8)(zod@4.5.4)
+      '@ai-sdk/mcp':
+        specifier: 2.0.47
+        version: 2.0.47(zod@4.5.4)
       '@assistant-ui/ai-sdk':
         specifier: 0.0.4
         version: 0.0.4(@types/react@19.2.18)(react@19.2.8)(zod@4.5.4)
@@ -93,9 +93,6 @@ importers:
       '@mnemo/domain':
         specifier: workspace:*
         version: link:../../packages/domain
-      '@mnemo/ifc-mcp-adapter':
-        specifier: workspace:*
-        version: link:../../packages/ifc-mcp-adapter
       '@mnemo/ifc-viewer-adapter':
         specifier: workspace:*
         version: link:../../packages/ifc-viewer-adapter
@@ -179,6 +176,9 @@ importers:
 
   packages/contracts:
     dependencies:
+      '@mnemo/domain':
+        specifier: workspace:*
+        version: link:../domain
       zod:
         specifier: 4.5.4
         version: 4.5.4
@@ -192,25 +192,16 @@ importers:
 
   packages/database:
     dependencies:
-      '@mnemo/domain':
-        specifier: workspace:*
-        version: link:../domain
       '@prisma/adapter-pg':
         specifier: 7.10.0
         version: 7.10.0
       '@prisma/client':
         specifier: 7.10.0
         version: 7.10.0(prisma@7.10.0(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@5.9.3))(typescript@5.9.3)
-      pg:
-        specifier: 8.23.0
-        version: 8.23.0
     devDependencies:
       '@types/node':
         specifier: ^22.19.15
         version: 22.20.1
-      '@types/pg':
-        specifier: 8.23.1
-        version: 8.23.1
       prisma:
         specifier: 7.10.0
         version: 7.10.0(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@5.9.3)
@@ -225,41 +216,6 @@ importers:
         version: 5.0.0(@types/node@22.20.1)(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.104.0)(tsx@4.21.0))
 
   packages/domain:
-    devDependencies:
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-      vitest:
-        specifier: 5.0.0
-        version: 5.0.0(@types/node@25.9.5)(vite@8.2.2(@types/node@25.9.5)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.104.0)(tsx@4.23.13))
-
-  packages/ifc-mcp-adapter:
-    dependencies:
-      '@ai-sdk/mcp':
-        specifier: 2.0.47
-        version: 2.0.47(zod@4.5.4)
-      ai:
-        specifier: ^7.0.96
-        version: 7.0.96(zod@4.5.4)
-    devDependencies:
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-      vitest:
-        specifier: 5.0.0
-        version: 5.0.0(@types/node@25.9.5)(vite@8.2.2(@types/node@25.9.5)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.104.0)(tsx@4.23.13))
-
-  packages/ifc-processing-adapter:
-    dependencies:
-      '@ifc-lite/server-client':
-        specifier: 2.0.0
-        version: 2.0.0(apache-arrow@21.2.0)(parquet-wasm@0.7.2)
-      apache-arrow:
-        specifier: 21.2.0
-        version: 21.2.0
-      parquet-wasm:
-        specifier: 0.7.2
-        version: 0.7.2
     devDependencies:
       typescript:
         specifier: ^5.9.3
@@ -307,18 +263,6 @@ importers:
       vitest:
         specifier: 5.0.0
         version: 5.0.0(@types/node@25.9.5)(vite@8.2.2(@types/node@25.9.5)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.104.0)(tsx@4.23.13))
-
-  packages/point-cloud-processing-adapter:
-    devDependencies:
-      '@types/node':
-        specifier: ^22.19.15
-        version: 22.20.1
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-      vitest:
-        specifier: 5.0.0
-        version: 5.0.0(@types/node@22.20.1)(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.104.0)(tsx@4.23.13))
 
   packages/point-cloud-viewer-adapter:
     dependencies:

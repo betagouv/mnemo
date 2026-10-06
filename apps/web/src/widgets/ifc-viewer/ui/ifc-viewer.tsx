@@ -1,300 +1,94 @@
 "use client";
 
-import {
-  IfcViewerController,
-  type LoadIfcInput,
-  type LoadPointCloudInput,
-  type IfcViewerSnapshot,
-} from "@mnemo/ifc-viewer-adapter";
-import {
-  pointCloudSourceSchema,
-  type PointCloudSettings,
-  type PointCloudSource,
-} from "@mnemo/contracts/point-clouds";
-import { openAssetResultSchema } from "@mnemo/contracts/assets";
 import type { BcfTopic } from "@mnemo/contracts/bcf";
 import type {
   AssistantThreadHistory,
   AssistantThreadSummary,
 } from "@mnemo/contracts/assistant";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 import { IfcElementProperties } from "@/entities/ifc-element";
-import { BimExplorer } from "@/features/filter-bim-model";
 import { IfcAssistantPanel } from "@/features/interact-with-ifc-assistant";
 import { BcfTopicsPanel } from "@/features/manage-bcf-topics";
-import {
-  PointCloudPanel,
-  type PointCloudConfiguration,
-} from "@/features/configure-point-cloud";
-import { fetchJson } from "@/shared/lib/fetch-json";
+import { useProjectScene } from "../model/use-project-scene";
+import type {
+  ViewerIfcSource,
+  ViewerPointCloudFailure,
+  ViewerPointCloudSource,
+} from "../model/viewer-sources";
 
 import styles from "./ifc-viewer.module.css";
+import { ProjectLayers } from "./project-layers";
 
-const initialSnapshot: IfcViewerSnapshot = {
-  phase: "idle",
-  parserPercent: null,
-  meshCount: 0,
-  entityCount: null,
-  message: null,
-  selection: null,
-  selectionPhase: "idle",
-  selectionMessage: null,
-  catalog: null,
-  processing: {
-    engine: null,
-    cacheKey: null,
-    cacheHit: null,
-  },
-  visual: {
-    mode: "all",
-    label: null,
-    matchCount: 0,
-    showContext: true,
-    contextOpacity: 0.1,
-  },
-  pointClouds: [],
-  pointCloudOptions: {
-    pointSize: 2,
-  },
+type AssistantSession = {
+  threads: AssistantThreadSummary[];
+  history: AssistantThreadHistory | null;
 };
-
-const initialPointBudget = 2_000_000;
-
-export type ViewerPointCloudSource = {
-  assetId: string;
-  fileName: string;
-  source: PointCloudSource;
-  settings: PointCloudSettings;
-};
-
-function hexToRgba(hex: string): [number, number, number, number] {
-  const normalized = hex.replace("#", "");
-  return [
-    Number.parseInt(normalized.slice(0, 2), 16) / 255,
-    Number.parseInt(normalized.slice(2, 4), 16) / 255,
-    Number.parseInt(normalized.slice(4, 6), 16) / 255,
-    1,
-  ];
-}
 
 const phaseLabels = {
   idle: "En attente",
-  initializing: "Initialisation WebGPU",
+  initializing: "Préparation de la vue 3D",
   downloading: "Téléchargement de l’IFC",
   processing: "Construction de la scène",
-  ready: "Maquette prête",
+  ready: "Projet prêt",
   error: "Chargement impossible",
-  device_lost: "Périphérique WebGPU perdu",
+  device_lost: "Affichage 3D interrompu",
 } as const;
 
-export function IfcViewer({
-  assetId,
-  assetName,
+export function ProjectViewer({
+  assistantSessions,
   assistantConfigured,
   assistantMcpConfigured,
-  initialAssistantHistory,
-  initialAssistantThreads,
+  ifcSources,
   initialBcfTopics,
-  initialDownloadUrl,
-  processing,
+  pointCloudFailures,
   pointCloudSources,
   projectId,
   projectName,
 }: {
-  assetId: string;
-  assetName: string;
+  assistantSessions: Record<string, AssistantSession>;
   assistantConfigured: boolean;
   assistantMcpConfigured: boolean;
-  initialAssistantHistory: AssistantThreadHistory | null;
-  initialAssistantThreads: AssistantThreadSummary[];
+  ifcSources: ViewerIfcSource[];
   initialBcfTopics: BcfTopic[];
-  initialDownloadUrl: string;
-  processing: NonNullable<LoadIfcInput["processing"]>;
+  pointCloudFailures: ViewerPointCloudFailure[];
   pointCloudSources: ViewerPointCloudSource[];
   projectId: string;
   projectName: string;
 }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const controllerRef = useRef<IfcViewerController>(null);
-  const [snapshot, setSnapshot] = useState(initialSnapshot);
-  const [retrying, setRetrying] = useState(false);
-  const [accessError, setAccessError] = useState<string | null>(null);
+  const {
+    canvasRef,
+    controllerRef,
+    snapshot,
+    getViewer,
+    retrying,
+    accessError,
+    failedAssetId,
+    pointBudget,
+    hiddenPointCloudIds,
+    pointCloudConfigurations,
+    updatePointCloudConfiguration,
+    setPointCloudVisible,
+    reloadPointClouds,
+    retry,
+  } = useProjectScene({ ifcSources, pointCloudSources, projectId });
   const [inspectorMode, setInspectorMode] = useState<
     "properties" | "bcf" | "assistant"
   >("properties");
   const [bcfTopicCount, setBcfTopicCount] = useState(initialBcfTopics.length);
-  const [pointBudget, setPointBudget] = useState(initialPointBudget);
-  const [pointCloudConfigurations, setPointCloudConfigurations] = useState<
-    PointCloudConfiguration[]
-  >(() =>
-    pointCloudSources.map((source) => ({
-      assetId: source.assetId,
-      fileName: source.fileName,
-      transform: source.settings.transform,
-      sourceCrs: source.settings.sourceCrs,
-      targetCrs: source.settings.targetCrs,
-    })),
+
+  const activeModelId = snapshot.activeModelId;
+  const activeIfcSource = ifcSources.find(
+    (source) => source.assetId === activeModelId,
   );
-  const initialProcessingRef = useRef(processing);
-  const pointCloudSourcesRef = useRef(pointCloudSources);
-  const getViewer = useCallback(() => controllerRef.current, []);
-
-  const loadPointCloud = useCallback(
-    async (
-      controller: IfcViewerController,
-      source: ViewerPointCloudSource,
-      maxPointsInMemory: number,
-      transform = source.settings.transform,
-    ) => {
-      const renderSource: LoadPointCloudInput["source"] =
-        source.source.mode === "preview"
-          ? {
-              mode: "preview" as const,
-              downloadUrl: source.source.downloadUrl,
-            }
-          : {
-              mode: "octree" as const,
-              access: source.source,
-              refreshAccess: async () => {
-                const refreshed = await fetchJson(
-                  `/api/projects/${projectId}/assets/${source.assetId}/point-cloud/source`,
-                  pointCloudSourceSchema,
-                );
-                if (refreshed.mode !== "octree") {
-                  throw new Error(
-                    "L’octree du nuage de points n’est plus disponible.",
-                  );
-                }
-                return refreshed;
-              },
-            };
-      if (renderSource.mode === "preview") {
-        await controller.loadPointCloud({
-          assetId: source.assetId,
-          fileName: source.fileName,
-          source: renderSource,
-          maxPointsInMemory,
-          transform,
-        });
-      } else {
-        await controller.loadPointCloud({
-          assetId: source.assetId,
-          fileName: source.fileName,
-          source: renderSource,
-          maxPointsInMemory,
-          transform,
-        });
-      }
-    },
-    [projectId],
-  );
-  const initialLoadPointCloudRef = useRef(loadPointCloud);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const controller = new IfcViewerController(canvas);
-    controllerRef.current = controller;
-    const unsubscribe = controller.subscribe(setSnapshot);
-    void controller
-      .loadIfc({
-        downloadUrl: initialDownloadUrl,
-        processing: initialProcessingRef.current,
-      })
-      .then(() =>
-        Promise.allSettled(
-          pointCloudSourcesRef.current.map((source) =>
-            initialLoadPointCloudRef.current(
-              controller,
-              source,
-              initialPointBudget,
-            ),
-          ),
-        ),
-      )
-      .catch(() => undefined);
-
-    return () => {
-      unsubscribe();
-      controller.dispose();
-      controllerRef.current = null;
-    };
-  }, [initialDownloadUrl]);
-
-  function updatePointCloudConfiguration(
-    configuration: PointCloudConfiguration,
-  ) {
-    setPointCloudConfigurations((current) =>
-      current.map((item) =>
-        item.assetId === configuration.assetId ? configuration : item,
+  const failedSource = ifcSources.find(
+    (source) =>
+      source.assetId === failedAssetId ||
+      snapshot.models.some(
+        (model) => model.assetId === source.assetId && model.phase === "error",
       ),
-    );
-    controllerRef.current?.setPointCloudTransform(
-      configuration.assetId,
-      configuration.transform,
-    );
-  }
-
-  async function reloadPointClouds(maxPointsInMemory: number) {
-    const controller = controllerRef.current;
-    if (!controller) return;
-
-    setPointBudget(maxPointsInMemory);
-    controller.setPointCloudPointBudget(maxPointsInMemory);
-    await Promise.allSettled(
-      pointCloudSourcesRef.current.map(async (source) => {
-        if (source.source.mode === "octree") return;
-        const access = await fetchJson(
-          `/api/projects/${projectId}/assets/${source.assetId}/point-cloud/source`,
-          pointCloudSourceSchema,
-        );
-        const configuration = pointCloudConfigurations.find(
-          (item) => item.assetId === source.assetId,
-        );
-        const refreshed = { ...source, source: access };
-        await loadPointCloud(
-          controller,
-          refreshed,
-          maxPointsInMemory,
-          configuration?.transform ?? source.settings.transform,
-        );
-        pointCloudSourcesRef.current = pointCloudSourcesRef.current.map(
-          (current) =>
-            current.assetId === refreshed.assetId ? refreshed : current,
-        );
-      }),
-    );
-  }
-
-  const retry = useCallback(async () => {
-    const controller = controllerRef.current;
-    if (!controller) return;
-
-    setRetrying(true);
-    setAccessError(null);
-
-    try {
-      const access = await fetchJson(
-        `/api/projects/${projectId}/assets/${assetId}/access`,
-        openAssetResultSchema,
-      );
-      await controller.loadIfc({
-        downloadUrl: access.downloadUrl,
-        processing,
-      });
-    } catch {
-      if (controller.getSnapshot().phase !== "error") {
-        setAccessError(
-          "Impossible d’obtenir un nouvel accès au fichier original.",
-        );
-      }
-    } finally {
-      setRetrying(false);
-    }
-  }, [assetId, processing, projectId]);
+  );
 
   const isBusy =
     snapshot.phase === "initializing" ||
@@ -315,8 +109,8 @@ export function IfcViewer({
             <span className="fr-icon-arrow-left-line" aria-hidden="true" />
           </Link>
           <div>
-            <small>{projectName}</small>
-            <h1 title={assetName}>{assetName}</h1>
+            <small>Scène du projet</small>
+            <h1 title={projectName}>{projectName}</h1>
           </div>
         </div>
 
@@ -325,14 +119,6 @@ export function IfcViewer({
             <i aria-hidden="true" />
             {phaseLabels[snapshot.phase]}
           </span>
-          {snapshot.processing.engine ? (
-            <span className={styles.engine}>
-              {snapshot.processing.engine === "rust"
-                ? "Rust + Parquet"
-                : "Navigateur WASM"}
-              {snapshot.processing.cacheHit === true ? " · cache" : ""}
-            </span>
-          ) : null}
           <button
             className={styles.actionButton}
             disabled={snapshot.phase !== "ready"}
@@ -346,30 +132,37 @@ export function IfcViewer({
       </header>
 
       <div className={styles.workspace}>
-        {snapshot.catalog ? (
-          <BimExplorer
-            catalog={snapshot.catalog}
-            onColor={(query, color, label) =>
-              controllerRef.current?.color(query, hexToRgba(color), label)
+        <aside
+          className={styles.explorerColumn}
+          aria-label="Explorateur du projet"
+        >
+          <ProjectLayers
+            getViewer={getViewer}
+            hiddenPointCloudIds={hiddenPointCloudIds}
+            ifcSources={ifcSources}
+            onPointBudgetChange={(maxPoints) =>
+              void reloadPointClouds(maxPoints)
             }
-            onColorByStorey={() => controllerRef.current?.colorByStorey()}
-            onHide={(query, label) => controllerRef.current?.hide(query, label)}
-            onIsolate={(query, label) =>
-              controllerRef.current?.isolate(query, label)
+            onPointCloudConfigurationChange={updatePointCloudConfiguration}
+            onPointSizeChange={(pointSize) =>
+              controllerRef.current?.setPointCloudPointSize(pointSize)
             }
-            onReset={() => controllerRef.current?.resetVisuals()}
-            onSetContext={(show, opacity) =>
-              controllerRef.current?.setIsolationContext(show, opacity)
-            }
-            visual={snapshot.visual}
+            onPointCloudVisibilityChange={setPointCloudVisible}
+            pointBudget={pointBudget}
+            pointCloudConfigurations={pointCloudConfigurations}
+            pointCloudFailures={pointCloudFailures}
+            pointSize={snapshot.pointCloudOptions.pointSize}
+            projectId={projectId}
+            snapshot={snapshot}
           />
-        ) : (
-          <aside className={styles.explorerPlaceholder} aria-hidden="true" />
-        )}
+        </aside>
 
-        <section className={styles.viewport} aria-label="Visionneuse IFC 3D">
+        <section
+          className={styles.viewport}
+          aria-label="Visionneuse 3D du projet"
+        >
           <canvas
-            aria-label={`Vue 3D de ${assetName}`}
+            aria-label={`Vue 3D du projet ${projectName}`}
             className={styles.canvas}
             ref={canvasRef}
           />
@@ -381,7 +174,7 @@ export function IfcViewer({
                 <strong>{phaseLabels[snapshot.phase]}</strong>
                 <p>
                   {snapshot.phase === "processing"
-                    ? `${snapshot.meshCount.toLocaleString("fr-FR")} maillages reçus${snapshot.processing.engine === "rust" ? " du serveur Rust" : ""}`
+                    ? `${snapshot.meshCount.toLocaleString("fr-FR")} maillages reçus`
                     : "Préparation de la maquette…"}
                 </p>
                 {snapshot.parserPercent !== null ? (
@@ -412,34 +205,36 @@ export function IfcViewer({
             </div>
           ) : null}
 
-          {pointCloudConfigurations.length ? (
-            <PointCloudPanel
-              configurations={pointCloudConfigurations}
-              maxPoints={pointBudget}
-              onConfigurationChange={updatePointCloudConfiguration}
-              onPointSizeChange={(pointSize) =>
-                controllerRef.current?.setPointCloudPointSize(pointSize)
-              }
-              onReload={(maxPoints) => void reloadPointClouds(maxPoints)}
-              pointClouds={snapshot.pointClouds}
-              pointSize={snapshot.pointCloudOptions.pointSize}
-              projectId={projectId}
-            />
-          ) : null}
-
-          {hasFailed || accessError ? (
+          {hasFailed || accessError || pointCloudFailures.length ? (
             <div className={styles.errorCard} role="alert">
               <span className="fr-icon-error-warning-fill" aria-hidden="true" />
               <div>
-                <strong>{phaseLabels[snapshot.phase]}</strong>
-                <p>{accessError ?? snapshot.message}</p>
-                <button
-                  disabled={retrying}
-                  onClick={() => void retry()}
-                  type="button"
-                >
-                  {retrying ? "Nouvel essai…" : "Réessayer"}
-                </button>
+                <strong>
+                  {snapshot.phase === "ready"
+                    ? "Chargement partiel"
+                    : phaseLabels[snapshot.phase]}
+                </strong>
+                {hasFailed || accessError ? (
+                  <p>{accessError ?? snapshot.message}</p>
+                ) : null}
+                {pointCloudFailures.length ? (
+                  <p>
+                    Nuage indisponible :{" "}
+                    {pointCloudFailures
+                      .map((failure) => failure.fileName)
+                      .join(", ")}
+                    . Les autres couches restent disponibles.
+                  </p>
+                ) : null}
+                {failedSource ? (
+                  <button
+                    disabled={retrying}
+                    onClick={() => void retry(failedSource)}
+                    type="button"
+                  >
+                    {retrying ? "Nouvel essai…" : "Réessayer"}
+                  </button>
+                ) : null}
               </div>
             </div>
           ) : null}
@@ -494,20 +289,35 @@ export function IfcViewer({
           </header>
 
           <div className={styles.inspectorBody} data-mode={inspectorMode}>
-            <IfcAssistantPanel
-              assetId={assetId}
-              configured={assistantConfigured}
-              getViewer={getViewer}
-              hidden={inspectorMode !== "assistant"}
-              initialHistory={initialAssistantHistory}
-              initialThreads={initialAssistantThreads}
-              mcpConfigured={assistantMcpConfigured}
-              projectId={projectId}
-            />
-            {inspectorMode === "assistant" ? null : inspectorMode === "bcf" ? (
+            {activeIfcSource ? (
+              <IfcAssistantPanel
+                assetId={activeIfcSource.assetId}
+                configured={assistantConfigured}
+                getViewer={getViewer}
+                hidden={inspectorMode !== "assistant"}
+                initialHistory={
+                  assistantSessions[activeIfcSource.assetId]?.history ?? null
+                }
+                initialThreads={
+                  assistantSessions[activeIfcSource.assetId]?.threads ?? []
+                }
+                key={activeIfcSource.assetId}
+                mcpConfigured={assistantMcpConfigured}
+                projectId={projectId}
+              />
+            ) : null}
+            {inspectorMode === "assistant" ? (
+              activeIfcSource ? null : (
+                <p className={styles.inspectorState}>
+                  Ajoutez une maquette IFC pour utiliser l’assistant.
+                </p>
+              )
+            ) : inspectorMode === "bcf" ? (
               <BcfTopicsPanel
-                assetId={assetId}
-                canCaptureViewpoint={snapshot.phase === "ready"}
+                assetId={activeModelId ?? ""}
+                canCaptureViewpoint={
+                  snapshot.phase === "ready" && Boolean(activeModelId)
+                }
                 initialTopics={initialBcfTopics}
                 onApplyViewpoint={(data, targetDistance) => {
                   controllerRef.current?.applyBcfViewpoint(
@@ -525,7 +335,8 @@ export function IfcViewer({
                   }
                   return controller.captureBcfViewpoint();
                 }}
-                onFocusComponent={(expressId) => {
+                onFocusComponent={(assetId, expressId) => {
+                  controllerRef.current?.setActiveModel(assetId);
                   controllerRef.current?.selectEntity(expressId);
                   controllerRef.current?.frameSelection();
                   setInspectorMode("properties");
@@ -533,6 +344,9 @@ export function IfcViewer({
                 onTopicCountChange={setBcfTopicCount}
                 projectId={projectId}
                 selection={snapshot.selection}
+                availableIfcAssetIds={ifcSources.map(
+                  (source) => source.assetId,
+                )}
               />
             ) : snapshot.selectionPhase === "loading" ? (
               <p className={styles.inspectorState}>Lecture des propriétés…</p>

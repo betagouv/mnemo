@@ -1,11 +1,11 @@
 import { access, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
-import type { PointCloudProcessor } from "@mnemo/point-cloud-processing-adapter";
 import type { ObjectStorage } from "@mnemo/storage";
 import { describe, expect, it, vi } from "vitest";
 
 import { PotreePointCloudArtifactBuilder } from "./potree-point-cloud-artifact-builder";
+import type { PointCloudProcessor } from "./potree-converter";
 
 const asset = {
   id: "asset-id",

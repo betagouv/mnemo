@@ -55,6 +55,9 @@ function projects(role: "owner" | "editor" | "viewer"): ProjectRepository {
     createForActor: async () => {
       throw new Error("not used");
     },
+    updateForActor: async () => {
+      throw new Error("not used");
+    },
     requestDeletion: async () => [],
   };
 }

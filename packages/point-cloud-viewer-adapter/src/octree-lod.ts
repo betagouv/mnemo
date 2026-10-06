@@ -48,7 +48,7 @@ function worldCorners(node: PotreeNode, model: Float32Array) {
   });
 }
 
-export function octreeNodeIntersectsView(
+function octreeNodeIntersectsView(
   node: PotreeNode,
   viewProjection: Float32Array,
   model: Float32Array,

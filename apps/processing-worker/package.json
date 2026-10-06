@@ -23,9 +23,9 @@
   "dependencies": {
     "@mnemo/database": "workspace:*",
     "@mnemo/domain": "workspace:*",
-    "@mnemo/ifc-processing-adapter": "workspace:*",
-    "@mnemo/point-cloud-processing-adapter": "workspace:*",
     "@mnemo/storage": "workspace:*",
+    "@ifc-lite/server-client": "2.0.0",
+    "apache-arrow": "21.2.0",
     "parquet-wasm": "0.7.2"
   }
 }

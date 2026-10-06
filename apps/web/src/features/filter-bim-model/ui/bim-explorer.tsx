@@ -54,12 +54,7 @@ export function BimExplorer({
   const hasCriteria = Boolean(ifcClass || storeyId);
 
   return (
-    <aside className={styles.explorer} aria-label="Explorateur BIM">
-      <header>
-        <small>Explorateur</small>
-        <strong>Structure BIM</strong>
-      </header>
-
+    <div className={styles.explorer}>
       <div className={styles.body}>
         <section>
           <div className={styles.sectionTitle}>
@@ -214,6 +209,6 @@ export function BimExplorer({
           </div>
         ) : null}
       </div>
-    </aside>
+    </div>
   );
 }

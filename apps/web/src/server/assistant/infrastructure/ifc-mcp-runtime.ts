@@ -1,7 +1,5 @@
 import "server-only";
 
-import { IfcLiteMcpSessionPool } from "@mnemo/ifc-mcp-adapter";
-
 import { getRuntimeObjectStorage } from "@/server/storage/runtime-object-storage";
 import { getIfcMcpConfiguration } from "@/shared/config/ifc-mcp/server-only";
 
@@ -9,6 +7,7 @@ import {
   LocalIfcMcpModelCache,
   type IfcMcpCacheSource,
 } from "./local-ifc-mcp-model-cache";
+import { IfcLiteMcpSessionPool } from "./ifc-mcp-session-pool";
 
 type IfcMcpRuntime = {
   cache: LocalIfcMcpModelCache;

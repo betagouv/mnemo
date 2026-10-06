@@ -1,12 +1,14 @@
 import { decodeBcfArchive, encodeBcfArchive } from "@mnemo/bcf-adapter";
 import { expect, test } from "@playwright/test";
 
+import { gotoHydrated } from "./hydration";
+
 test("imports, exports and deduplicates a BCF archive", async ({
   page,
   request,
 }) => {
   const projectName = `Projet BCF Playwright ${Date.now()}`;
-  await page.goto("/projets");
+  await gotoHydrated(page, "/projets");
   await page.getByRole("button", { name: "Nouveau dossier" }).click();
   await page.getByLabel("Titre du dossier").fill(projectName);
   await page.getByRole("button", { name: "Créer le dossier" }).click();
@@ -81,7 +83,7 @@ test("imports, exports and deduplicates a BCF archive", async ({
       ]),
     );
   } finally {
-    await page.goto(projectHref);
+    await gotoHydrated(page, projectHref);
     page.once("dialog", (dialog) => void dialog.accept());
     await page.getByRole("button", { name: "Supprimer le projet" }).click();
     await expect(page).toHaveURL(/\/projets$/);

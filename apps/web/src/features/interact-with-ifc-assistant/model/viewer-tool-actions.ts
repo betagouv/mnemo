@@ -12,6 +12,7 @@ type ViewerAssistantTarget = {
   applyVisualPlan(plan: IfcVisualPlan): void;
   fitToView(): void;
   frameSelection(): void;
+  findBimIds(query: IfcBimQuery): number[];
   getSnapshot(): IfcViewerSnapshot;
   queryBim(query: IfcBimQuery): IfcElementSummary[];
   resetVisuals(): void;
@@ -182,7 +183,7 @@ export function createViewerToolActions(getTarget: ViewerTargetGetter) {
       const groups = input.groups.map((group) => {
         const query = resolveQuery(catalog, group.filter);
         return {
-          ids: target.queryBim(query).map(({ expressId }) => expressId),
+          ids: target.findBimIds(query),
           color: group.color,
         };
       });
@@ -225,9 +226,7 @@ export function createViewerToolActions(getTarget: ViewerTargetGetter) {
       if (!catalog) throw new Error("Le catalogue BIM n’est pas disponible.");
       const hiddenIds = uniqueIds(
         input.filters.map((filter) =>
-          target
-            .queryBim(resolveQuery(catalog, filter))
-            .map(({ expressId }) => expressId),
+          target.findBimIds(resolveQuery(catalog, filter)),
         ),
       );
       if (hiddenIds.length === 0) {

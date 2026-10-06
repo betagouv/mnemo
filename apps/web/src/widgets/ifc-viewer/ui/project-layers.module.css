@@ -1,0 +1,210 @@
+.panel,
+.tabs {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+.panel {
+  overflow: hidden;
+}
+
+.tabs {
+  height: 100% !important;
+}
+
+.tabs :global(.fr-tabs__list) {
+  min-height: 2.5rem;
+  padding: 4px 0.2rem;
+}
+
+.tabs :global(.fr-tabs__tab) {
+  min-height: 2.25rem;
+  margin: 0 0.1rem;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.82rem;
+  line-height: 1.3rem;
+}
+
+.tabs :global(.fr-tabs__panel) {
+  height: calc(100% - 2.5rem);
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0;
+  scrollbar-width: thin;
+}
+
+.tabs :global(.fr-accordion__btn) {
+  min-height: 2.25rem;
+  padding: 0.35rem 0.45rem;
+  font-size: 0.78rem;
+  line-height: 1.2rem;
+}
+
+.tabs :global(.fr-accordion .fr-collapse--expanded) {
+  padding: 0.2rem 0.45rem 0.55rem;
+}
+
+.tabContent {
+  min-width: 0;
+  padding: 0.35rem 0.45rem 0.8rem;
+}
+
+.legend,
+.geoStatus,
+.empty {
+  margin: 0.2rem 0 0.4rem;
+  color: var(--viewer-muted);
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+.model {
+  border-bottom: 1px solid var(--viewer-border);
+}
+
+.modelHeader {
+  display: flex;
+  min-width: 0;
+  gap: 0.2rem;
+  align-items: flex-start;
+}
+
+.modelHeader > :last-child {
+  min-width: 0;
+  flex: 1;
+}
+
+.modelHeader :global(.fr-accordion__btn) {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.modelHeader > [role="checkbox"] {
+  margin-top: 0.42rem;
+}
+
+.model[data-mode="hide"][data-exceptions="true"],
+.storey[data-mode="hide"][data-exceptions="true"],
+.classGroup[data-mode="hide"][data-exceptions="true"] {
+  background: #fff4ed;
+}
+
+.storey,
+.classGroup {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.15rem 0.3rem;
+  min-width: 0;
+  padding: 0.15rem 0;
+}
+
+.classGroup {
+  border-bottom: 1px solid #eee;
+}
+
+.element {
+  display: flex;
+  min-width: 0;
+  gap: 0.3rem;
+  align-items: center;
+  padding: 0.15rem 0;
+}
+
+.treeToggle,
+.elementName,
+.more,
+.activate {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  color: var(--viewer-accent);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.treeToggle {
+  display: flex;
+  flex: 1;
+  gap: 0.2rem;
+  align-items: center;
+  font-size: 0.78rem;
+}
+
+.chevron {
+  display: inline-grid;
+  width: 0.8rem;
+  flex: none;
+  place-items: center;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.treeToggle > span:nth-child(2),
+.elementName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.treeToggle small {
+  margin-left: auto;
+  color: var(--viewer-muted);
+  font-size: 0.68rem;
+}
+
+.exception {
+  flex: none;
+  margin-left: auto;
+  padding: 0.05rem 0.25rem;
+  color: #b34000;
+  background: #fff0e8;
+  font-size: 0.56rem;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.exception + small {
+  margin-left: 0;
+}
+
+.groups {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin-left: 0.55rem;
+  border-left: 1px solid var(--viewer-border);
+  padding-left: 0.35rem;
+}
+
+.elements {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin-left: 0.55rem;
+  border-left: 1px solid var(--viewer-border);
+  padding-left: 0.35rem;
+}
+
+.elementName {
+  font-size: 0.75rem;
+}
+
+.more,
+.activate {
+  margin: 0.3rem 0;
+  font-size: 0.68rem;
+  text-decoration: underline;
+}
+
+.mixedHint {
+  margin: 0.25rem 0;
+  padding: 0.25rem 0.35rem;
+  border-left: 2px solid #e4794a;
+  color: #7c3300;
+  background: #fff4ed;
+  font-size: 0.62rem;
+  line-height: 1.3;
+}

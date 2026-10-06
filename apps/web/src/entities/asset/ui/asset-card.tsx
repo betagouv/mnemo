@@ -32,7 +32,7 @@ export function AssetCard({
   asset: AssetSummary;
 }) {
   return (
-    <article className={styles.card}>
+    <article className={styles.card} data-asset-id={asset.id}>
       <div className={styles.icon} aria-hidden="true">
         <span
           className={

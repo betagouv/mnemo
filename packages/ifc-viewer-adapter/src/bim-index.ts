@@ -21,6 +21,7 @@ export type IfcBimStorey = {
 export type IfcBimCatalog = {
   types: IfcBimType[];
   storeys: IfcBimStorey[];
+  unassignedCount: number;
 };
 
 export type IfcElementSummary = {
@@ -35,6 +36,13 @@ export type IfcBimIndex = {
   catalog: IfcBimCatalog;
   findIds(query: IfcBimQuery): number[];
   query(query: IfcBimQuery): IfcElementSummary[];
+  classesForStorey(storeyId: number | null): IfcBimType[];
+  queryPage(
+    storeyId: number | null,
+    offset: number,
+    limit: number,
+    ifcClass?: string,
+  ): IfcElementSummary[];
 };
 
 function intersection(left: Iterable<number>, right: ReadonlySet<number>) {
@@ -48,10 +56,23 @@ export function createIfcBimIndex(
   const queryApi = new IfcQuery(store);
   const renderable = new Set(renderableIds);
   const typeCounts = new Map<string, number>();
+  const classesByStorey = new Map<number | null, Map<string, number>>();
+  const pageCache = new Map<
+    string,
+    { offset: number; limit: number; result: IfcElementSummary[] }
+  >();
 
   for (const expressId of renderable) {
     const ifcClass = store.entities.getTypeName(expressId) || "IfcEntity";
     typeCounts.set(ifcClass, (typeCounts.get(ifcClass) ?? 0) + 1);
+    const storeyId =
+      store.spatialHierarchy?.elementToStorey.get(expressId) ?? null;
+    let classes = classesByStorey.get(storeyId);
+    if (!classes) {
+      classes = new Map();
+      classesByStorey.set(storeyId, classes);
+    }
+    classes.set(ifcClass, (classes.get(ifcClass) ?? 0) + 1);
   }
 
   const findIds = (query: IfcBimQuery) => {
@@ -90,8 +111,19 @@ export function createIfcBimIndex(
     return result;
   };
 
+  const summarize = (expressId: number): IfcElementSummary => ({
+    expressId,
+    globalId: store.entities.getGlobalId(expressId),
+    ifcClass: store.entities.getTypeName(expressId) || "IfcEntity",
+    name: store.entities.getName(expressId),
+    storeyId: store.spatialHierarchy?.elementToStorey.get(expressId) ?? null,
+  });
+
   return {
     catalog: {
+      unassignedCount: [...renderable].filter(
+        (expressId) => !store.spatialHierarchy?.elementToStorey.has(expressId),
+      ).length,
       types: [...typeCounts.entries()]
         .map(([ifcClass, elementCount]) => ({ ifcClass, elementCount }))
         .sort((left, right) => left.ifcClass.localeCompare(right.ifcClass)),
@@ -112,15 +144,38 @@ export function createIfcBimIndex(
         }),
     },
     findIds,
+    classesForStorey(storeyId) {
+      return [...(classesByStorey.get(storeyId) ?? new Map()).entries()]
+        .map(([ifcClass, elementCount]) => ({ ifcClass, elementCount }))
+        .sort((left, right) => left.ifcClass.localeCompare(right.ifcClass));
+    },
     query(query) {
-      return findIds(query).map((expressId) => ({
-        expressId,
-        globalId: store.entities.getGlobalId(expressId),
-        ifcClass: store.entities.getTypeName(expressId) || "IfcEntity",
-        name: store.entities.getName(expressId),
-        storeyId:
-          store.spatialHierarchy?.elementToStorey.get(expressId) ?? null,
-      }));
+      return findIds(query).map(summarize);
+    },
+    queryPage(storeyId, offset, limit, ifcClass) {
+      if (limit <= 0) return [];
+      const cacheKey = `${storeyId ?? "none"}:${ifcClass ?? "all"}`;
+      const cached = pageCache.get(cacheKey);
+      if (cached?.offset === offset && cached.limit === limit) {
+        return cached.result;
+      }
+      const page: IfcElementSummary[] = [];
+      let skipped = 0;
+      for (const expressId of renderable) {
+        const elementStorey =
+          store.spatialHierarchy?.elementToStorey.get(expressId) ?? null;
+        if (elementStorey !== storeyId) continue;
+        if (
+          ifcClass &&
+          (store.entities.getTypeName(expressId) || "IfcEntity") !== ifcClass
+        )
+          continue;
+        if (skipped++ < offset) continue;
+        page.push(summarize(expressId));
+        if (page.length === limit) break;
+      }
+      pageCache.set(cacheKey, { offset, limit, result: page });
+      return page;
     },
   };
 }

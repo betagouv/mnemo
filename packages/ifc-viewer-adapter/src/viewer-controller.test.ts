@@ -16,7 +16,9 @@ import {
   type IfcViewerRuntime,
 } from "./viewer-controller";
 
-function createHarness() {
+function createHarness({
+  rendererInit,
+}: { rendererInit?: () => Promise<void> } = {}) {
   const calls = {
     rendererCreated: 0,
     rendererInitialized: 0,
@@ -26,6 +28,7 @@ function createHarness() {
     colorOverridesSet: 0,
     colorOverridesCleared: 0,
     batchesAdded: 0,
+    meshIds: [] as number[][],
     fitToView: 0,
     orbit: 0,
     pan: 0,
@@ -42,6 +45,7 @@ function createHarness() {
     cameraPosesApplied: 0,
   };
   let renderRequested = false;
+  let pickExpressId = 42;
   let cameraPosition = { x: 12, y: 8, z: 20 };
   let cameraTarget = { x: 2, y: 3, z: 4 };
   let cameraUp = { x: 0, y: 1, z: 0 };
@@ -106,6 +110,8 @@ function createHarness() {
       max: { x: 2, y: 4, z: 6 },
     }),
     getAllMeshDataExpressIds: () => [42, 84],
+    removeMeshesForEntities: () => 0,
+    translateMeshesForEntities: () => 0,
     setColorOverrides: () => {
       calls.colorOverridesSet += 1;
     },
@@ -116,6 +122,7 @@ function createHarness() {
   const renderer = {
     init: async () => {
       calls.rendererInitialized += 1;
+      await rendererInit?.();
     },
     onDeviceLost: () => () => undefined,
     resize: () => undefined,
@@ -123,8 +130,9 @@ function createHarness() {
     getCamera: () => camera,
     getGPUDevice: () => ({}),
     getPipeline: () => ({}),
-    addMeshes: () => {
+    addMeshes: (meshes: MeshData[]) => {
       calls.batchesAdded += 1;
+      calls.meshIds.push(meshes.map((mesh) => mesh.expressId));
     },
     fitToView: () => {
       calls.fitToView += 1;
@@ -142,7 +150,7 @@ function createHarness() {
     pick: async () => {
       calls.pick += 1;
       return {
-        expressId: 42,
+        expressId: pickExpressId,
         worldXYZ: { x: 1, y: 3, z: 5 },
       };
     },
@@ -175,7 +183,15 @@ function createHarness() {
     async *processAdaptive(): AsyncGenerator<StreamingGeometryEvent> {
       yield {
         type: "batch",
-        meshes: [{} as MeshData],
+        meshes: [
+          {
+            expressId: 42,
+            positions: new Float32Array([0, 0, 0]),
+            normals: new Float32Array([0, 1, 0]),
+            indices: new Uint32Array([0]),
+            color: [0.4, 0.5, 0.6, 1],
+          },
+        ],
         totalSoFar: 1,
       };
       yield {
@@ -189,7 +205,20 @@ function createHarness() {
     },
   } as unknown as GeometryProcessor;
   const parser = {
-    parseColumnar: async () => ({ entityCount: 3 }) as unknown as IfcDataStore,
+    parseColumnar: async () =>
+      ({
+        entityCount: 3,
+        entityIndex: { byId: { keys: () => [42, 84][Symbol.iterator]() } },
+        entities: {
+          getTypeName: (id: number) => (id === 42 ? "IfcWall" : "IfcDoor"),
+        },
+        spatialHierarchy: {
+          elementToStorey: new Map([
+            [42, 10],
+            [84, 10],
+          ]),
+        },
+      }) as unknown as IfcDataStore,
   } as unknown as IfcParser;
   const canvasListeners = new Map<string, (event: Event) => void>();
   const canvas = {
@@ -254,6 +283,7 @@ function createHarness() {
     },
     createBimIndex: () => ({
       catalog: {
+        unassignedCount: 0,
         types: [
           { ifcClass: "IfcDoor", elementCount: 1 },
           { ifcClass: "IfcWall", elementCount: 1 },
@@ -288,6 +318,11 @@ function createHarness() {
           name: "Porte test",
           storeyId: 10,
         },
+      ],
+      queryPage: () => [],
+      classesForStorey: () => [
+        { ifcClass: "IfcWall", elementCount: 1 },
+        { ifcClass: "IfcDoor", elementCount: 1 },
       ],
     }),
     createPointCloudStream: (options) => {
@@ -395,6 +430,9 @@ function createHarness() {
   return {
     calls,
     controller: new IfcViewerController(canvas, runtime),
+    setPickExpressId(id: number) {
+      pickExpressId = id;
+    },
     dispatch(type: string, event: object) {
       canvasListeners.get(type)?.(event as Event);
     },
@@ -413,12 +451,16 @@ describe("IfcViewerController", () => {
     controller.dispose();
   });
 
-  it("streams geometry and frames exactly once for each explicit load", async () => {
+  it("federates two IFC files without clearing the scene or reframing between loads", async () => {
     const { calls, controller } = createHarness();
     const phases: string[] = [];
     controller.subscribe((snapshot) => phases.push(snapshot.phase));
 
-    await controller.loadIfc({ downloadUrl: "http://storage.local/model.ifc" });
+    await controller.loadIfc({
+      assetId: "model-a",
+      fileName: "model.ifc",
+      downloadUrl: "http://storage.local/model.ifc",
+    });
 
     expect(controller.getSnapshot()).toMatchObject({
       phase: "ready",
@@ -426,16 +468,21 @@ describe("IfcViewerController", () => {
       entityCount: 3,
     });
     expect(calls.batchesAdded).toBe(1);
-    expect(calls.fitToView).toBe(1);
+    expect(calls.fitToView).toBe(0);
     expect(phases).toContain("processing");
 
     await controller.loadIfc({
+      assetId: "model-b",
+      fileName: "model-2.ifc",
       downloadUrl: "http://storage.local/model-2.ifc",
     });
 
     expect(calls.rendererCreated).toBe(1);
-    expect(calls.sceneCleared).toBe(2);
-    expect(calls.fitToView).toBe(2);
+    expect(calls.sceneCleared).toBe(0);
+    expect(calls.meshIds).toEqual([[42], [1_000_127]]);
+    expect(controller.getSnapshot().models).toHaveLength(2);
+    controller.fitToView();
+    expect(calls.fitToView).toBe(1);
     controller.dispose();
   });
 
@@ -443,6 +490,8 @@ describe("IfcViewerController", () => {
     const { calls, controller } = createHarness();
 
     await controller.loadIfc({
+      assetId: "model-a",
+      fileName: "large-model.ifc",
       downloadUrl: "http://storage.local/large-model.ifc",
       processing: {
         engine: "rust",
@@ -462,7 +511,117 @@ describe("IfcViewerController", () => {
     expect(calls.serverClientCreated).toBe(1);
     expect(calls.batchesAdded).toBe(1);
     expect(calls.rendererCreated).toBe(1);
+    controller.fitToView();
     expect(calls.fitToView).toBe(1);
+    controller.dispose();
+  });
+
+  it("resolves a picked Express ID to the correct IFC when both source files reuse it", async () => {
+    const { calls, controller, dispatch, setPickExpressId } = createHarness();
+    await controller.loadIfc({
+      assetId: "model-a",
+      fileName: "arch.ifc",
+      downloadUrl: "http://storage.local/arch.ifc",
+    });
+    await controller.loadIfc({
+      assetId: "model-b",
+      fileName: "mep.ifc",
+      downloadUrl: "http://storage.local/mep.ifc",
+    });
+
+    setPickExpressId(1_000_127);
+    dispatch("pointerdown", {
+      type: "pointerdown",
+      button: 0,
+      shiftKey: false,
+      clientX: 100,
+      clientY: 120,
+      pointerId: 9,
+    });
+    dispatch("pointerup", {
+      type: "pointerup",
+      button: 0,
+      clientX: 100,
+      clientY: 120,
+      pointerId: 9,
+    });
+    await Promise.resolve();
+
+    expect(controller.getSnapshot().activeModelId).toBe("model-b");
+    expect(controller.getSnapshot().selection?.expressId).toBe(42);
+    controller.setLayerVisibility("model-a", { kind: "model" }, "hide");
+    expect(controller.getLayerVisibility("model-a", { kind: "model" })).toBe(
+      "hide",
+    );
+    expect(calls.sceneCleared).toBe(0);
+    expect(calls.fitToView).toBe(0);
+    controller.dispose();
+  });
+
+  it("cycles independent BIM layers without recreating the renderer or moving the camera", async () => {
+    const { calls, controller } = createHarness();
+    await controller.loadIfc({
+      assetId: "model-a",
+      fileName: "arch.ifc",
+      downloadUrl: "http://storage.local/arch.ifc",
+    });
+    await controller.loadIfc({
+      assetId: "model-b",
+      fileName: "mep.ifc",
+      downloadUrl: "http://storage.local/mep.ifc",
+    });
+
+    controller.setLayerVisibility("model-a", { kind: "model" }, "opacity");
+    expect(controller.getLayerVisibility("model-a", { kind: "model" })).toBe(
+      "opacity",
+    );
+    expect(controller.getLayerVisibility("model-b", { kind: "model" })).toBe(
+      "show",
+    );
+    controller.setLayerVisibility(
+      "model-a",
+      { kind: "storey", expressId: 10 },
+      "hide",
+    );
+    expect(
+      controller.getLayerVisibility("model-a", {
+        kind: "storey",
+        expressId: 10,
+      }),
+    ).toBe("hide");
+    controller.setLayerVisibility("model-a", { kind: "model" }, "show");
+
+    controller.setLayerVisibility("model-a", { kind: "model" }, "hide");
+    controller.setLayerVisibility(
+      "model-a",
+      { kind: "class", storeyId: 10, ifcClass: "IfcWall" },
+      "show",
+    );
+    expect(
+      controller.getLayerVisibility("model-a", {
+        kind: "element",
+        expressId: 42,
+      }),
+    ).toBe("show");
+    expect(
+      controller.getLayerVisibility("model-a", {
+        kind: "element",
+        expressId: 84,
+      }),
+    ).toBe("hide");
+    expect(
+      controller.getLayerExceptionCount("model-a", { kind: "model" }),
+    ).toBeGreaterThan(0);
+    expect(
+      controller.getLayerExceptionCount("model-a", {
+        kind: "storey",
+        expressId: 10,
+      }),
+    ).toBeGreaterThan(0);
+
+    expect(calls.rendererCreated).toBe(1);
+    expect(calls.fitToView).toBe(0);
+    expect(calls.cameraPosesApplied).toBe(0);
     controller.dispose();
   });
 
@@ -511,7 +670,11 @@ describe("IfcViewerController", () => {
 
   it("selects IFC semantics and uses the clicked surface as orbit center", async () => {
     const { calls, controller, dispatch } = createHarness();
-    await controller.loadIfc({ downloadUrl: "http://storage.local/model.ifc" });
+    await controller.loadIfc({
+      assetId: "model-a",
+      fileName: "model.ifc",
+      downloadUrl: "http://storage.local/model.ifc",
+    });
 
     dispatch("pointerdown", {
       type: "pointerdown",
@@ -539,13 +702,18 @@ describe("IfcViewerController", () => {
       name: "Mur test",
     });
     expect(controller.getSnapshot().selection?.propertySets).toHaveLength(1);
+    controller.fitToView();
     expect(calls.fitToView).toBe(1);
     controller.dispose();
   });
 
   it("applies BIM filters without rebuilding or reframing the scene", async () => {
     const { calls, controller } = createHarness();
-    await controller.loadIfc({ downloadUrl: "http://storage.local/model.ifc" });
+    await controller.loadIfc({
+      assetId: "model-a",
+      fileName: "model.ifc",
+      downloadUrl: "http://storage.local/model.ifc",
+    });
 
     controller.isolate({ ifcClass: "IfcWall" }, "Murs");
 
@@ -567,13 +735,18 @@ describe("IfcViewerController", () => {
     controller.color({ ifcClass: "IfcDoor" }, [0.5, 0.1, 0.8, 1]);
     expect(calls.colorOverridesSet).toBe(1);
     expect(calls.rendererCreated).toBe(1);
+    controller.fitToView();
     expect(calls.fitToView).toBe(1);
     controller.dispose();
   });
 
   it("streams a point cloud into the same renderer and updates GPU settings live", async () => {
     const { calls, controller } = createHarness();
-    await controller.loadIfc({ downloadUrl: "http://storage.local/model.ifc" });
+    await controller.loadIfc({
+      assetId: "model-a",
+      fileName: "model.ifc",
+      downloadUrl: "http://storage.local/model.ifc",
+    });
 
     await controller.loadPointCloud({
       assetId: "point-cloud-id",
@@ -601,6 +774,7 @@ describe("IfcViewerController", () => {
     expect(calls.pointCloudsBegun).toBe(1);
     expect(calls.pointCloudChunks).toBe(1);
     expect(calls.pointCloudTransforms).toBe(1);
+    controller.fitToView();
     expect(calls.fitToView).toBe(1);
 
     controller.setPointCloudPointSize(4);
@@ -618,7 +792,11 @@ describe("IfcViewerController", () => {
 
   it("swaps octree LOD frontiers without rebuilding or reframing", async () => {
     const { calls, controller } = createHarness();
-    await controller.loadIfc({ downloadUrl: "http://storage.local/model.ifc" });
+    await controller.loadIfc({
+      assetId: "model-a",
+      fileName: "model.ifc",
+      downloadUrl: "http://storage.local/model.ifc",
+    });
 
     await controller.loadPointCloud({
       assetId: "octree-id",
@@ -657,13 +835,107 @@ describe("IfcViewerController", () => {
     expect(calls.pointCloudsBegun).toBe(3);
     expect(calls.pointCloudsRemoved).toBe(1);
     expect(calls.rendererCreated).toBe(1);
+    controller.fitToView();
     expect(calls.fitToView).toBe(1);
+    controller.dispose();
+  });
+
+  it("hides and restores one point cloud without disturbing other layers or the camera", async () => {
+    const { calls, controller } = createHarness();
+    await controller.loadIfc({
+      assetId: "model-a",
+      fileName: "model.ifc",
+      downloadUrl: "http://storage.local/model.ifc",
+    });
+
+    const cloud = (assetId: string) => ({
+      assetId,
+      fileName: `${assetId}.laz`,
+      source: {
+        mode: "octree" as const,
+        access: {
+          metadataUrl: "http://storage.local/metadata.json",
+          hierarchyUrl: "http://storage.local/hierarchy.bin",
+          octreeUrl: "http://storage.local/octree.bin",
+          expiresAt: "2099-01-01T00:00:00.000Z",
+        },
+        refreshAccess: async () => {
+          throw new Error("not needed");
+        },
+      },
+      maxPointsInMemory: 2_000_000,
+      transform: {
+        position: [0, 0, 0] as [number, number, number],
+        rotationDegrees: [-90, 0, 0] as [number, number, number],
+        scale: [1, 1, 1] as [number, number, number],
+      },
+    });
+
+    await controller.loadPointCloud(cloud("scan-a"));
+    await controller.loadPointCloud(cloud("scan-b"));
+    expect(controller.getSnapshot().pointClouds).toHaveLength(2);
+
+    controller.removePointCloud("scan-a");
+    expect(
+      controller.getSnapshot().pointClouds.map(({ assetId }) => assetId),
+    ).toEqual(["scan-b"]);
+    expect(calls.pointCloudsRemoved).toBe(1);
+
+    await controller.loadPointCloud(cloud("scan-a"));
+    expect(
+      controller
+        .getSnapshot()
+        .pointClouds.map(({ assetId }) => assetId)
+        .sort(),
+    ).toEqual(["scan-a", "scan-b"]);
+    expect(calls.pointCloudsBegun).toBe(3);
+    expect(calls.rendererCreated).toBe(1);
+    expect(calls.sceneCleared).toBe(0);
+    expect(calls.fitToView).toBe(0);
+    expect(calls.cameraPosesApplied).toBe(0);
+    expect(controller.getSnapshot().models).toHaveLength(1);
+    controller.dispose();
+  });
+
+  it("does not resurrect a point cloud hidden while renderer initialization is pending", async () => {
+    let releaseInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      releaseInitialization = resolve;
+    });
+    const { calls, controller } = createHarness({
+      rendererInit: () => initialization,
+    });
+
+    const loading = controller.loadPointCloud({
+      assetId: "scan-a",
+      fileName: "scan-a.laz",
+      source: {
+        mode: "preview",
+        downloadUrl: "http://storage.local/scan-a.laz",
+      },
+      maxPointsInMemory: 2_000_000,
+      transform: {
+        position: [0, 0, 0],
+        rotationDegrees: [-90, 0, 0],
+        scale: [1, 1, 1],
+      },
+    });
+    controller.removePointCloud("scan-a");
+    releaseInitialization();
+    await loading;
+
+    expect(controller.getSnapshot().pointClouds).toEqual([]);
+    expect(calls.pointCloudsBegun).toBe(0);
     controller.dispose();
   });
 
   it("round-trips a BCF viewpoint without recreating or reframing the renderer", async () => {
     const { calls, controller } = createHarness();
-    await controller.loadIfc({ downloadUrl: "http://storage.local/model.ifc" });
+    await controller.loadIfc({
+      assetId: "model-a",
+      fileName: "model.ifc",
+      downloadUrl: "http://storage.local/model.ifc",
+    });
     controller.selectEntity(42);
     controller.applyVisualPlan({
       focusIds: [42],
@@ -696,6 +968,7 @@ describe("IfcViewerController", () => {
     });
     expect(calls.cameraPosesApplied).toBeGreaterThanOrEqual(5);
     expect(calls.rendererCreated).toBe(1);
+    controller.fitToView();
     expect(calls.fitToView).toBe(1);
     controller.dispose();
   });

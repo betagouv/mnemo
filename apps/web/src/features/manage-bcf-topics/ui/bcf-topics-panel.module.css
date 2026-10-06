@@ -2,7 +2,7 @@
   display: grid;
   gap: 1rem;
   padding: 0.9rem;
-  color: #eee;
+  color: var(--viewer-text);
   font-size: 0.72rem;
 }
 
@@ -11,10 +11,10 @@
 .panel select {
   box-sizing: border-box;
   width: 100%;
-  border: 1px solid rgb(255 255 255 / 18%);
+  border: 1px solid var(--viewer-border);
   border-radius: 0;
-  color: #fff;
-  background: #2b2b2b;
+  color: var(--viewer-text);
+  background: var(--viewer-soft);
   font: inherit;
 }
 
@@ -31,8 +31,8 @@
 }
 
 .panel button {
-  border: 1px solid rgb(133 133 246 / 65%);
-  color: #fff;
+  border: 1px solid var(--viewer-accent);
+  color: var(--viewer-accent);
   background: transparent;
   font: inherit;
   font-weight: 700;
@@ -40,7 +40,7 @@
 }
 
 .panel button:hover:not(:disabled) {
-  background: rgb(133 133 246 / 14%);
+  background: var(--viewer-soft);
 }
 
 .panel button:disabled {
@@ -62,8 +62,8 @@
   justify-content: center;
   gap: 0.35rem;
   padding: 0.35rem 0.5rem;
-  border: 1px solid rgb(133 133 246 / 65%);
-  color: #fff;
+  border: 1px solid var(--viewer-accent);
+  color: var(--viewer-accent);
   background: transparent;
   font: inherit;
   font-weight: 700;
@@ -71,7 +71,7 @@
 }
 
 .exchange label:hover:not([aria-disabled="true"]) {
-  background: rgb(133 133 246 / 14%);
+  background: var(--viewer-soft);
 }
 
 .exchange label[aria-disabled="true"] {
@@ -112,7 +112,7 @@
 
 .sectionTitle span {
   overflow: hidden;
-  color: #aaa;
+  color: var(--viewer-muted);
   font-size: 0.65rem;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -127,13 +127,13 @@
 .fields label {
   display: grid;
   gap: 0.25rem;
-  color: #b9b9b9;
+  color: var(--viewer-muted);
   font-size: 0.64rem;
 }
 
 .message {
   margin: -0.4rem 0 0;
-  color: #b8fec9;
+  color: #18753c;
 }
 
 .topics,
@@ -141,7 +141,7 @@
   display: grid;
   gap: 0.55rem;
   padding-top: 0.85rem;
-  border-top: 1px solid rgb(255 255 255 / 13%);
+  border-top: 1px solid var(--viewer-border);
 }
 
 .topicList {
@@ -158,8 +158,8 @@
 }
 
 .topicList > button[aria-pressed="true"] {
-  border-color: #8585f6;
-  background: rgb(133 133 246 / 12%);
+  border-color: var(--viewer-accent);
+  background: var(--viewer-soft);
 }
 
 .topicList > button span {
@@ -173,22 +173,22 @@
   height: 0.42rem;
   flex: 0 0 auto;
   border-radius: 50%;
-  background: #8585f6;
+  background: var(--viewer-accent);
 }
 
 .topicList i[data-priority="high"],
 .topicList i[data-priority="critical"] {
-  background: #ff8d7e;
+  background: #b34000;
 }
 
 .topicList small {
-  color: #aaa;
+  color: var(--viewer-muted);
   font-size: 0.62rem;
 }
 
 .empty {
   margin: 0;
-  color: #aaa;
+  color: var(--viewer-muted);
 }
 
 .detail > header {
@@ -211,7 +211,7 @@
 }
 
 .detail > header span {
-  color: #aaa;
+  color: var(--viewer-muted);
   font-size: 0.62rem;
 }
 
@@ -222,7 +222,7 @@
 
 .detail > p {
   margin: 0;
-  color: #d8d8d8;
+  color: var(--viewer-text);
   line-height: 1.45;
   white-space: pre-wrap;
 }
@@ -265,13 +265,13 @@
   width: 100%;
   height: 3.7rem;
   object-fit: cover;
-  background: #1d1d1d;
+  background: var(--viewer-soft);
 }
 
 .viewpointList > button > :global(.fr-icon-image-line) {
   display: grid;
   place-items: center;
-  color: #aaa;
+  color: var(--viewer-muted);
 }
 
 .viewpointList > button > span:last-child {
@@ -289,7 +289,7 @@
 }
 
 .viewpointList small {
-  color: #aaa;
+  color: var(--viewer-muted);
   font-size: 0.6rem;
 }
 
@@ -300,14 +300,14 @@
 
 .comments article {
   padding: 0.55rem 0.6rem;
-  background: #292929;
+  background: var(--viewer-soft);
 }
 
 .comments header {
   display: flex;
   justify-content: space-between;
   gap: 0.5rem;
-  color: #aaa;
+  color: var(--viewer-muted);
   font-size: 0.6rem;
 }
 

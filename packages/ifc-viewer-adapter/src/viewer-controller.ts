@@ -6,330 +6,57 @@ import {
   type BCFViewpoint,
   type ViewerCameraState,
 } from "@ifc-lite/bcf";
-import {
-  GeometryProcessor,
-  type StreamingGeometryEvent,
-} from "@ifc-lite/geometry";
-import {
-  extractEntityAttributesOnDemand,
-  extractPropertiesOnDemand,
-  extractQuantitiesOnDemand,
-  IfcParser,
-  type IfcDataStore,
-  type ParseOptions,
-} from "@ifc-lite/parser";
-import { Renderer, type PointCloudAssetHandle } from "@ifc-lite/renderer";
+import { FederationRegistry, type Renderer } from "@ifc-lite/renderer";
 import type { BcfViewpointPayload } from "@mnemo/contracts/bcf";
-import {
-  composePointCloudTransform,
-  createPointCloudOctreeStream,
-  createPointCloudStream,
-  detectPointCloudFormat,
-  type PointCloudFormat,
-  type PointCloudLodView,
-  type PointCloudOctreeAccess,
-  type PointCloudOctreeStreamHandle,
-  type PointCloudOctreeStreamOptions,
-  type PointCloudStreamHandle,
-  type PointCloudStreamOptions,
-  type PointCloudTransform,
-} from "@mnemo/point-cloud-viewer-adapter";
+import type { PointCloudTransform } from "@mnemo/point-cloud-viewer-adapter";
 
-import {
-  createIfcBimIndex,
-  type IfcBimCatalog,
-  type IfcBimIndex,
-  type IfcBimQuery,
-  type IfcElementSummary,
-} from "./bim-index";
-import {
-  createIfcServerGeometryClient,
-  type IfcServerGeometryClient,
-  toBrowserMeshBatch,
-} from "./server-geometry";
+import type { IfcBimQuery, IfcElementSummary } from "./bim-index";
+import { BimLayerVisibility } from "./bim-layer-visibility";
+import { IfcModelLoader, type LoadedIfcModel } from "./ifc-model-loader";
+import { PointCloudLayers } from "./point-cloud-layers";
+import { SceneInteractions } from "./scene-interactions";
+import { createDefaultRuntime } from "./viewer-runtime";
+import { createEmptyViewerSnapshot } from "./viewer-snapshot";
+import type {
+  BimLayerTarget,
+  CapturedBcfViewpoint,
+  IfcModelSnapshot,
+  IfcViewerRuntime,
+  IfcViewerSnapshot,
+  IfcVisualPlan,
+  IfcVisualSnapshot,
+  LayerVisibility,
+  LoadIfcInput,
+  LoadPointCloudInput,
+  PointCloudSnapshot,
+} from "./viewer-types";
 
 const maxCanvasDimension = 8_192;
 
-export type IfcViewerPhase =
-  | "idle"
-  | "initializing"
-  | "downloading"
-  | "processing"
-  | "ready"
-  | "error"
-  | "device_lost";
-
-export type IfcViewerSnapshot = {
-  phase: IfcViewerPhase;
-  parserPercent: number | null;
-  meshCount: number;
-  entityCount: number | null;
-  message: string | null;
-  selection: IfcElementDetails | null;
-  selectionPhase: "idle" | "loading" | "ready" | "error";
-  selectionMessage: string | null;
-  catalog: IfcBimCatalog | null;
-  processing: IfcProcessingSnapshot;
-  visual: IfcVisualSnapshot;
-  pointClouds: PointCloudSnapshot[];
-  pointCloudOptions: PointCloudOptionsSnapshot;
-};
-
-export type PointCloudPhase = "downloading" | "streaming" | "ready" | "error";
-
-export type PointCloudSnapshot = {
-  assetId: string;
-  fileName: string;
-  format: PointCloudFormat;
-  phase: PointCloudPhase;
-  progress: number;
-  pointCount: number;
-  totalPointCount: number | null;
-  sampleStride: number;
-  source: "preview" | "octree";
-  residentNodeCount: number;
-  message: string | null;
-};
-
-export type PointCloudOptionsSnapshot = {
-  pointSize: number;
-};
-
-export type IfcProcessingEngine = "browser" | "rust";
-
-export type IfcProcessingSnapshot = {
-  engine: IfcProcessingEngine | null;
-  cacheKey: string | null;
-  cacheHit: boolean | null;
-};
-
-export type IfcVisualMode = "all" | "isolate" | "hide" | "color";
-
-export type IfcVisualSnapshot = {
-  mode: IfcVisualMode;
-  label: string | null;
-  matchCount: number;
-  showContext: boolean;
-  contextOpacity: number;
-};
-
-export type IfcVisualColorGroup = {
-  ids: Iterable<number>;
-  color: readonly [number, number, number, number];
-};
-
-export type IfcVisualPlan = {
-  focusIds?: Iterable<number> | null;
-  hiddenIds?: Iterable<number>;
-  colors?: Iterable<IfcVisualColorGroup>;
-  showContext?: boolean;
-  contextOpacity?: number;
-  label?: string | null;
-};
-
-export type IfcPropertyValue =
-  string | number | boolean | null | IfcPropertyValue[];
-
-export type IfcValueItem = {
-  name: string;
-  type: number;
-  value: IfcPropertyValue;
-  values?: string[];
-  unit?: string;
-  dataType?: string;
-};
-
-export type IfcValueSet = {
-  name: string;
-  globalId?: string;
-  values: IfcValueItem[];
-};
-
-export type IfcElementDetails = {
-  expressId: number;
-  globalId: string;
-  ifcClass: string;
-  name: string;
-  description: string;
-  objectType: string;
-  tag: string;
-  propertySets: IfcValueSet[];
-  quantitySets: IfcValueSet[];
-};
-
-export type LoadIfcInput = {
-  downloadUrl: string;
-  processing?:
-    { engine: "browser" } | { engine: "rust"; serverBaseUrl: string };
-};
-
-type LoadPointCloudBase = {
-  assetId: string;
-  fileName: string;
-  maxPointsInMemory: number;
-  transform: PointCloudTransform;
-};
-
-export type LoadPointCloudInput =
-  | (LoadPointCloudBase & {
-      source: { mode: "preview"; downloadUrl: string };
-    })
-  | (LoadPointCloudBase & {
-      source: {
-        mode: "octree";
-        access: PointCloudOctreeAccess;
-        refreshAccess: () => Promise<PointCloudOctreeAccess>;
-      };
-    });
-
-type PreviewPointCloudInput = Extract<
+export type {
+  BimLayerTarget,
+  CapturedBcfViewpoint,
+  IfcElementDetails,
+  IfcModelSnapshot,
+  IfcProcessingEngine,
+  IfcProcessingSnapshot,
+  IfcPropertyValue,
+  IfcValueItem,
+  IfcValueSet,
+  IfcViewerPhase,
+  IfcViewerRuntime,
+  IfcViewerSnapshot,
+  IfcVisualColorGroup,
+  IfcVisualMode,
+  IfcVisualPlan,
+  IfcVisualSnapshot,
+  LayerVisibility,
+  LoadIfcInput,
   LoadPointCloudInput,
-  { source: { mode: "preview" } }
->;
-type OctreePointCloudInput = Extract<
-  LoadPointCloudInput,
-  { source: { mode: "octree" } }
->;
-
-function isPreviewPointCloudInput(
-  input: LoadPointCloudInput,
-): input is PreviewPointCloudInput {
-  return input.source.mode === "preview";
-}
-
-export type CapturedBcfViewpoint = {
-  data: BcfViewpointPayload;
-  targetDistance: number;
-  snapshot: Blob | null;
-};
-
-type FrameRequest = (callback: FrameRequestCallback) => number;
-type FrameCancel = (handle: number) => void;
-
-type PointCloudLoad = {
-  abort: AbortController;
-  expressId: number;
-  handles: Map<string, PointCloudAssetHandle>;
-  stream: PointCloudStreamHandle | null;
-  octree: PointCloudOctreeStreamHandle | null;
-  transform: PointCloudTransform;
-  pointBudget: number;
-  lastLodSignature: string | null;
-};
-
-export type IfcViewerRuntime = {
-  createRenderer: (canvas: HTMLCanvasElement) => Renderer;
-  createGeometryProcessor: () => GeometryProcessor;
-  createParser: () => IfcParser;
-  createServerClient: (serverBaseUrl: string) => IfcServerGeometryClient;
-  readElementDetails: (
-    store: IfcDataStore,
-    expressId: number,
-  ) => IfcElementDetails | null;
-  createBimIndex: (
-    store: IfcDataStore,
-    renderableIds: Iterable<number>,
-  ) => IfcBimIndex;
-  createPointCloudStream: (
-    options: PointCloudStreamOptions,
-  ) => PointCloudStreamHandle;
-  createPointCloudOctreeStream: (
-    options: PointCloudOctreeStreamOptions,
-  ) => PointCloudOctreeStreamHandle;
-  fetch: typeof fetch;
-  requestFrame: FrameRequest;
-  cancelFrame: FrameCancel;
-  createResizeObserver: (
-    callback: ResizeObserverCallback,
-  ) => Pick<ResizeObserver, "observe" | "disconnect">;
-};
-
-const defaultSnapshot: IfcViewerSnapshot = {
-  phase: "idle",
-  parserPercent: null,
-  meshCount: 0,
-  entityCount: null,
-  message: null,
-  selection: null,
-  selectionPhase: "idle",
-  selectionMessage: null,
-  catalog: null,
-  processing: {
-    engine: null,
-    cacheKey: null,
-    cacheHit: null,
-  },
-  visual: {
-    mode: "all",
-    label: null,
-    matchCount: 0,
-    showContext: true,
-    contextOpacity: 0.1,
-  },
-  pointClouds: [],
-  pointCloudOptions: {
-    pointSize: 2,
-  },
-};
-
-function readElementDetails(
-  store: IfcDataStore,
-  expressId: number,
-): IfcElementDetails | null {
-  if (!store.entityIndex.byId.has(expressId)) return null;
-
-  const attributes = extractEntityAttributesOnDemand(store, expressId);
-
-  return {
-    expressId,
-    globalId: attributes.globalId || store.entities.getGlobalId(expressId),
-    ifcClass:
-      store.entities.getTypeName(expressId) ||
-      store.getEntity(expressId)?.type ||
-      "IfcEntity",
-    name: attributes.name || store.entities.getName(expressId),
-    description: attributes.description,
-    objectType: attributes.objectType,
-    tag: attributes.tag,
-    propertySets: extractPropertiesOnDemand(store, expressId).map((set) => ({
-      name: set.name,
-      globalId: set.globalId,
-      values: set.properties.map((property) => ({
-        name: property.name,
-        type: property.type,
-        value: property.value,
-        values: property.values,
-        dataType: property.dataType,
-      })),
-    })),
-    quantitySets: extractQuantitiesOnDemand(store, expressId).map((set) => ({
-      name: set.name,
-      globalId: set.globalId,
-      values: set.quantities.map((quantity) => ({
-        name: quantity.name,
-        type: quantity.type,
-        value: quantity.value,
-      })),
-    })),
-  };
-}
-
-function createDefaultRuntime(): IfcViewerRuntime {
-  return {
-    createRenderer: (canvas) => new Renderer(canvas),
-    createGeometryProcessor: () => new GeometryProcessor(),
-    createParser: () => new IfcParser(),
-    createServerClient: createIfcServerGeometryClient,
-    readElementDetails,
-    createBimIndex: createIfcBimIndex,
-    createPointCloudStream,
-    createPointCloudOctreeStream,
-    fetch: globalThis.fetch.bind(globalThis),
-    requestFrame: globalThis.requestAnimationFrame.bind(globalThis),
-    cancelFrame: globalThis.cancelAnimationFrame.bind(globalThis),
-    createResizeObserver: (callback) => new ResizeObserver(callback),
-  };
-}
+  PointCloudOptionsSnapshot,
+  PointCloudPhase,
+  PointCloudSnapshot,
+} from "./viewer-types";
 
 function alignCanvasWidth(width: number) {
   return Math.min(
@@ -366,17 +93,13 @@ function screenshotDataUrlToBlob(dataUrl: string) {
 
 export class IfcViewerController {
   private readonly renderer: Renderer;
-  private readonly geometry: GeometryProcessor;
-  private readonly parser: IfcParser;
+  private readonly modelLoader: IfcModelLoader;
   private readonly listeners = new Set<(snapshot: IfcViewerSnapshot) => void>();
   private readonly runtime: IfcViewerRuntime;
-  private snapshot: IfcViewerSnapshot = defaultSnapshot;
-  private store: IfcDataStore | null = null;
-  private bimIndex: IfcBimIndex | null = null;
+  private readonly federation = new FederationRegistry();
+  private readonly models = new Map<string, LoadedIfcModel>();
+  private snapshot: IfcViewerSnapshot = createEmptyViewerSnapshot();
   private initialization: Promise<void> | null = null;
-  private loadQueue: Promise<void> = Promise.resolve();
-  private loadGeneration = 0;
-  private currentDownload: AbortController | null = null;
   private resizeObserver: Pick<
     ResizeObserver,
     "observe" | "disconnect"
@@ -385,20 +108,14 @@ export class IfcViewerController {
   private lastFrameTime: number | null = null;
   private unsubscribeDeviceLoss: (() => void) | null = null;
   private disposed = false;
-  private pointerMode: "orbit" | "pan" | null = null;
-  private pointerId: number | null = null;
-  private pointerMoved = false;
-  private pointerStartX = 0;
-  private pointerStartY = 0;
-  private pointerX = 0;
-  private pointerY = 0;
+  private readonly interactions: SceneInteractions;
   private selectionGeneration = 0;
   private hiddenIds = new Set<number>();
+  private readonly layerVisibility: BimLayerVisibility;
   private isolatedIds: Set<number> | null = null;
   private ghostExceptIds: Set<number> | null = null;
   private colorOverrides = new Map<number, [number, number, number, number]>();
-  private readonly pointCloudLoads = new Map<string, PointCloudLoad>();
-  private nextPointCloudExpressId = 0xf0000000;
+  private readonly pointCloudLayers: PointCloudLayers;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -406,8 +123,40 @@ export class IfcViewerController {
   ) {
     this.runtime = runtime;
     this.renderer = runtime.createRenderer(canvas);
-    this.geometry = runtime.createGeometryProcessor();
-    this.parser = runtime.createParser();
+    this.modelLoader = new IfcModelLoader({
+      renderer: this.renderer,
+      federation: this.federation,
+      models: this.models,
+      runtime,
+      initialize: () => this.init(),
+      isDisposed: () => this.disposed,
+      getSnapshot: () => this.snapshot,
+      updateSnapshot: (update) => this.updateSnapshot(update),
+      updateModelSnapshot: (assetId, update) =>
+        this.updateModelSnapshot(assetId, update),
+      onModelReady: () => this.layerVisibility.rebuild(),
+    });
+    this.layerVisibility = new BimLayerVisibility(this.models, this.federation);
+    this.pointCloudLayers = new PointCloudLayers({
+      renderer: this.renderer,
+      canvas,
+      runtime,
+      initialize: () => this.init(),
+      isDisposed: () => this.disposed,
+      onSnapshot: (assetId, update) =>
+        this.updatePointCloudSnapshot(assetId, update),
+      onRemove: (assetId) =>
+        this.updateSnapshot({
+          pointClouds: this.snapshot.pointClouds.filter(
+            (pointCloud) => pointCloud.assetId !== assetId,
+          ),
+        }),
+    });
+    this.interactions = new SceneInteractions({
+      canvas,
+      renderer: this.renderer,
+      onPick: (x, y) => this.pickEntity(x, y),
+    });
   }
 
   subscribe(listener: (snapshot: IfcViewerSnapshot) => void) {
@@ -424,15 +173,69 @@ export class IfcViewerController {
   }
 
   getStore() {
-    return this.store;
+    const activeId = this.snapshot.activeModelId;
+    return activeId ? (this.models.get(activeId)?.store ?? null) : null;
   }
 
   queryBim(query: IfcBimQuery): IfcElementSummary[] {
-    return this.bimIndex?.query(query) ?? [];
+    const activeId = this.snapshot.activeModelId;
+    return activeId
+      ? (this.models.get(activeId)?.bimIndex.query(query) ?? [])
+      : [];
   }
 
   findBimIds(query: IfcBimQuery): number[] {
-    return this.bimIndex?.findIds(query) ?? [];
+    const activeId = this.snapshot.activeModelId;
+    if (!activeId) return [];
+    return (this.models.get(activeId)?.bimIndex.findIds(query) ?? []).map(
+      (id) => this.federation.toGlobalId(activeId, id),
+    );
+  }
+
+  setActiveModel(assetId: string) {
+    const model = this.models.get(assetId);
+    if (!model || this.snapshot.activeModelId === assetId) return;
+    this.resetVisuals();
+    this.selectEntity(null);
+    this.updateSnapshot({
+      activeModelId: assetId,
+      catalog: model.bimIndex.catalog,
+      processing: model.processing,
+    });
+  }
+
+  getBimElements(
+    assetId: string,
+    storeyId: number | null,
+    offset = 0,
+    limit = 100,
+    ifcClass?: string,
+  ): IfcElementSummary[] {
+    const model = this.models.get(assetId);
+    if (!model) return [];
+    return model.bimIndex.queryPage(storeyId, offset, limit, ifcClass);
+  }
+
+  getBimClasses(assetId: string, storeyId: number | null) {
+    return this.models.get(assetId)?.bimIndex.classesForStorey(storeyId) ?? [];
+  }
+
+  getLayerVisibility(assetId: string, target: BimLayerTarget): LayerVisibility {
+    return this.layerVisibility.get(assetId, target);
+  }
+
+  getLayerExceptionCount(assetId: string, target: BimLayerTarget): number {
+    return this.layerVisibility.exceptionCount(assetId, target);
+  }
+
+  setLayerVisibility(
+    assetId: string,
+    target: BimLayerTarget,
+    mode: LayerVisibility,
+  ) {
+    if (!this.layerVisibility.set(assetId, target, mode)) return;
+    this.updateModelSnapshot(assetId, {});
+    this.renderer.requestRender();
   }
 
   init() {
@@ -445,271 +248,33 @@ export class IfcViewerController {
   }
 
   loadIfc(input: LoadIfcInput) {
-    const generation = ++this.loadGeneration;
-    this.currentDownload?.abort();
-
-    const run = this.loadQueue
-      .catch(() => undefined)
-      .then(() => this.runIfcLoad(input, generation));
-    this.loadQueue = run;
-    return run;
+    return this.modelLoader.load(input);
   }
 
-  async loadPointCloud(input: LoadPointCloudInput) {
-    await this.init();
-    if (this.disposed) return;
-
-    const format = detectPointCloudFormat(input.fileName);
-    if (!format) {
-      throw new Error(
-        `Format de nuage de points non pris en charge : ${input.fileName}`,
-      );
-    }
-
-    this.removePointCloud(input.assetId);
-    const load = {
-      abort: new AbortController(),
-      expressId: this.nextPointCloudExpressId--,
-      handles: new Map<string, PointCloudAssetHandle>(),
-      stream: null as PointCloudStreamHandle | null,
-      octree: null as PointCloudOctreeStreamHandle | null,
-      transform: input.transform,
-      pointBudget: input.maxPointsInMemory,
-      lastLodSignature: null as string | null,
-    };
-    this.pointCloudLoads.set(input.assetId, load);
-    this.updatePointCloudSnapshot(input.assetId, {
-      assetId: input.assetId,
-      fileName: input.fileName,
-      format,
-      phase: "downloading",
-      progress: 0,
-      pointCount: 0,
-      totalPointCount: null,
-      sampleStride: 1,
-      source: input.source.mode,
-      residentNodeCount: 0,
-      message: null,
-    });
-
-    try {
-      if (isPreviewPointCloudInput(input)) {
-        await this.loadPointCloudPreview(input, load, format);
-      } else {
-        await this.loadPointCloudOctree(input, load);
-      }
-    } catch (error) {
-      if (this.pointCloudLoads.get(input.assetId) !== load) return;
-      this.updatePointCloudSnapshot(input.assetId, {
-        phase: "error",
-        message: errorMessage(error),
-      });
-      throw error;
-    }
-  }
-
-  private async loadPointCloudPreview(
-    input: PreviewPointCloudInput,
-    load: PointCloudLoad,
-    format: PointCloudFormat,
-  ) {
-    const response = await this.runtime.fetch(input.source.downloadUrl, {
-      signal: load.abort.signal,
-    });
-    if (!response.ok) {
-      throw new Error(`Le stockage a répondu HTTP ${response.status}.`);
-    }
-    const blob = await response.blob();
-    if (this.pointCloudLoads.get(input.assetId) !== load) return;
-
-    this.updatePointCloudSnapshot(input.assetId, { phase: "streaming" });
-    const stream = this.runtime.createPointCloudStream({
-      blob,
-      format,
-      label: input.fileName,
-      maxPointsInMemory: input.maxPointsInMemory,
-      signal: load.abort.signal,
-      onOpen: (info) => {
-        if (this.pointCloudLoads.get(input.assetId) !== load) return;
-        const handle = this.renderer.beginPointCloudStream({
-          expressId: load.expressId,
-          ifcType: "IfcPointCloud",
-        });
-        load.handles.set("preview", handle);
-        this.renderer.setPointCloudTransform(
-          handle,
-          composePointCloudTransform(load.transform),
-        );
-        this.updatePointCloudSnapshot(input.assetId, {
-          totalPointCount: info.totalPointCount,
-          sampleStride: info.stride,
-          residentNodeCount: 1,
-        });
-      },
-      onChunk: (chunk) => {
-        const handle = load.handles.get("preview");
-        if (this.pointCloudLoads.get(input.assetId) !== load || !handle) return;
-        this.renderer.appendPointCloudChunk(handle, chunk);
-        this.renderer.requestRender();
-      },
-      onProgress: (loaded, total) => {
-        if (this.pointCloudLoads.get(input.assetId) !== load) return;
-        this.updatePointCloudSnapshot(input.assetId, {
-          pointCount: loaded,
-          progress: total > 0 ? Math.min(1, loaded / total) : 0,
-        });
-      },
-      onComplete: (_bounds, pointCount) => {
-        if (this.pointCloudLoads.get(input.assetId) !== load) return;
-        const handle = load.handles.get("preview");
-        if (handle) this.renderer.endPointCloudStream(handle);
-        this.updatePointCloudSnapshot(input.assetId, {
-          phase: "ready",
-          progress: 1,
-          pointCount,
-          message: null,
-        });
-        this.renderer.requestRender();
-      },
-      onError: (error) => {
-        if (this.pointCloudLoads.get(input.assetId) !== load) return;
-        this.clearPointCloudHandles(load);
-        this.updatePointCloudSnapshot(input.assetId, {
-          phase: "error",
-          message: error.message,
-        });
-      },
-    });
-    load.stream = stream;
-    await stream.done;
-  }
-
-  private async loadPointCloudOctree(
-    input: OctreePointCloudInput,
-    load: PointCloudLoad,
-  ) {
-    this.updatePointCloudSnapshot(input.assetId, { phase: "streaming" });
-    const stream = this.runtime.createPointCloudOctreeStream({
-      access: input.source.access,
-      refreshAccess: input.source.refreshAccess,
-      signal: load.abort.signal,
-      onOpen: (info) => {
-        if (this.pointCloudLoads.get(input.assetId) !== load) return;
-        this.updatePointCloudSnapshot(input.assetId, {
-          totalPointCount: info.totalPointCount,
-        });
-      },
-      onSwap: ({ add, remove, pointCount, nodeCount }) => {
-        if (this.pointCloudLoads.get(input.assetId) !== load) return;
-        const transform = composePointCloudTransform(load.transform);
-
-        // Complete the resident-set update before requesting a frame. Potree
-        // ancestors and children are intentionally additive, while obsolete
-        // camera nodes disappear without an intermediate duplicate frame.
-        for (const { nodeId, chunk } of add) {
-          if (load.handles.has(nodeId)) continue;
-          const handle = this.renderer.beginPointCloudStream({
-            expressId: load.expressId,
-            ifcType: "IfcPointCloud",
-          });
-          this.renderer.setPointCloudTransform(handle, transform);
-          this.renderer.appendPointCloudChunk(handle, chunk);
-          this.renderer.endPointCloudStream(handle);
-          load.handles.set(nodeId, handle);
-        }
-        for (const nodeId of remove) {
-          const handle = load.handles.get(nodeId);
-          if (!handle) continue;
-          this.renderer.removePointCloudAsset(handle);
-          load.handles.delete(nodeId);
-        }
-        this.updatePointCloudSnapshot(input.assetId, {
-          phase: "ready",
-          progress: 1,
-          pointCount,
-          residentNodeCount: nodeCount,
-          message: null,
-        });
-        this.renderer.requestRender();
-      },
-      onError: (error) => {
-        if (this.pointCloudLoads.get(input.assetId) !== load) return;
-        this.clearPointCloudHandles(load);
-        this.updatePointCloudSnapshot(input.assetId, {
-          phase: "error",
-          message: error.message,
-        });
-      },
-    });
-    load.octree = stream;
-    load.lastLodSignature = null;
-    this.updatePointCloudLod();
-    await stream.ready;
-  }
-
-  private clearPointCloudHandles(load: PointCloudLoad) {
-    for (const handle of load.handles.values()) {
-      this.renderer.removePointCloudAsset(handle);
-    }
-    load.handles.clear();
-    this.renderer.requestRender();
+  loadPointCloud(input: LoadPointCloudInput) {
+    return this.pointCloudLayers.load(input);
   }
 
   removePointCloud(assetId: string) {
-    const load = this.pointCloudLoads.get(assetId);
-    if (!load) return;
-
-    load.abort.abort();
-    load.stream?.cancel();
-    load.octree?.cancel();
-    for (const handle of load.handles.values()) {
-      this.renderer.removePointCloudAsset(handle);
-    }
-    this.pointCloudLoads.delete(assetId);
-    this.updateSnapshot({
-      pointClouds: this.snapshot.pointClouds.filter(
-        (pointCloud) => pointCloud.assetId !== assetId,
-      ),
-    });
-    this.renderer.requestRender();
+    this.pointCloudLayers.remove(assetId);
   }
 
   setPointCloudPointSize(pointSize: number) {
     const normalized = Math.min(12, Math.max(1, pointSize));
     this.renderer.setPointCloudOptions({ pointSize: normalized });
-    this.updateSnapshot({
-      pointCloudOptions: { pointSize: normalized },
-    });
+    this.updateSnapshot({ pointCloudOptions: { pointSize: normalized } });
     this.renderer.requestRender();
   }
 
   setPointCloudPointBudget(pointBudget: number) {
-    const normalized = Math.max(10_000, Math.floor(pointBudget));
-    for (const load of this.pointCloudLoads.values()) {
-      load.pointBudget = normalized;
-      load.lastLodSignature = null;
-    }
-    this.updatePointCloudLod();
+    this.pointCloudLayers.setBudget(pointBudget);
   }
 
   setPointCloudTransform(assetId: string, transform: PointCloudTransform) {
-    const load = this.pointCloudLoads.get(assetId);
-    if (!load) return;
-
-    load.transform = transform;
-    for (const handle of load.handles.values()) {
-      this.renderer.setPointCloudTransform(
-        handle,
-        composePointCloudTransform(transform),
-      );
-    }
-    load.lastLodSignature = null;
-    this.updatePointCloudLod();
-    this.renderer.requestRender();
+    this.pointCloudLayers.setTransform(assetId, transform);
   }
-
   async captureBcfViewpoint(): Promise<CapturedBcfViewpoint> {
-    if (this.disposed || !this.bimIndex) {
+    if (this.disposed || !this.snapshot.activeModelId) {
       throw new Error("La maquette doit être prête avant de capturer une vue.");
     }
 
@@ -740,7 +305,14 @@ export class IfcViewerController {
     const created = createViewpoint({
       camera: cameraState,
       selectedGuids: this.globalIdsFor(
-        this.snapshot.selection ? [this.snapshot.selection.expressId] : [],
+        this.snapshot.selection && this.snapshot.activeModelId
+          ? [
+              this.federation.toGlobalId(
+                this.snapshot.activeModelId,
+                this.snapshot.selection.expressId,
+              ),
+            ]
+          : [],
       ),
       hiddenGuids: this.globalIdsFor(this.hiddenIds),
       visibleGuids: visibleIds ? this.globalIdsFor(visibleIds) : [],
@@ -764,7 +336,7 @@ export class IfcViewerController {
   }
 
   applyBcfViewpoint(data: BcfViewpointPayload, targetDistance: number) {
-    if (this.disposed || !this.bimIndex) return;
+    if (this.disposed || !this.snapshot.activeModelId) return;
 
     const state = extractViewpointState(
       data as BCFViewpoint,
@@ -819,7 +391,12 @@ export class IfcViewerController {
     }
 
     const selectedId = this.expressIdsFor(state.selectedGuids)[0] ?? null;
-    this.selectEntity(selectedId);
+    const selected =
+      selectedId === null ? null : this.federation.fromGlobalId(selectedId);
+    if (selected && selected.modelId !== this.snapshot.activeModelId) {
+      this.setActiveModel(selected.modelId);
+    }
+    this.selectEntity(selected?.expressId ?? null);
     this.renderer.requestRender();
   }
 
@@ -836,9 +413,12 @@ export class IfcViewerController {
 
   frameSelection() {
     const expressId = this.snapshot.selection?.expressId;
-    if (this.disposed || expressId === undefined) return;
+    const modelId = this.snapshot.activeModelId;
+    if (this.disposed || expressId === undefined || !modelId) return;
 
-    const bounds = this.renderer.getScene().getEntityBoundingBox(expressId);
+    const bounds = this.renderer
+      .getScene()
+      .getEntityBoundingBox(this.federation.toGlobalId(modelId, expressId));
     if (!bounds) return;
 
     void this.renderer.getCamera().frameBounds(bounds.min, bounds.max);
@@ -862,8 +442,9 @@ export class IfcViewerController {
       return;
     }
 
-    const store = this.store;
-    if (!store) return;
+    const modelId = this.snapshot.activeModelId;
+    const store = modelId ? this.models.get(modelId)?.store : null;
+    if (!store || !modelId) return;
 
     this.updateSnapshot({
       selectionPhase: "loading",
@@ -879,7 +460,9 @@ export class IfcViewerController {
         return;
       }
 
-      const bounds = this.renderer.getScene().getEntityBoundingBox(expressId);
+      const bounds = this.renderer
+        .getScene()
+        .getEntityBoundingBox(this.federation.toGlobalId(modelId, expressId));
       const center =
         orbitCenter ??
         (bounds
@@ -1023,18 +606,12 @@ export class IfcViewerController {
     if (this.disposed) return;
 
     this.disposed = true;
-    this.loadGeneration += 1;
+    this.modelLoader.dispose();
     this.selectionGeneration += 1;
-    this.currentDownload?.abort();
-    this.currentDownload = null;
-    for (const load of this.pointCloudLoads.values()) {
-      load.abort.abort();
-      load.stream?.cancel();
-    }
-    this.pointCloudLoads.clear();
+    this.pointCloudLayers.dispose();
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
-    this.detachInteractions();
+    this.interactions.detach();
     this.unsubscribeDeviceLoss?.();
     this.unsubscribeDeviceLoss = null;
 
@@ -1043,10 +620,9 @@ export class IfcViewerController {
       this.frameHandle = null;
     }
 
-    this.geometry.dispose();
     this.renderer.destroy();
-    this.store = null;
-    this.bimIndex = null;
+    this.models.clear();
+    this.federation.clear();
     this.listeners.clear();
   }
 
@@ -1062,7 +638,10 @@ export class IfcViewerController {
           message: info.message || "Le périphérique WebGPU a été perdu.",
         });
       });
-      await Promise.all([this.renderer.init(), this.geometry.init()]);
+      await Promise.all([
+        this.renderer.init(),
+        this.modelLoader.initGeometry(),
+      ]);
 
       if (this.disposed) return;
 
@@ -1072,7 +651,7 @@ export class IfcViewerController {
         this.renderer.requestRender();
       });
       this.resizeObserver.observe(this.canvas);
-      this.attachInteractions();
+      this.interactions.attach();
       this.startFrameLoop();
       this.updateSnapshot({ phase: "idle", message: null });
       this.renderer.requestRender();
@@ -1081,189 +660,6 @@ export class IfcViewerController {
         this.updateSnapshot({ phase: "error", message: errorMessage(error) });
       }
       throw error;
-    }
-  }
-
-  private async runIfcLoad(input: LoadIfcInput, generation: number) {
-    await this.init();
-    if (!this.isCurrentLoad(generation)) return;
-
-    this.currentDownload = new AbortController();
-    this.store = null;
-    this.bimIndex = null;
-    this.hiddenIds = new Set();
-    this.isolatedIds = null;
-    this.ghostExceptIds = null;
-    this.colorOverrides = new Map();
-    this.selectionGeneration += 1;
-    this.renderer.getCamera().setOrbitCenter(null);
-    this.renderer.getScene().clear();
-    this.renderer.requestRender();
-    this.snapshot = {
-      ...defaultSnapshot,
-      pointClouds: this.snapshot.pointClouds,
-      pointCloudOptions: this.snapshot.pointCloudOptions,
-    };
-    this.updateSnapshot({ phase: "downloading" });
-
-    try {
-      const response = await this.runtime.fetch(input.downloadUrl, {
-        signal: this.currentDownload.signal,
-      });
-
-      if (!response.ok) {
-        throw new Error(`Le stockage a répondu HTTP ${response.status}.`);
-      }
-
-      const source = await response.arrayBuffer();
-      if (!this.isCurrentLoad(generation)) return;
-
-      this.updateSnapshot({ phase: "processing" });
-      const parserOptions: ParseOptions = {
-        onProgress: ({ percent }) => {
-          if (this.isCurrentLoad(generation)) {
-            this.updateSnapshot({ parserPercent: Math.round(percent) });
-          }
-        },
-      };
-      const parse = this.parser.parseColumnar(source, parserOptions);
-      const processing = input.processing ?? { engine: "browser" };
-      this.updateSnapshot({
-        processing: {
-          engine: processing.engine,
-          cacheKey: null,
-          cacheHit: null,
-        },
-      });
-      const geometry =
-        processing.engine === "rust"
-          ? this.streamServerGeometry(
-              source.slice(0),
-              processing.serverBaseUrl,
-              generation,
-            )
-          : this.streamBrowserGeometry(
-              new Uint8Array(source.slice(0)),
-              generation,
-            );
-      const [store] = await Promise.all([parse, geometry]);
-
-      if (!this.isCurrentLoad(generation)) return;
-
-      this.store = store;
-      this.bimIndex = this.runtime.createBimIndex(
-        store,
-        this.renderer.getScene().getAllMeshDataExpressIds(),
-      );
-      this.renderer.fitToView();
-      this.renderer.requestRender();
-      this.updateSnapshot({
-        phase: "ready",
-        parserPercent: 100,
-        entityCount: store.entityCount,
-        catalog: this.bimIndex.catalog,
-        message: null,
-      });
-    } catch (error) {
-      if (!this.isCurrentLoad(generation)) return;
-
-      this.updateSnapshot({ phase: "error", message: errorMessage(error) });
-      throw error;
-    } finally {
-      if (this.isCurrentLoad(generation)) {
-        this.currentDownload = null;
-      }
-    }
-  }
-
-  private async streamBrowserGeometry(source: Uint8Array, generation: number) {
-    for await (const event of this.geometry.processAdaptive(source)) {
-      if (!this.isCurrentLoad(generation)) return;
-      this.applyGeometryEvent(event);
-    }
-  }
-
-  private async streamServerGeometry(
-    source: ArrayBuffer,
-    serverBaseUrl: string,
-    generation: number,
-  ) {
-    const client = this.runtime.createServerClient(serverBaseUrl);
-    let meshCount = 0;
-    const result = await client.parseParquetStream(source, (batch) => {
-      if (!this.isCurrentLoad(generation)) return;
-
-      const meshes = toBrowserMeshBatch(batch.meshes);
-      if (!meshes.length) return;
-
-      meshCount += meshes.length;
-      this.renderer.addMeshes(meshes, true);
-      this.renderer.requestRender();
-      this.updateSnapshot({ meshCount });
-    });
-
-    if (!this.isCurrentLoad(generation)) return;
-
-    this.updateSnapshot({
-      processing: {
-        engine: "rust",
-        cacheKey: result.cache_key,
-        cacheHit: result.stats.from_cache,
-      },
-    });
-  }
-
-  private applyGeometryEvent(event: StreamingGeometryEvent) {
-    if (event.type === "batch") {
-      this.renderer.addMeshes(event.meshes, true);
-      this.renderer.requestRender();
-      this.updateSnapshot({ meshCount: event.totalSoFar });
-    } else if (event.type === "complete") {
-      this.updateSnapshot({ meshCount: event.totalMeshes });
-    }
-  }
-
-  private updatePointCloudLod() {
-    const camera = this.renderer.getCamera();
-    const viewProjectionMatrix = new Float32Array(camera.getViewProjMatrix().m);
-    const position = camera.getPosition();
-    const projectionMode = camera.getProjectionMode();
-    const baseSignature = [
-      this.canvas.width,
-      this.canvas.height,
-      projectionMode,
-      camera.getFOV(),
-      camera.getOrthoSize(),
-      position.x,
-      position.y,
-      position.z,
-      ...viewProjectionMatrix,
-    ]
-      .map((value) =>
-        typeof value === "number" ? Math.round(value * 100_000) : value,
-      )
-      .join(":");
-
-    for (const load of this.pointCloudLoads.values()) {
-      if (!load.octree) continue;
-      const modelMatrix = composePointCloudTransform(load.transform);
-      const signature = `${baseSignature}:${load.pointBudget}:${[...modelMatrix]
-        .map((value) => Math.round(value * 100_000))
-        .join(":")}`;
-      if (signature === load.lastLodSignature) continue;
-      load.lastLodSignature = signature;
-      const view: PointCloudLodView = {
-        viewProjectionMatrix,
-        modelMatrix,
-        cameraPosition: [position.x, position.y, position.z],
-        verticalFovRadians: camera.getFOV(),
-        viewportHeight: Math.max(1, this.canvas.height),
-        pointBudget: load.pointBudget,
-        ...(projectionMode === "orthographic"
-          ? { orthographicHeight: camera.getOrthoSize() }
-          : {}),
-      };
-      load.octree.update(view);
     }
   }
 
@@ -1285,7 +681,7 @@ export class IfcViewerController {
       }
 
       const cameraAnimating = this.renderer.getCamera().update(delta);
-      this.updatePointCloudLod();
+      this.pointCloudLayers.updateLod();
       if (
         queueFlushed ||
         cameraAnimating ||
@@ -1293,11 +689,29 @@ export class IfcViewerController {
       ) {
         this.renderer.consumeRenderRequest();
         this.renderer.render({
-          isInteracting: this.pointerMode !== null,
-          selectedId: this.snapshot.selection?.expressId ?? null,
-          hiddenIds: this.hiddenIds,
+          clearColor: [0.97, 0.97, 0.985, 1],
+          isInteracting: this.interactions.isInteracting,
+          selectedId:
+            this.snapshot.selection && this.snapshot.activeModelId
+              ? this.federation.toGlobalId(
+                  this.snapshot.activeModelId,
+                  this.snapshot.selection.expressId,
+                )
+              : null,
+          hiddenIds: new Set([
+            ...this.hiddenIds,
+            ...this.layerVisibility.hiddenIds,
+          ]),
           isolatedIds: this.isolatedIds,
-          ghostExceptIds: this.ghostExceptIds,
+          ghostExceptIds: this.layerVisibility.ghostExceptIds
+            ? this.ghostExceptIds
+              ? new Set(
+                  [...this.ghostExceptIds].filter((id) =>
+                    this.layerVisibility.ghostExceptIds?.has(id),
+                  ),
+                )
+              : this.layerVisibility.ghostExceptIds
+            : this.ghostExceptIds,
           ghostAlpha: this.snapshot.visual.contextOpacity,
         });
       }
@@ -1316,126 +730,25 @@ export class IfcViewerController {
     );
   }
 
-  private attachInteractions() {
-    this.canvas.addEventListener("pointerdown", this.onPointerDown);
-    this.canvas.addEventListener("pointermove", this.onPointerMove);
-    this.canvas.addEventListener("pointerup", this.onPointerUp);
-    this.canvas.addEventListener("pointercancel", this.onPointerUp);
-    this.canvas.addEventListener("wheel", this.onWheel, { passive: false });
-    this.canvas.addEventListener("contextmenu", this.onContextMenu);
-  }
-
-  private detachInteractions() {
-    this.canvas.removeEventListener("pointerdown", this.onPointerDown);
-    this.canvas.removeEventListener("pointermove", this.onPointerMove);
-    this.canvas.removeEventListener("pointerup", this.onPointerUp);
-    this.canvas.removeEventListener("pointercancel", this.onPointerUp);
-    this.canvas.removeEventListener("wheel", this.onWheel);
-    this.canvas.removeEventListener("contextmenu", this.onContextMenu);
-  }
-
-  private readonly onPointerDown = (event: PointerEvent) => {
-    if (event.button !== 0 && event.button !== 1 && event.button !== 2) return;
-
-    this.pointerId = event.pointerId;
-    this.pointerMode =
-      event.button === 1 || event.button === 2 || event.shiftKey
-        ? "pan"
-        : "orbit";
-    this.pointerX = event.clientX;
-    this.pointerY = event.clientY;
-    this.pointerStartX = event.clientX;
-    this.pointerStartY = event.clientY;
-    this.pointerMoved = false;
-    this.canvas.setPointerCapture(event.pointerId);
-    this.canvas.style.cursor = "grabbing";
-  };
-
-  private readonly onPointerMove = (event: PointerEvent) => {
-    if (!this.pointerMode || event.pointerId !== this.pointerId) return;
-
-    const deltaX = event.clientX - this.pointerX;
-    const deltaY = event.clientY - this.pointerY;
-    if (
-      Math.abs(event.clientX - this.pointerStartX) +
-        Math.abs(event.clientY - this.pointerStartY) >
-      4
-    ) {
-      this.pointerMoved = true;
-    }
-    const camera = this.renderer.getCamera();
-
-    if (this.pointerMode === "pan") {
-      camera.pan(deltaX, deltaY, false);
-    } else {
-      camera.orbit(deltaX, deltaY, false);
-    }
-
-    this.pointerX = event.clientX;
-    this.pointerY = event.clientY;
-    this.renderer.requestRender();
-  };
-
-  private readonly onPointerUp = (event: PointerEvent) => {
-    if (event.pointerId !== this.pointerId) return;
-
-    const shouldPick =
-      event.type !== "pointercancel" &&
-      event.button === 0 &&
-      this.pointerMode === "orbit" &&
-      !this.pointerMoved;
-    if (this.canvas.hasPointerCapture(event.pointerId)) {
-      this.canvas.releasePointerCapture(event.pointerId);
-    }
-    this.pointerId = null;
-    this.pointerMode = null;
-    this.canvas.style.cursor = "grab";
-    this.renderer.requestRender();
-
-    if (shouldPick) {
-      const bounds = this.canvas.getBoundingClientRect();
-      const x = event.clientX - bounds.left;
-      const y = event.clientY - bounds.top;
-      const loadGeneration = this.loadGeneration;
-      void this.renderer
-        .pick(x, y, {
-          hiddenIds: this.hiddenIds,
-          isolatedIds: this.isolatedIds,
-        })
-        .then((hit) => {
-          if (!this.isCurrentLoad(loadGeneration)) return;
-          this.selectEntity(
-            hit && hit.expressId > 0 ? hit.expressId : null,
-            hit?.worldXYZ,
-          );
-        })
-        .catch(() => undefined);
-    }
-  };
-
-  private readonly onWheel = (event: WheelEvent) => {
-    event.preventDefault();
-    const bounds = this.canvas.getBoundingClientRect();
-    this.renderer
-      .getCamera()
-      .zoom(
-        event.deltaY,
-        false,
-        event.clientX - bounds.left,
-        event.clientY - bounds.top,
-        this.canvas.width,
-        this.canvas.height,
-        event.shiftKey,
-      );
-    this.renderer.requestRender();
-  };
-
-  private readonly onContextMenu = (event: MouseEvent) => {
-    event.preventDefault();
-  };
-
-  private isCurrentLoad(generation: number) {
-    return !this.disposed && generation === this.loadGeneration;
+  private pickEntity(x: number, y: number) {
+    const generation = this.modelLoader.generation;
+    void this.renderer
+      .pick(x, y, {
+        hiddenIds: new Set([
+          ...this.hiddenIds,
+          ...this.layerVisibility.hiddenIds,
+        ]),
+        isolatedIds: this.isolatedIds,
+      })
+      .then((hit) => {
+        if (!this.modelLoader.isCurrentLoad(generation)) return;
+        const model = hit ? this.federation.fromGlobalId(hit.expressId) : null;
+        if (model && model.modelId !== this.snapshot.activeModelId) {
+          this.setActiveModel(model.modelId);
+        }
+        this.selectEntity(model?.expressId ?? null, hit?.worldXYZ);
+      })
+      .catch(() => undefined);
   }
 
   private syncColorOverrides() {
@@ -1454,16 +767,42 @@ export class IfcViewerController {
 
   private globalIdsFor(expressIds: Iterable<number>) {
     const ids = new Set(expressIds);
-    return (this.bimIndex?.query({}) ?? [])
-      .filter((entity) => ids.has(entity.expressId) && entity.globalId)
+    const activeId = this.snapshot.activeModelId;
+    if (!activeId) return [];
+    return (this.models.get(activeId)?.bimIndex.query({}) ?? [])
+      .filter(
+        (entity) =>
+          ids.has(this.federation.toGlobalId(activeId, entity.expressId)) &&
+          entity.globalId,
+      )
       .map((entity) => entity.globalId);
   }
 
   private expressIdsFor(globalIds: Iterable<string>) {
     const ids = new Set(globalIds);
-    return (this.bimIndex?.query({}) ?? [])
+    const activeId = this.snapshot.activeModelId;
+    if (!activeId) return [];
+    return (this.models.get(activeId)?.bimIndex.query({}) ?? [])
       .filter((entity) => ids.has(entity.globalId))
-      .map((entity) => entity.expressId);
+      .map((entity) => this.federation.toGlobalId(activeId, entity.expressId));
+  }
+
+  private updateModelSnapshot(
+    assetId: string,
+    update: Partial<IfcModelSnapshot>,
+  ) {
+    const existing = this.snapshot.models.find(
+      (model) => model.assetId === assetId,
+    );
+    const next = existing
+      ? { ...existing, ...update }
+      : (update as IfcModelSnapshot);
+    this.updateSnapshot({
+      models: [
+        ...this.snapshot.models.filter((model) => model.assetId !== assetId),
+        next,
+      ],
+    });
   }
 
   private updateVisualSnapshot(update: Partial<IfcVisualSnapshot>) {
@@ -1500,6 +839,9 @@ export class IfcViewerController {
         ),
         next,
       ],
+      ...(this.models.size === 0 && next.phase === "ready"
+        ? { phase: "ready" as const }
+        : {}),
     });
   }
 

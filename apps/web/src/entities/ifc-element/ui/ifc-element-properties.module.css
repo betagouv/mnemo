@@ -10,16 +10,16 @@
 .identity > span {
   display: inline-block;
   padding: 0.2rem 0.45rem;
-  color: #c7c7ff;
+  color: var(--viewer-accent);
   font-size: 0.65rem;
   font-weight: 700;
   letter-spacing: 0.04em;
-  background: rgb(106 106 244 / 18%);
+  background: var(--viewer-soft);
 }
 
 .identity h2 {
   margin: 0.65rem 0 0;
-  color: #fff;
+  color: var(--viewer-text);
   font-size: 1rem;
   line-height: 1.3;
 }
@@ -57,7 +57,7 @@
 
 .metadata dd {
   overflow: hidden;
-  color: #fff;
+  color: var(--viewer-text);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -76,7 +76,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 0.75rem 0.35rem;
-  color: #fff;
+  color: var(--viewer-text);
   font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
@@ -102,7 +102,7 @@
   color: var(--viewer-muted);
   font-size: 0.62rem;
   text-align: center;
-  background: rgb(255 255 255 / 8%);
+  background: var(--viewer-soft);
 }
 
 .group dl {
@@ -126,7 +126,7 @@
 }
 
 .group dt {
-  color: #ddd;
+  color: var(--viewer-text);
 }
 
 .group dd {

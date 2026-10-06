@@ -10,6 +10,10 @@ The prototype proved that rebuilding rendering state from React causes camera re
 ## Decision
 
 IFC-Lite WebGPU owns the main canvas. A long-lived `ViewerController` owns renderer, camera, loaded layers, selection, and GPU resources. React creates the controller once and sends typed commands when application state changes.
+The controller is the public scene facade, not a monolithic implementation:
+IFC loading, BIM layer visibility, point-cloud handles/LOD, and canvas gestures
+have focused collaborators. React's scene hook owns access URLs and load/retry
+effects; the viewer widget composes UI and never owns GPU handles.
 
 IFC models use current IFC-Lite streaming and cache mechanisms. Large point clouds use an octree, camera-dependent LOD, and a configurable point budget. IFC and point-cloud layers share scene coordinates through persisted transforms, not by mutating source data.
 

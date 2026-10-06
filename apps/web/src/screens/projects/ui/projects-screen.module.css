@@ -24,11 +24,6 @@
   color: var(--text-mention-grey);
 }
 
-.createPanel {
-  max-width: 42rem;
-  margin-bottom: 2rem;
-}
-
 .controls {
   align-items: start;
   margin-bottom: 1.5rem;

@@ -118,6 +118,31 @@ export class PrismaProjectRepository implements ProjectRepository {
     };
   }
 
+  async updateForActor(
+    actorId: string,
+    projectId: string,
+    input: CreateProjectInput,
+    updatedAt: Date,
+  ): Promise<ProjectForActor | undefined> {
+    const result = await this.database.projects.updateMany({
+      where: {
+        id: projectId,
+        archived_at: null,
+        project_members: {
+          some: { user_id: actorId, role: { in: ["owner", "editor"] } },
+        },
+      },
+      data: {
+        title: input.title,
+        address: input.address || null,
+        description: input.description || null,
+        updated_at: updatedAt,
+      },
+    });
+    if (result.count === 0) return undefined;
+    return this.findForActor(actorId, projectId);
+  }
+
   async requestDeletion(projectId: string, requestedAt: Date) {
     return this.database.$transaction(async (transaction) => {
       const result = await transaction.projects.updateMany({

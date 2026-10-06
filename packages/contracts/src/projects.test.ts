@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { createProjectInputSchema, projectSummarySchema } from "./projects";
+import {
+  createProjectInputSchema,
+  projectSummarySchema,
+  updateProjectInputSchema,
+} from "./projects";
 
 describe("project contracts", () => {
   it("normalizes a project creation request", () => {
@@ -35,5 +39,21 @@ describe("project contracts", () => {
         updatedAt: "2026-09-09T10:00:00.000Z",
       }),
     ).toThrow();
+  });
+
+  it("validates and trims updated project metadata", () => {
+    expect(
+      updateProjectInputSchema.parse({
+        projectId: "bb668746-147b-4e44-bcd8-307e3869d7f2",
+        title: "  Musée  ",
+        address: "  Paris  ",
+        description: "  Restauration  ",
+      }),
+    ).toEqual({
+      projectId: "bb668746-147b-4e44-bcd8-307e3869d7f2",
+      title: "Musée",
+      address: "Paris",
+      description: "Restauration",
+    });
   });
 });

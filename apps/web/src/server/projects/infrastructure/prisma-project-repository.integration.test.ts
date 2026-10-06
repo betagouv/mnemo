@@ -65,6 +65,44 @@ describe("PrismaProjectRepository", () => {
     ).resolves.toBeUndefined();
   });
 
+  it("updates project metadata only for members with edit permission", async () => {
+    const repository = new PrismaProjectRepository(database.db);
+    const created = await repository.createForActor(actorId, {
+      title: "Ancien titre",
+      address: "Ancienne adresse",
+    });
+    const updatedAt = new Date("2026-10-05T10:00:00.000Z");
+    const input = {
+      title: "Nouveau titre",
+      address: "",
+      description: "Description mise à jour",
+    };
+
+    await expect(
+      repository.updateForActor(otherActorId, created.id, input, updatedAt),
+    ).resolves.toBeUndefined();
+    await database.db.project_members.create({
+      data: { project_id: created.id, user_id: otherActorId, role: "viewer" },
+    });
+    await expect(
+      repository.updateForActor(otherActorId, created.id, input, updatedAt),
+    ).resolves.toBeUndefined();
+    await database.db.project_members.update({
+      where: {
+        project_id_user_id: { project_id: created.id, user_id: otherActorId },
+      },
+      data: { role: "editor" },
+    });
+    await expect(
+      repository.updateForActor(otherActorId, created.id, input, updatedAt),
+    ).resolves.toMatchObject({
+      title: "Nouveau titre",
+      address: null,
+      description: "Description mise à jour",
+      updatedAt,
+    });
+  });
+
   it("archives a project and snapshots original and derived keys", async () => {
     const repository = new PrismaProjectRepository(database.db);
     const created = await repository.createForActor(actorId, {

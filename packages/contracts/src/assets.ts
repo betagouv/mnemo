@@ -1,20 +1,14 @@
 import { z } from "zod";
+import { assetKinds, assetStatuses } from "@mnemo/domain/asset";
 
 import { projectIdSchema } from "./projects";
 
 export const assetIdSchema = z.uuid();
 export type AssetId = z.infer<typeof assetIdSchema>;
 
-export const assetKindSchema = z.enum(["ifc", "point_cloud"]);
+export const assetKindSchema = z.enum(assetKinds);
 export type AssetKind = z.infer<typeof assetKindSchema>;
-export const assetStatusSchema = z.enum([
-  "upload_pending",
-  "uploaded",
-  "processing",
-  "ready",
-  "failed",
-  "deleting",
-]);
+export const assetStatusSchema = z.enum(assetStatuses);
 export type AssetStatus = z.infer<typeof assetStatusSchema>;
 
 export const listAssetsInputSchema = z.object({

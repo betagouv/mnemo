@@ -18,7 +18,6 @@
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/react": "^4.0.99",
     "@assistant-ui/ai-sdk": "0.0.4",
     "@assistant-ui/react": "0.15.18",
     "@assistant-ui/react-markdown": "0.14.14",
@@ -27,10 +26,10 @@
     "@mnemo/contracts": "workspace:*",
     "@mnemo/database": "workspace:*",
     "@mnemo/domain": "workspace:*",
-    "@mnemo/ifc-mcp-adapter": "workspace:*",
     "@mnemo/ifc-viewer-adapter": "workspace:*",
     "@mnemo/storage": "workspace:*",
     "@openrouter/ai-sdk-provider": "3.0.0",
+    "@ai-sdk/mcp": "2.0.47",
     "ai": "^7.0.96",
     "client-only": "0.0.1",
     "next": "16.3.4",

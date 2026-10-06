@@ -1,45 +1,50 @@
 .shell {
-  --viewer-border: rgb(255 255 255 / 14%);
-  --viewer-muted: #b9b9b9;
+  --viewer-border: #dddde3;
+  --viewer-muted: #666;
+  --viewer-text: #161616;
+  --viewer-accent: #000091;
+  --viewer-soft: #f5f5fe;
 
   display: grid;
-  grid-template-rows: 4rem minmax(0, 1fr);
+  grid-template-rows: 3.5rem minmax(0, 1fr);
   width: 100vw;
   height: 100dvh;
   overflow: hidden;
-  color: #fff;
-  background: #161616;
+  color: var(--viewer-text);
+  background: #fff;
 }
 
 .workspace {
   display: grid;
-  grid-template-columns: 17.5rem minmax(0, 1fr) 21rem;
+  grid-template-columns: 19rem minmax(0, 1fr) 19rem;
   min-width: 0;
   min-height: 0;
 }
 
-.explorerPlaceholder {
+.explorerColumn {
+  min-width: 0;
+  min-height: 0;
   border-right: 1px solid var(--viewer-border);
-  background: #1e1e1e;
+  background: #fff;
 }
 
 .toolbar {
   z-index: 2;
   display: flex;
-  gap: 1rem;
+  gap: 0.65rem;
   align-items: center;
   justify-content: space-between;
   min-width: 0;
-  padding: 0 1rem;
-  border-bottom: 1px solid rgb(255 255 255 / 14%);
-  background: #1e1e1e;
+  padding: 0 0.7rem;
+  border-bottom: 1px solid var(--viewer-border);
+  background: #fff;
 }
 
 .identity,
 .actions {
   display: flex;
   min-width: 0;
-  gap: 0.75rem;
+  gap: 0.5rem;
   align-items: center;
 }
 
@@ -51,8 +56,8 @@
   min-width: 2.5rem;
   min-height: 2.5rem;
   padding: 0.45rem 0.7rem;
-  border: 1px solid rgb(255 255 255 / 26%);
-  color: #fff;
+  border: 1px solid var(--viewer-border);
+  color: var(--viewer-accent);
   background: transparent;
   background-image: none;
   cursor: pointer;
@@ -60,7 +65,7 @@
 
 .back:hover,
 .actionButton:hover:not(:disabled) {
-  background: rgb(255 255 255 / 10%);
+  background: var(--viewer-soft);
 }
 
 .actionButton {
@@ -81,7 +86,7 @@
 .identity small {
   display: block;
   overflow: hidden;
-  color: #cecece;
+  color: var(--viewer-muted);
   font-size: 0.68rem;
   line-height: 1.1;
   text-overflow: ellipsis;
@@ -92,7 +97,7 @@
   overflow: hidden;
   max-width: min(44vw, 42rem);
   margin: 0.1rem 0 0;
-  color: #fff;
+  color: var(--viewer-text);
   font-size: 0.95rem;
   line-height: 1.25;
   text-overflow: ellipsis;
@@ -103,18 +108,8 @@
   display: inline-flex;
   gap: 0.45rem;
   align-items: center;
-  color: #cecece;
+  color: var(--viewer-muted);
   font-size: 0.75rem;
-  white-space: nowrap;
-}
-
-.engine {
-  padding: 0.25rem 0.5rem;
-  border: 1px solid rgb(133 133 246 / 42%);
-  color: #ceceff;
-  background: rgb(0 0 145 / 24%);
-  font-size: 0.68rem;
-  font-weight: 700;
   white-space: nowrap;
 }
 
@@ -122,17 +117,17 @@
   width: 0.45rem;
   height: 0.45rem;
   border-radius: 50%;
-  background: #e5e5e5;
+  background: #929292;
 }
 
 .phase[data-phase="ready"] i {
-  background: #3bea7e;
-  box-shadow: 0 0 0 0.2rem rgb(59 234 126 / 15%);
+  background: #18753c;
+  box-shadow: 0 0 0 0.2rem rgb(24 117 60 / 12%);
 }
 
 .phase[data-phase="error"] i,
 .phase[data-phase="device_lost"] i {
-  background: #ff5655;
+  background: #b34000;
 }
 
 .viewport {
@@ -149,7 +144,7 @@
   min-width: 0;
   min-height: 0;
   border-left: 1px solid var(--viewer-border);
-  background: #1e1e1e;
+  background: #fff;
 }
 
 .inspectorHeader {
@@ -166,14 +161,14 @@
   width: 2.25rem;
   height: 2.25rem;
   place-items: center;
-  border: 1px solid rgb(255 255 255 / 22%);
-  color: #fff;
+  border: 1px solid var(--viewer-border);
+  color: var(--viewer-accent);
   background: transparent;
   cursor: pointer;
 }
 
 .frameButton:hover {
-  background: rgb(255 255 255 / 9%);
+  background: var(--viewer-soft);
 }
 
 .inspectorTabs {
@@ -186,7 +181,7 @@
   position: relative;
   padding: 0 0.5rem;
   border: 0;
-  color: #aaa;
+  color: var(--viewer-muted);
   background: transparent;
   font-size: 0.7rem;
   font-weight: 700;
@@ -204,11 +199,11 @@
 }
 
 .inspectorTabs button[aria-selected="true"] {
-  color: #fff;
+  color: var(--viewer-accent);
 }
 
 .inspectorTabs button[aria-selected="true"]::after {
-  background: #8585f6;
+  background: var(--viewer-accent);
 }
 
 .inspectorTabs span {
@@ -220,14 +215,14 @@
   place-items: center;
   border-radius: 1rem;
   color: #fff;
-  background: #6a6af4;
+  background: var(--viewer-accent);
   font-size: 0.58rem;
 }
 
 .inspectorBody {
   min-height: 0;
   overflow: auto;
-  scrollbar-color: #666 transparent;
+  scrollbar-color: #b6b6bd transparent;
   scrollbar-width: thin;
 }
 
@@ -249,12 +244,12 @@
 
 .inspectorEmpty > span {
   margin-bottom: 0.75rem;
-  color: #8585f6;
+  color: var(--viewer-accent);
   font-size: 1.75rem;
 }
 
 .inspectorEmpty strong {
-  color: #fff;
+  color: var(--viewer-text);
   font-size: 0.85rem;
 }
 
@@ -277,7 +272,7 @@
 }
 
 .inspectorError {
-  color: #ffbdbd;
+  color: #b34000;
 }
 
 .canvas {
@@ -295,9 +290,9 @@
 .help {
   position: absolute;
   z-index: 1;
-  border: 1px solid rgb(255 255 255 / 14%);
-  color: #fff;
-  background: rgb(22 22 22 / 90%);
+  border: 1px solid var(--viewer-border);
+  color: var(--viewer-text);
+  background: rgb(255 255 255 / 94%);
   backdrop-filter: blur(0.7rem);
 }
 
@@ -326,7 +321,7 @@
 .loadCard p,
 .errorCard p {
   margin: 0.2rem 0 0;
-  color: #cecece;
+  color: var(--viewer-muted);
   font-size: 0.76rem;
 }
 
@@ -335,21 +330,21 @@
   width: 100%;
   height: 0.25rem;
   margin-top: 0.65rem;
-  accent-color: #8585f6;
+  accent-color: var(--viewer-accent);
 }
 
 .spinner {
   width: 1.1rem;
   height: 1.1rem;
   margin-top: 0.15rem;
-  border: 2px solid rgb(255 255 255 / 25%);
-  border-top-color: #8585f6;
+  border: 2px solid #dddde3;
+  border-top-color: var(--viewer-accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
 
 .errorCard > span {
-  color: #ff5655;
+  color: #b34000;
 }
 
 .errorCard button {
@@ -359,7 +354,7 @@
   color: #fff;
   font-size: 0.78rem;
   font-weight: 700;
-  background: #6a6af4;
+  background: var(--viewer-accent);
   cursor: pointer;
 }
 
@@ -378,14 +373,14 @@
 }
 
 .modelStats span {
-  color: #cecece;
+  color: var(--viewer-muted);
 }
 
 .modelStats i {
   width: 1px;
   height: 1rem;
   margin: 0 0.3rem;
-  background: rgb(255 255 255 / 22%);
+  background: var(--viewer-border);
 }
 
 .help {
@@ -394,7 +389,7 @@
   display: flex;
   gap: 1rem;
   padding: 0.5rem 0.75rem;
-  color: #cecece;
+  color: var(--viewer-muted);
   font-size: 0.68rem;
   transform: translateX(-50%);
   pointer-events: none;
@@ -454,7 +449,7 @@
     left: 0.5rem;
     max-height: min(46dvh, 25rem);
     border: 1px solid var(--viewer-border);
-    box-shadow: 0 0.75rem 2rem rgb(0 0 0 / 35%);
+    box-shadow: 0 0.75rem 2rem rgb(0 0 0 / 12%);
   }
 
   .inspector:has(.inspectorEmpty) {

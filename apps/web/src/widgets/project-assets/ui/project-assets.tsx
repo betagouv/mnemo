@@ -1,11 +1,11 @@
 "use client";
 
 import type { AssetSummary } from "@mnemo/contracts/assets";
+import Link from "next/link";
 import { useState } from "react";
 
 import { AssetCard } from "@/entities/asset";
 import { DeleteAssetButton } from "@/features/delete-asset";
-import { OpenIfcViewerLink } from "@/features/open-ifc-viewer";
 import { UploadAssetControls } from "@/features/upload-asset";
 
 import styles from "./project-assets.module.css";
@@ -42,7 +42,21 @@ export function ProjectAssets({
               {assets.length} {assets.length > 1 ? "fichiers" : "fichier"}
             </span>
           </div>
-          <UploadAssetControls onUploaded={updateAsset} projectId={projectId} />
+          <div className={styles.headingActions}>
+            {readyCount > 0 ? (
+              <Link
+                className={styles.viewerLink}
+                href={`/projets/${projectId}/viewer`}
+              >
+                <span className="fr-icon-eye-line" aria-hidden="true" />
+                Visualiser le projet
+              </Link>
+            ) : null}
+            <UploadAssetControls
+              onUploaded={updateAsset}
+              projectId={projectId}
+            />
+          </div>
         </div>
 
         {assets.length === 0 ? (
@@ -62,25 +76,16 @@ export function ProjectAssets({
             {assets.map((asset) => (
               <AssetCard
                 action={
-                  <>
-                    {asset.kind === "ifc" &&
-                    asset.status !== "upload_pending" ? (
-                      <OpenIfcViewerLink
-                        assetId={asset.id}
-                        projectId={projectId}
-                      />
-                    ) : null}
-                    <DeleteAssetButton
-                      assetId={asset.id}
-                      assetName={asset.originalFileName}
-                      onDeleted={(assetId) =>
-                        setAssets((current) =>
-                          current.filter((item) => item.id !== assetId),
-                        )
-                      }
-                      projectId={projectId}
-                    />
-                  </>
+                  <DeleteAssetButton
+                    assetId={asset.id}
+                    assetName={asset.originalFileName}
+                    onDeleted={(assetId) =>
+                      setAssets((current) =>
+                        current.filter((item) => item.id !== assetId),
+                      )
+                    }
+                    projectId={projectId}
+                  />
                 }
                 asset={asset}
                 key={asset.id}
@@ -108,8 +113,7 @@ export function ProjectAssets({
           </div>
         </dl>
         <p className={styles.hint}>
-          Un fichier reçu sera confié au worker de traitement lors de la
-          prochaine étape.
+          Les fichiers prêts sont réunis dans une seule vue du projet.
         </p>
       </aside>
     </div>
