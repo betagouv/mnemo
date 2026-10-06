@@ -6,7 +6,7 @@
   --viewer-soft: #f5f5fe;
 
   display: grid;
-  grid-template-rows: 3.5rem minmax(0, 1fr);
+  grid-template-rows: 3.5rem auto minmax(0, 1fr);
   width: 100vw;
   height: 100dvh;
   overflow: hidden;
@@ -16,9 +16,13 @@
 
 .workspace {
   display: grid;
-  grid-template-columns: 19rem minmax(0, 1fr) 19rem;
+  grid-template-columns: 19rem minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
+}
+
+.workspace[data-panel-open="true"] {
+  grid-template-columns: 19rem minmax(0, 1fr) 19rem;
 }
 
 .explorerColumn {
@@ -137,100 +141,7 @@
   overflow: hidden;
 }
 
-.inspector {
-  z-index: 2;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  min-width: 0;
-  min-height: 0;
-  border-left: 1px solid var(--viewer-border);
-  background: #fff;
-}
-
-.inspectorHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 3.75rem;
-  padding: 0.7rem 1rem;
-  border-bottom: 1px solid var(--viewer-border);
-}
-
-.frameButton {
-  display: inline-grid;
-  width: 2.25rem;
-  height: 2.25rem;
-  place-items: center;
-  border: 1px solid var(--viewer-border);
-  color: var(--viewer-accent);
-  background: transparent;
-  cursor: pointer;
-}
-
-.frameButton:hover {
-  background: var(--viewer-soft);
-}
-
-.inspectorTabs {
-  display: flex;
-  align-self: stretch;
-  gap: 0.2rem;
-}
-
-.inspectorTabs button {
-  position: relative;
-  padding: 0 0.5rem;
-  border: 0;
-  color: var(--viewer-muted);
-  background: transparent;
-  font-size: 0.7rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.inspectorTabs button::after {
-  position: absolute;
-  right: 0.5rem;
-  bottom: -0.7rem;
-  left: 0.5rem;
-  height: 2px;
-  background: transparent;
-  content: "";
-}
-
-.inspectorTabs button[aria-selected="true"] {
-  color: var(--viewer-accent);
-}
-
-.inspectorTabs button[aria-selected="true"]::after {
-  background: var(--viewer-accent);
-}
-
-.inspectorTabs span {
-  display: inline-grid;
-  min-width: 1.15rem;
-  min-height: 1.15rem;
-  margin-left: 0.2rem;
-  padding: 0 0.25rem;
-  place-items: center;
-  border-radius: 1rem;
-  color: #fff;
-  background: var(--viewer-accent);
-  font-size: 0.58rem;
-}
-
-.inspectorBody {
-  min-height: 0;
-  overflow: auto;
-  scrollbar-color: #b6b6bd transparent;
-  scrollbar-width: thin;
-}
-
-.inspectorBody[data-mode="assistant"] {
-  overflow: hidden;
-}
-
-.inspectorEmpty {
+.panelEmpty {
   display: grid;
   max-width: 16rem;
   min-height: 100%;
@@ -242,37 +153,41 @@
   text-align: center;
 }
 
-.inspectorEmpty > span {
+.panelEmpty > span {
   margin-bottom: 0.75rem;
   color: var(--viewer-accent);
   font-size: 1.75rem;
 }
 
-.inspectorEmpty strong {
+.panelEmpty strong {
   color: var(--viewer-text);
   font-size: 0.85rem;
 }
 
-.inspectorEmpty p,
-.inspectorState,
-.inspectorError {
+.panelEmpty p,
+.panelState,
+.panelError {
   color: var(--viewer-muted);
   font-size: 0.72rem;
   line-height: 1.45;
 }
 
-.inspectorEmpty p {
+.panelEmpty p {
   margin: 0.4rem 0 0;
 }
 
-.inspectorState,
-.inspectorError {
+.panelState,
+.panelError {
   margin: 0;
   padding: 1rem;
 }
 
-.inspectorError {
+.panelError {
   color: #b34000;
+}
+
+.upcoming {
+  padding: 1rem;
 }
 
 .canvas {
@@ -407,7 +322,7 @@
 
 @media (width <= 48rem) {
   .shell {
-    grid-template-rows: 3.5rem minmax(0, 1fr);
+    grid-template-rows: 3.5rem auto minmax(0, 1fr);
   }
 
   .toolbar {
@@ -433,32 +348,22 @@
     bottom: 0.5rem;
   }
 
-  .workspace {
+  .workspace,
+  .workspace[data-panel-open="true"] {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .explorerPlaceholder,
   .workspace > aside:first-child {
-    display: none;
-  }
-
-  .inspector {
-    position: absolute;
-    right: 0.5rem;
-    bottom: 0.5rem;
-    left: 0.5rem;
-    max-height: min(46dvh, 25rem);
-    border: 1px solid var(--viewer-border);
-    box-shadow: 0 0.75rem 2rem rgb(0 0 0 / 12%);
-  }
-
-  .inspector:has(.inspectorEmpty) {
     display: none;
   }
 }
 
 @media (width > 48rem) and (width <= 70rem) {
   .workspace {
+    grid-template-columns: 15rem minmax(0, 1fr);
+  }
+
+  .workspace[data-panel-open="true"] {
     grid-template-columns: 15rem minmax(0, 1fr) 18rem;
   }
 }

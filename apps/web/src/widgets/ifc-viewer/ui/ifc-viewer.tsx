@@ -5,13 +5,16 @@ import type {
   AssistantThreadHistory,
   AssistantThreadSummary,
 } from "@mnemo/contracts/assistant";
+import Alert from "@codegouvfr/react-dsfr/Alert";
+import Button from "@codegouvfr/react-dsfr/Button";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { IfcElementProperties } from "@/entities/ifc-element";
 import { IfcAssistantPanel } from "@/features/interact-with-ifc-assistant";
 import { BcfTopicsPanel } from "@/features/manage-bcf-topics";
 import { useProjectScene } from "../model/use-project-scene";
+import { viewerPanels, type ViewerPanelId } from "../model/viewer-tool-catalog";
 import type {
   ViewerIfcSource,
   ViewerPointCloudFailure,
@@ -21,6 +24,8 @@ import type {
 import styles from "./ifc-viewer.module.css";
 import { ProjectLayers } from "./project-layers";
 import { ViewCube } from "./view-cube";
+import { ViewerSidePanel } from "./viewer-side-panel";
+import { ViewerToolBar } from "./viewer-tool-bar";
 
 type AssistantSession = {
   threads: AssistantThreadSummary[];
@@ -74,15 +79,34 @@ export function ProjectViewer({
     reloadPointClouds,
     retry,
   } = useProjectScene({ ifcSources, pointCloudSources, projectId });
-  const [inspectorMode, setInspectorMode] = useState<
-    "properties" | "bcf" | "assistant"
-  >("properties");
+  const [activePanel, setActivePanel] = useState<ViewerPanelId | null>(null);
+  const [panelFocusRequest, setPanelFocusRequest] = useState(0);
   const [bcfTopicCount, setBcfTopicCount] = useState(initialBcfTopics.length);
+  const toolBarRef = useRef<HTMLDivElement>(null);
+  const lastToolbarTrigger = useRef<HTMLButtonElement | null>(null);
+  const lastSelectionKey = useRef<string | null>(null);
 
   const activeModelId = snapshot.activeModelId;
   const activeIfcSource = ifcSources.find(
     (source) => source.assetId === activeModelId,
   );
+  const selectionKey = snapshot.selection
+    ? `${activeModelId}:${snapshot.selection.expressId}`
+    : null;
+  const activePanelConfig = activePanel ? viewerPanels[activePanel] : null;
+  const upcomingDescription =
+    activePanelConfig && "upcoming" in activePanelConfig
+      ? activePanelConfig.upcoming
+      : null;
+
+  useEffect(() => {
+    if (selectionKey && selectionKey !== lastSelectionKey.current) {
+      lastToolbarTrigger.current = null;
+      setPanelFocusRequest(0);
+      setActivePanel("properties");
+    }
+    lastSelectionKey.current = selectionKey;
+  }, [selectionKey]);
   const failedSource = ifcSources.find(
     (source) =>
       source.assetId === failedAssetId ||
@@ -132,7 +156,18 @@ export function ProjectViewer({
         </div>
       </header>
 
-      <div className={styles.workspace}>
+      <ViewerToolBar
+        activePanel={activePanel}
+        bcfTopicCount={bcfTopicCount}
+        onSelect={(panel, trigger) => {
+          lastToolbarTrigger.current = trigger;
+          setActivePanel(panel);
+          setPanelFocusRequest((request) => request + 1);
+        }}
+        rootRef={toolBarRef}
+      />
+
+      <div className={styles.workspace} data-panel-open={Boolean(activePanel)}>
         <aside
           className={styles.explorerColumn}
           aria-label="Explorateur du projet"
@@ -257,128 +292,117 @@ export function ProjectViewer({
           </div>
         </section>
 
-        <aside className={styles.inspector} aria-label="Inspecteur BIM">
-          <header className={styles.inspectorHeader}>
-            <div className={styles.inspectorTabs} role="tablist">
-              <button
-                aria-selected={inspectorMode === "properties"}
-                onClick={() => setInspectorMode("properties")}
-                role="tab"
-                type="button"
-              >
-                Propriétés
-              </button>
-              <button
-                aria-selected={inspectorMode === "bcf"}
-                onClick={() => setInspectorMode("bcf")}
-                role="tab"
-                type="button"
-              >
-                BCF <span>{bcfTopicCount}</span>
-              </button>
-              <button
-                aria-selected={inspectorMode === "assistant"}
-                onClick={() => setInspectorMode("assistant")}
-                role="tab"
-                type="button"
-              >
-                Assistant
-              </button>
-            </div>
-            {inspectorMode === "properties" && snapshot.selection ? (
-              <button
-                className={styles.frameButton}
-                aria-label="Cadrer l’élément sélectionné"
+        <ViewerSidePanel
+          actions={
+            activePanel === "properties" && snapshot.selection ? (
+              <Button
+                iconId="fr-icon-focus-3-line"
                 onClick={() => controllerRef.current?.frameSelection()}
-                title="Cadrer l’élément"
-                type="button"
-              >
-                <span className="fr-icon-focus-3-line" aria-hidden="true" />
-              </button>
-            ) : null}
-          </header>
-
-          <div className={styles.inspectorBody} data-mode={inspectorMode}>
-            {activeIfcSource ? (
-              <IfcAssistantPanel
-                assetId={activeIfcSource.assetId}
-                configured={assistantConfigured}
-                getViewer={getViewer}
-                hidden={inspectorMode !== "assistant"}
-                initialHistory={
-                  assistantSessions[activeIfcSource.assetId]?.history ?? null
-                }
-                initialThreads={
-                  assistantSessions[activeIfcSource.assetId]?.threads ?? []
-                }
-                key={activeIfcSource.assetId}
-                mcpConfigured={assistantMcpConfigured}
-                projectId={projectId}
+                priority="tertiary no outline"
+                size="small"
+                title="Cadrer l’élément sélectionné"
               />
-            ) : null}
-            {inspectorMode === "assistant" ? (
-              activeIfcSource ? null : (
-                <p className={styles.inspectorState}>
-                  Ajoutez une maquette IFC pour utiliser l’assistant.
-                </p>
-              )
-            ) : inspectorMode === "bcf" ? (
-              <BcfTopicsPanel
-                assetId={activeModelId ?? ""}
-                canCaptureViewpoint={
-                  snapshot.phase === "ready" && Boolean(activeModelId)
-                }
-                initialTopics={initialBcfTopics}
-                onApplyViewpoint={(data, targetDistance) => {
-                  controllerRef.current?.applyBcfViewpoint(
-                    data,
-                    targetDistance,
-                  );
-                  setInspectorMode("properties");
-                }}
-                onCaptureViewpoint={() => {
-                  const controller = controllerRef.current;
-                  if (!controller) {
-                    return Promise.reject(
-                      new Error("La visionneuse n’est pas prête."),
-                    );
-                  }
-                  return controller.captureBcfViewpoint();
-                }}
-                onFocusComponent={(assetId, expressId) => {
-                  controllerRef.current?.setActiveModel(assetId);
-                  controllerRef.current?.selectEntity(expressId);
-                  controllerRef.current?.frameSelection();
-                  setInspectorMode("properties");
-                }}
-                onTopicCountChange={setBcfTopicCount}
-                projectId={projectId}
-                selection={snapshot.selection}
-                availableIfcAssetIds={ifcSources.map(
-                  (source) => source.assetId,
-                )}
-              />
-            ) : snapshot.selectionPhase === "loading" ? (
-              <p className={styles.inspectorState}>Lecture des propriétés…</p>
-            ) : snapshot.selectionPhase === "error" ? (
-              <p className={styles.inspectorError}>
-                {snapshot.selectionMessage ??
-                  "Les propriétés n’ont pas pu être lues."}
+            ) : null
+          }
+          focusRequest={panelFocusRequest}
+          iconClass={activePanelConfig?.icon}
+          isOpen={activePanel !== null}
+          mode={activePanel ?? undefined}
+          onClose={() => {
+            setActivePanel(null);
+            setPanelFocusRequest(0);
+            const returnTarget =
+              lastToolbarTrigger.current ??
+              toolBarRef.current?.querySelector("button");
+            returnTarget?.focus();
+          }}
+          title={activePanelConfig?.title ?? "Panneau d’outils"}
+        >
+          {activeIfcSource ? (
+            <IfcAssistantPanel
+              assetId={activeIfcSource.assetId}
+              configured={assistantConfigured}
+              getViewer={getViewer}
+              hidden={activePanel !== "assistant"}
+              initialHistory={
+                assistantSessions[activeIfcSource.assetId]?.history ?? null
+              }
+              initialThreads={
+                assistantSessions[activeIfcSource.assetId]?.threads ?? []
+              }
+              key={activeIfcSource.assetId}
+              mcpConfigured={assistantMcpConfigured}
+              projectId={projectId}
+            />
+          ) : null}
+          {activePanel === "assistant" ? (
+            activeIfcSource ? null : (
+              <p className={styles.panelState}>
+                Ajoutez une maquette IFC pour utiliser l’assistant.
               </p>
-            ) : snapshot.selection ? (
-              <IfcElementProperties element={snapshot.selection} />
-            ) : (
-              <div className={styles.inspectorEmpty}>
-                <span className="fr-icon-cursor-line" aria-hidden="true" />
-                <strong>Sélectionnez un élément</strong>
-                <p>
-                  Cliquez sur la maquette pour afficher son identité IFC et ses
-                  jeux de propriétés.
-                </p>
+            )
+          ) : activePanel === "bcf" ? (
+            <BcfTopicsPanel
+              assetId={activeModelId ?? ""}
+              canCaptureViewpoint={
+                snapshot.phase === "ready" && Boolean(activeModelId)
+              }
+              initialTopics={initialBcfTopics}
+              onApplyViewpoint={(data, targetDistance) => {
+                controllerRef.current?.applyBcfViewpoint(data, targetDistance);
+                setActivePanel("properties");
+              }}
+              onCaptureViewpoint={() => {
+                const controller = controllerRef.current;
+                if (!controller) {
+                  return Promise.reject(
+                    new Error("La visionneuse n’est pas prête."),
+                  );
+                }
+                return controller.captureBcfViewpoint();
+              }}
+              onFocusComponent={(assetId, expressId) => {
+                controllerRef.current?.setActiveModel(assetId);
+                controllerRef.current?.selectEntity(expressId);
+                controllerRef.current?.frameSelection();
+                setActivePanel("properties");
+              }}
+              onTopicCountChange={setBcfTopicCount}
+              projectId={projectId}
+              selection={snapshot.selection}
+              availableIfcAssetIds={ifcSources.map((source) => source.assetId)}
+            />
+          ) : activePanel !== "properties" ? (
+            upcomingDescription ? (
+              <div className={styles.upcoming}>
+                <Alert
+                  description={upcomingDescription}
+                  role="status"
+                  severity="info"
+                  title="Outil en préparation"
+                />
               </div>
-            )}
-          </div>
-        </aside>
+            ) : null
+          ) : snapshot.selectionPhase === "loading" ? (
+            <p className={styles.panelState}>Lecture des propriétés…</p>
+          ) : snapshot.selectionPhase === "error" ? (
+            <p className={styles.panelError}>
+              {snapshot.selectionMessage ??
+                "Les propriétés n’ont pas pu être lues."}
+            </p>
+          ) : snapshot.selection ? (
+            <IfcElementProperties element={snapshot.selection} />
+          ) : (
+            <div className={styles.panelEmpty}>
+              <span className="fr-icon-cursor-line" aria-hidden="true" />
+              <strong>Sélectionnez un élément</strong>
+              <p>
+                Cliquez sur la maquette pour afficher son identité IFC et ses
+                jeux de propriétés.
+              </p>
+            </div>
+          )}
+        </ViewerSidePanel>
       </div>
     </main>
   );
