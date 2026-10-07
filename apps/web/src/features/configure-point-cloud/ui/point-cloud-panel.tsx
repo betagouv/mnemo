@@ -1,6 +1,5 @@
 "use client";
 
-import Accordion from "@codegouvfr/react-dsfr/Accordion";
 import type {
   PointCloudSnapshot,
   PointCloudTransform,
@@ -8,6 +7,7 @@ import type {
 import { useState } from "react";
 
 import { updatePointCloudSettings } from "@/server/point-clouds/actions";
+import { InlineDisclosure } from "@/shared/ui/inline-disclosure";
 import { VisibilityCheckbox } from "@/shared/ui/visibility-checkbox";
 
 import styles from "./point-cloud-panel.module.css";
@@ -152,7 +152,7 @@ export function PointCloudPanel({
           </button>
         </section>
 
-        {configurations.map((configuration) => {
+        {configurations.map((configuration, index) => {
           const pointCloud = pointClouds.find(
             (item) => item.assetId === configuration.assetId,
           );
@@ -169,20 +169,21 @@ export function PointCloudPanel({
               data-hidden={!visible}
               key={configuration.assetId}
             >
-              <VisibilityCheckbox
-                cycle="two-state"
+              <InlineDisclosure
+                defaultExpanded={index === 0}
                 label={configuration.fileName}
-                mode={visible ? "show" : "hide"}
-                onChange={(mode) =>
-                  onVisibilityChange(configuration.assetId, mode === "show")
+                visibilityControl={
+                  <VisibilityCheckbox
+                    cycle="two-state"
+                    label={configuration.fileName}
+                    mode={visible ? "show" : "hide"}
+                    onChange={(mode) =>
+                      onVisibilityChange(configuration.assetId, mode === "show")
+                    }
+                  />
                 }
-              />
-              <Accordion
-                className={styles.cloud}
-                defaultExpanded={configurations.length === 1}
-                label={configuration.fileName}
               >
-                <section>
+                <section className={styles.cloudDetails}>
                   <header>
                     <span data-phase={pointCloud?.phase}>
                       {visible ? phaseLabel(pointCloud) : "Masqué"}
@@ -277,7 +278,7 @@ export function PointCloudPanel({
                     <p role="status">{saveMessage[configuration.assetId]}</p>
                   ) : null}
                 </section>
-              </Accordion>
+              </InlineDisclosure>
             </div>
           );
         })}

@@ -5,19 +5,24 @@ import { useEffect, useId, useRef, useState, type RefObject } from "react";
 import {
   viewerToolGroups,
   type ViewerPanelId,
+  type ViewerToolGroupId,
 } from "../model/viewer-tool-catalog";
 
 import styles from "./viewer-tool-bar.module.css";
 
 export function ViewerToolBar({
-  activePanel,
+  activeGroupId,
   bcfTopicCount,
   onSelect,
   rootRef,
 }: {
-  activePanel: ViewerPanelId | null;
+  activeGroupId: ViewerToolGroupId | null;
   bcfTopicCount: number;
-  onSelect: (panel: ViewerPanelId, trigger: HTMLButtonElement) => void;
+  onSelect: (
+    panel: ViewerPanelId,
+    groupId: ViewerToolGroupId,
+    trigger: HTMLButtonElement,
+  ) => void;
   rootRef: RefObject<HTMLDivElement | null>;
 }) {
   const menuPrefix = useId();
@@ -35,10 +40,10 @@ export function ViewerToolBar({
       document.removeEventListener("pointerdown", closeOnOutsideClick);
   }, [openGroup]);
 
-  const select = (panel: ViewerPanelId, groupId: string) => {
+  const select = (panel: ViewerPanelId, groupId: ViewerToolGroupId) => {
     const trigger = triggerRefs.current[groupId];
     setOpenGroup(null);
-    if (trigger) onSelect(panel, trigger);
+    if (trigger) onSelect(panel, groupId, trigger);
   };
 
   return (
@@ -61,12 +66,15 @@ export function ViewerToolBar({
         {viewerToolGroups.map((group) => {
           const hasMenu = group.actions.length > 1;
           const expanded = openGroup === group.id;
-          const isActive = group.actions.some(
-            (action) => action.panel === activePanel,
-          );
+          const isActive = group.id === activeGroupId;
           return (
             <li className={styles.item} key={group.id}>
               <button
+                aria-label={
+                  group.id === "annotations" && bcfTopicCount > 0
+                    ? `${group.label} (${bcfTopicCount})`
+                    : group.label
+                }
                 aria-controls={
                   hasMenu ? `${menuPrefix}-viewer-tools-${group.id}` : undefined
                 }

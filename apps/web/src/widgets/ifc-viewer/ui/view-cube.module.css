@@ -1,16 +1,13 @@
 .container {
   position: absolute;
   z-index: 2;
-  top: 0.75rem;
-  right: 3.5rem;
+  top: 0.875rem;
+  right: 0.875rem;
   display: flex;
   width: 6.25rem;
   flex-direction: column;
   align-items: center;
   gap: 0.45rem;
-  /* border: 1px solid #dddde3; */
-  /* background: rgb(255 255 255 / 92%); */
-  /* box-shadow: 0 2px 8px rgb(0 0 0 / 8%); */
 }
 
 .perspective {
@@ -46,7 +43,7 @@
   color: #3a3a3a;
   background: #fff;
   cursor: pointer;
-  font-size: 0.57rem;
+  font-size: 0.62rem;
   line-height: 1;
 }
 
@@ -77,6 +74,38 @@
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 1.4;
+}
+
+.fitButton {
+  display: inline-flex;
+  width: 100%;
+  min-height: 2rem;
+  gap: 0.25rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  border: 1px solid #dddde3;
+  border-radius: 0.25rem;
+  color: #000091;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.65rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.fitButton:hover {
+  background: #f5f5fe;
+}
+
+.fitButton:focus-visible {
+  outline: 2px solid #000091;
+  outline-offset: 2px;
+}
+
+.fitButton span::before {
+  --icon-size: 0.85rem;
+  margin: 0;
 }
 
 .cube {

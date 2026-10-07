@@ -1,6 +1,5 @@
 "use client";
 
-import Accordion from "@codegouvfr/react-dsfr/Accordion";
 import Tabs from "@codegouvfr/react-dsfr/Tabs";
 import {
   type BimLayerTarget,
@@ -16,6 +15,7 @@ import {
   type PointCloudConfiguration,
 } from "@/features/configure-point-cloud";
 import { VisibilityCheckbox } from "@/shared/ui/visibility-checkbox";
+import { InlineDisclosure } from "@/shared/ui/inline-disclosure";
 
 import styles from "./project-layers.module.css";
 
@@ -243,9 +243,6 @@ export function ProjectLayers({
       >
         <>
           <div className={styles.tabContent} hidden={tab !== "bim"}>
-            <p className={styles.legend}>
-              ☑ Visible · ▣ Transparent · □ Masqué. Cliquez pour changer d’état.
-            </p>
             {ifcSources.map((source, index) => {
               const model = snapshot.models.find(
                 (item) => item.assetId === source.assetId,
@@ -268,71 +265,71 @@ export function ProjectLayers({
                   data-exceptions={modelExceptions > 0}
                   key={source.assetId}
                 >
-                  <div className={styles.modelHeader}>
+                  <InlineDisclosure
+                    defaultExpanded={index === 0}
+                    label={source.fileName}
+                    visibilityControl={
+                      ready ? (
+                        <VisibilityCheckbox
+                          exceptionCount={modelExceptions}
+                          label={source.fileName}
+                          mode={modelMode}
+                          onChange={(mode) =>
+                            getViewer()?.setLayerVisibility(
+                              source.assetId,
+                              { kind: "model" },
+                              mode,
+                            )
+                          }
+                        />
+                      ) : undefined
+                    }
+                  >
                     {ready ? (
-                      <VisibilityCheckbox
-                        exceptionCount={modelExceptions}
-                        label={source.fileName}
-                        mode={modelMode}
-                        onChange={(mode) =>
-                          getViewer()?.setLayerVisibility(
-                            source.assetId,
-                            { kind: "model" },
-                            mode,
-                          )
-                        }
-                      />
-                    ) : null}
-                    <Accordion
-                      label={source.fileName}
-                      defaultExpanded={index === 0}
-                    >
-                      {ready ? (
-                        <>
-                          <button
-                            className={styles.activate}
-                            disabled={snapshot.activeModelId === source.assetId}
-                            onClick={() =>
-                              getViewer()?.setActiveModel(source.assetId)
-                            }
-                            type="button"
-                          >
-                            {snapshot.activeModelId === source.assetId
-                              ? "Maquette active"
-                              : "Inspecter cette maquette"}
-                          </button>
-                          {storeys.map((storey) => (
-                            <StoreyTree
-                              assetId={source.assetId}
-                              count={storey.elementCount}
-                              getViewer={getViewer}
-                              key={storey.expressId}
-                              name={storey.name}
-                              storeyId={storey.expressId}
-                            />
-                          ))}
-                          {model.catalog?.unassignedCount ? (
-                            <StoreyTree
-                              assetId={source.assetId}
-                              count={model.catalog.unassignedCount}
-                              getViewer={getViewer}
-                              name="Éléments sans niveau"
-                              storeyId={null}
-                            />
-                          ) : null}
-                        </>
-                      ) : (
-                        <p className={styles.geoStatus}>
-                          {model?.message ?? "Chargement en cours…"}
-                        </p>
-                      )}
-                    </Accordion>
-                  </div>
+                      <>
+                        <button
+                          className={styles.activate}
+                          disabled={snapshot.activeModelId === source.assetId}
+                          onClick={() =>
+                            getViewer()?.setActiveModel(source.assetId)
+                          }
+                          type="button"
+                        >
+                          {snapshot.activeModelId === source.assetId
+                            ? "Maquette active"
+                            : "Inspecter cette maquette"}
+                        </button>
+                        {storeys.map((storey) => (
+                          <StoreyTree
+                            assetId={source.assetId}
+                            count={storey.elementCount}
+                            getViewer={getViewer}
+                            key={storey.expressId}
+                            name={storey.name}
+                            storeyId={storey.expressId}
+                          />
+                        ))}
+                        {model.catalog?.unassignedCount ? (
+                          <StoreyTree
+                            assetId={source.assetId}
+                            count={model.catalog.unassignedCount}
+                            getViewer={getViewer}
+                            name="Éléments sans niveau"
+                            storeyId={null}
+                          />
+                        ) : null}
+                      </>
+                    ) : (
+                      <p className={styles.geoStatus}>
+                        {model?.message ?? "Chargement en cours…"}
+                      </p>
+                    )}
+                  </InlineDisclosure>
                 </div>
               );
             })}
             {snapshot.catalog ? (
-              <Accordion label="Filtres et couleurs">
+              <InlineDisclosure label="Filtres et couleurs">
                 <BimExplorer
                   key={snapshot.activeModelId}
                   catalog={snapshot.catalog}
@@ -350,7 +347,7 @@ export function ProjectLayers({
                   }
                   visual={snapshot.visual}
                 />
-              </Accordion>
+              </InlineDisclosure>
             ) : null}
           </div>
           <div className={styles.tabContent} hidden={tab !== "survey"}>

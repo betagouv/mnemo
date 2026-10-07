@@ -116,3 +116,5 @@ export const viewerToolGroups = [
     actions: [{ label: "Remarques BCF", panel: "bcf" }],
   },
 ] as const satisfies readonly ViewerToolGroup[];
+
+export type ViewerToolGroupId = (typeof viewerToolGroups)[number]["id"];

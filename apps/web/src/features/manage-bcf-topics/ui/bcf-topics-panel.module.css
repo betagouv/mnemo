@@ -1,9 +1,10 @@
 .panel {
   display: grid;
-  gap: 1rem;
-  padding: 0.9rem;
+  gap: 1.15rem;
+  align-content: start;
+  padding: 1rem;
   color: var(--viewer-text);
-  font-size: 0.72rem;
+  font-size: 0.8rem;
 }
 
 .panel input,
@@ -14,20 +15,27 @@
   border: 1px solid var(--viewer-border);
   border-radius: 0;
   color: var(--viewer-text);
-  background: var(--viewer-soft);
+  background: #fff;
   font: inherit;
 }
 
 .panel input,
 .panel select {
-  height: 2.25rem;
-  padding: 0 0.6rem;
+  height: 2.375rem;
+  padding: 0 0.7rem;
 }
 
 .panel textarea {
-  min-height: 3.4rem;
-  padding: 0.55rem 0.6rem;
+  min-height: 5rem;
+  padding: 0.65rem 0.7rem;
   resize: vertical;
+}
+
+.panel input:focus-visible,
+.panel textarea:focus-visible,
+.panel select:focus-visible {
+  outline: 2px solid var(--viewer-accent);
+  outline-offset: 2px;
 }
 
 .panel button {
@@ -51,17 +59,17 @@
 .exchange {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
+  gap: 0.55rem;
 }
 
 .exchange label,
 .exchange button {
   display: flex;
-  min-height: 2.25rem;
+  min-height: 2.375rem;
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
-  padding: 0.35rem 0.5rem;
+  padding: 0.35rem 0.6rem;
   border: 1px solid var(--viewer-accent);
   color: var(--viewer-accent);
   background: transparent;
@@ -91,7 +99,7 @@
 
 .create {
   display: grid;
-  gap: 0.55rem;
+  gap: 0.65rem;
 }
 
 .create > button,
@@ -107,13 +115,13 @@
 }
 
 .sectionTitle strong {
-  font-size: 0.78rem;
+  font-size: 0.82rem;
 }
 
 .sectionTitle span {
   overflow: hidden;
   color: var(--viewer-muted);
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -128,7 +136,7 @@
   display: grid;
   gap: 0.25rem;
   color: var(--viewer-muted);
-  font-size: 0.64rem;
+  font-size: 0.7rem;
 }
 
 .message {
@@ -139,8 +147,8 @@
 .topics,
 .detail {
   display: grid;
-  gap: 0.55rem;
-  padding-top: 0.85rem;
+  gap: 0.7rem;
+  padding-top: 1rem;
   border-top: 1px solid var(--viewer-border);
 }
 
@@ -152,7 +160,7 @@
 .topicList > button {
   display: grid;
   gap: 0.2rem;
-  padding: 0.55rem 0.6rem;
+  padding: 0.65rem 0.7rem;
   border-color: transparent;
   text-align: left;
 }

@@ -5,48 +5,35 @@
 }
 
 .cloudRow {
-  display: flex;
   min-width: 0;
-  gap: 0.2rem;
-  align-items: flex-start;
-  border-bottom: 1px solid var(--viewer-border);
-}
-
-.cloudRow > .cloud {
-  min-width: 0;
-  flex: 1;
 }
 
 .cloudRow[data-hidden="true"] {
   background: var(--viewer-soft);
 }
 
-.cloudRow[data-hidden="true"] :global(.fr-accordion__btn) {
+.cloudRow[data-hidden="true"] button[aria-expanded] {
   color: var(--viewer-muted);
 }
 
-.cloudRow > [role="checkbox"] {
-  margin-top: 0.42rem;
-}
-
 .body {
-  border-top: 1px solid var(--viewer-border);
+  min-width: 0;
 }
 
 .body > .rendering {
-  padding: 0.55rem 0.35rem;
+  padding: 0.7rem 0.35rem;
   border-bottom: 1px solid var(--viewer-border);
 }
 
-.cloud :global(.fr-collapse) > section {
-  padding: 0.55rem 0.35rem;
+.cloudDetails {
+  padding: 0.25rem 0 0;
 }
 
 .body h2 {
   overflow: hidden;
   margin: 0;
   color: var(--viewer-text);
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -57,7 +44,7 @@
   gap: 0.25rem 0.5rem;
   margin-top: 0.45rem;
   color: var(--viewer-muted);
-  font-size: 0.65rem;
+  font-size: 0.7rem;
 }
 
 .rendering input {
@@ -74,7 +61,7 @@
   border: 1px solid var(--viewer-accent);
   color: var(--viewer-accent);
   background: transparent;
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   font-weight: 700;
   cursor: pointer;
 }
@@ -86,14 +73,14 @@
 }
 
 .rendering p,
-.cloud p {
+.cloudDetails p {
   margin: 0.45rem 0 0;
   color: var(--viewer-muted);
-  font-size: 0.58rem;
+  font-size: 0.65rem;
   line-height: 1.4;
 }
 
-.cloud header {
+.cloudDetails header {
   display: flex;
   min-width: 0;
   gap: 0.35rem;
@@ -101,27 +88,27 @@
   justify-content: space-between;
 }
 
-.cloud header span {
+.cloudDetails header span {
   flex: none;
   color: var(--viewer-muted);
-  font-size: 0.56rem;
+  font-size: 0.63rem;
 }
 
-.cloud header span[data-phase="ready"] {
+.cloudDetails header span[data-phase="ready"] {
   color: #18753c;
 }
 
-.cloud header span[data-phase="error"],
+.cloudDetails header span[data-phase="error"],
 .error {
   color: #b34000 !important;
 }
 
-.cloud header > strong {
+.cloudDetails header > strong {
   flex: none;
-  font-size: 0.58rem;
+  font-size: 0.65rem;
 }
 
-.cloud progress {
+.cloudDetails progress {
   width: 100%;
   height: 0.2rem;
   margin-top: 0.5rem;
@@ -139,7 +126,7 @@
 .axisLabels {
   margin-top: 0.45rem;
   color: var(--viewer-muted);
-  font-size: 0.55rem;
+  font-size: 0.62rem;
   text-align: center;
 }
 
@@ -150,7 +137,7 @@
 .vector label,
 .crs label {
   color: var(--viewer-muted);
-  font-size: 0.58rem;
+  font-size: 0.65rem;
 }
 
 .vector input,
@@ -162,7 +149,7 @@
   border: 1px solid var(--viewer-border);
   color: var(--viewer-text);
   background: var(--viewer-soft);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
 }
 
 .vector input[type="number"] {

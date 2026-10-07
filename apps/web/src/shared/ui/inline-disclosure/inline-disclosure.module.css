@@ -1,0 +1,77 @@
+.disclosure {
+  min-width: 0;
+  border-bottom: 1px solid var(--viewer-border, #dedee6);
+}
+
+.header {
+  display: grid;
+  min-height: 2.4rem;
+  grid-template-columns: 1rem minmax(0, 1fr);
+  gap: 0.45rem;
+  align-items: center;
+  padding: 0.2rem 0.25rem;
+}
+
+.header[data-expanded="true"] {
+  background: var(--viewer-soft, #f5f5fe);
+}
+
+.heading {
+  grid-column: 2;
+  min-width: 0;
+  margin: 0;
+}
+
+.toggle {
+  display: flex;
+  width: 100%;
+  min-height: 2rem;
+  min-width: 0;
+  gap: 0.3rem;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  color: var(--viewer-accent, #000091);
+  background: transparent;
+  background-image: none;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+.toggle:focus-visible {
+  outline: 2px solid var(--viewer-accent, #000091);
+  outline-offset: 2px;
+}
+
+.label {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chevron {
+  flex: none;
+  margin-left: auto;
+  transition: transform 0.2s;
+}
+
+.chevron::before {
+  --icon-size: 0.85rem;
+  margin: 0;
+}
+
+.toggle[aria-expanded="true"] .chevron {
+  transform: rotate(180deg);
+}
+
+.body {
+  min-width: 0;
+  padding: 0.2rem 0.25rem 0.45rem 1.7rem;
+}
+
+.body[hidden] {
+  display: none;
+}

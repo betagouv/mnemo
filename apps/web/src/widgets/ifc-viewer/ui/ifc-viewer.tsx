@@ -14,7 +14,11 @@ import { IfcElementProperties } from "@/entities/ifc-element";
 import { IfcAssistantPanel } from "@/features/interact-with-ifc-assistant";
 import { BcfTopicsPanel } from "@/features/manage-bcf-topics";
 import { useProjectScene } from "../model/use-project-scene";
-import { viewerPanels, type ViewerPanelId } from "../model/viewer-tool-catalog";
+import {
+  viewerPanels,
+  type ViewerPanelId,
+  type ViewerToolGroupId,
+} from "../model/viewer-tool-catalog";
 import type {
   ViewerIfcSource,
   ViewerPointCloudFailure,
@@ -80,6 +84,8 @@ export function ProjectViewer({
     retry,
   } = useProjectScene({ ifcSources, pointCloudSources, projectId });
   const [activePanel, setActivePanel] = useState<ViewerPanelId | null>(null);
+  const [activeToolGroup, setActiveToolGroup] =
+    useState<ViewerToolGroupId | null>(null);
   const [panelFocusRequest, setPanelFocusRequest] = useState(0);
   const [bcfTopicCount, setBcfTopicCount] = useState(initialBcfTopics.length);
   const toolBarRef = useRef<HTMLDivElement>(null);
@@ -104,6 +110,7 @@ export function ProjectViewer({
       lastToolbarTrigger.current = null;
       setPanelFocusRequest(0);
       setActivePanel("properties");
+      setActiveToolGroup("data");
     }
     lastSelectionKey.current = selectionKey;
   }, [selectionKey]);
@@ -138,30 +145,15 @@ export function ProjectViewer({
             <h1 title={projectName}>{projectName}</h1>
           </div>
         </div>
-
-        <div className={styles.actions}>
-          <span className={styles.phase} data-phase={snapshot.phase}>
-            <i aria-hidden="true" />
-            {phaseLabels[snapshot.phase]}
-          </span>
-          <button
-            className={styles.actionButton}
-            disabled={snapshot.phase !== "ready"}
-            onClick={() => controllerRef.current?.fitToView()}
-            type="button"
-          >
-            <span className="fr-icon-focus-3-line" aria-hidden="true" />
-            Tout cadrer
-          </button>
-        </div>
       </header>
 
       <ViewerToolBar
-        activePanel={activePanel}
+        activeGroupId={activeToolGroup}
         bcfTopicCount={bcfTopicCount}
-        onSelect={(panel, trigger) => {
+        onSelect={(panel, groupId, trigger) => {
           lastToolbarTrigger.current = trigger;
           setActivePanel(panel);
+          setActiveToolGroup(groupId);
           setPanelFocusRequest((request) => request + 1);
         }}
         rootRef={toolBarRef}
@@ -310,6 +302,7 @@ export function ProjectViewer({
           mode={activePanel ?? undefined}
           onClose={() => {
             setActivePanel(null);
+            setActiveToolGroup(null);
             setPanelFocusRequest(0);
             const returnTarget =
               lastToolbarTrigger.current ??
@@ -351,6 +344,7 @@ export function ProjectViewer({
               onApplyViewpoint={(data, targetDistance) => {
                 controllerRef.current?.applyBcfViewpoint(data, targetDistance);
                 setActivePanel("properties");
+                setActiveToolGroup("data");
               }}
               onCaptureViewpoint={() => {
                 const controller = controllerRef.current;
@@ -366,6 +360,7 @@ export function ProjectViewer({
                 controllerRef.current?.selectEntity(expressId);
                 controllerRef.current?.frameSelection();
                 setActivePanel("properties");
+                setActiveToolGroup("data");
               }}
               onTopicCountChange={setBcfTopicCount}
               projectId={projectId}

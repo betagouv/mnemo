@@ -158,6 +158,7 @@ export function ViewCube({
           ))}
         </div>
       </div>
+      <div className="block h-4"></div>
       <div
         aria-label="Type de projection"
         className={styles.projectionSwitch}
@@ -178,6 +179,15 @@ export function ViewCube({
           </button>
         ))}
       </div>
+      <button
+        className={styles.fitButton}
+        onClick={() => getViewer()?.fitToView()}
+        title="Tout cadrer"
+        type="button"
+      >
+        <span className="fr-icon-focus-3-line" aria-hidden="true" />
+        Tout cadrer
+      </button>
     </nav>
   );
 }

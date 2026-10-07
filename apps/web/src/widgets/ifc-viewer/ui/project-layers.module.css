@@ -14,20 +14,21 @@
 }
 
 .tabs :global(.fr-tabs__list) {
-  min-height: 2.5rem;
-  padding: 4px 0.2rem;
+  min-height: 2.75rem;
+  padding: 0.2rem 0.45rem 0;
+  border-bottom: 1px solid var(--viewer-border);
 }
 
 .tabs :global(.fr-tabs__tab) {
-  min-height: 2.25rem;
-  margin: 0 0.1rem;
-  padding: 0.3rem 0.65rem;
-  font-size: 0.82rem;
+  min-height: 2.4rem;
+  margin: 0 0.15rem;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.8rem;
   line-height: 1.3rem;
 }
 
 .tabs :global(.fr-tabs__panel) {
-  height: calc(100% - 2.5rem);
+  height: calc(100% - 2.75rem);
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
@@ -36,54 +37,17 @@
   scrollbar-width: thin;
 }
 
-.tabs :global(.fr-accordion__btn) {
-  min-height: 2.25rem;
-  padding: 0.35rem 0.45rem;
-  font-size: 0.78rem;
-  line-height: 1.2rem;
-}
-
-.tabs :global(.fr-accordion .fr-collapse--expanded) {
-  padding: 0.2rem 0.45rem 0.55rem;
-}
-
 .tabContent {
   min-width: 0;
-  padding: 0.35rem 0.45rem 0.8rem;
+  padding: 0.35rem 0.55rem 0.8rem;
 }
 
-.legend,
 .geoStatus,
 .empty {
   margin: 0.2rem 0 0.4rem;
   color: var(--viewer-muted);
   font-size: 0.7rem;
   line-height: 1.4;
-}
-
-.model {
-  border-bottom: 1px solid var(--viewer-border);
-}
-
-.modelHeader {
-  display: flex;
-  min-width: 0;
-  gap: 0.2rem;
-  align-items: flex-start;
-}
-
-.modelHeader > :last-child {
-  min-width: 0;
-  flex: 1;
-}
-
-.modelHeader :global(.fr-accordion__btn) {
-  overflow-wrap: anywhere;
-  white-space: normal;
-}
-
-.modelHeader > [role="checkbox"] {
-  margin-top: 0.42rem;
 }
 
 .model[data-mode="hide"][data-exceptions="true"],
