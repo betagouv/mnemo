@@ -39,13 +39,18 @@ export async function ProjectDetailScreen({
   const assets = await getAssetService().list(actorId, project.id);
 
   return (
-    <div className={`fr-container ${styles.page}`}>
-      <Link className={styles.back} href="/projets">
+    <div className="fr-container pb-20 pt-8">
+      <Link
+        className={`${styles.back} mb-10 inline-flex items-center gap-[0.4rem]`}
+        href="/projets"
+      >
         <span className="fr-icon-arrow-left-line" aria-hidden="true" />
         Tous les dossiers
       </Link>
 
-      <header className={styles.heading}>
+      <header
+        className={`${styles.heading} mb-12 flex items-end justify-between gap-8 max-[577px]:items-start`}
+      >
         <div>
           <p className={styles.eyebrow}>PROJET · {roleLabels[project.role]}</p>
           <h1>{project.title}</h1>
@@ -56,8 +61,10 @@ export async function ProjectDetailScreen({
               "Cet espace est prêt à recevoir ses premières données."}
           </p>
         </div>
-        <div className={styles.headingActions}>
-          <div className={styles.status}>
+        <div className="flex flex-none items-center gap-3">
+          <div
+            className={`${styles.status} flex flex-none items-center gap-[0.55rem] px-3 py-2 max-[577px]:hidden`}
+          >
             <span aria-hidden="true" />
             Espace actif
           </div>

@@ -46,6 +46,13 @@ const phaseLabels = {
   device_lost: "Affichage 3D interrompu",
 } as const;
 
+const shellLayout =
+  "grid h-dvh w-screen overflow-hidden grid-cols-[7.5rem_minmax(0,1fr)] grid-rows-[3.5rem_minmax(0,1fr)] min-[769px]:grid-cols-[15.5rem_minmax(0,1fr)] min-[769px]:grid-rows-[3.75rem_minmax(0,1fr)] min-[1201px]:grid-cols-[17.5rem_minmax(0,1fr)]";
+const workspaceLayout =
+  "relative col-span-full grid min-h-0 min-w-0 grid-cols-[minmax(0,1fr)] min-[769px]:grid-cols-[15.5rem_minmax(0,1fr)] min-[1201px]:grid-cols-[17.5rem_minmax(0,1fr)]";
+const openPanelLayout =
+  "min-[769px]:max-[897px]:grid-cols-[minmax(0,1fr)] min-[1025px]:grid-cols-[15.5rem_minmax(0,1fr)_20rem] min-[1201px]:grid-cols-[17.5rem_minmax(0,1fr)_22rem]";
+
 export function ProjectViewer({
   assistantSessions,
   assistantConfigured,
@@ -130,9 +137,11 @@ export function ProjectViewer({
     snapshot.phase === "error" || snapshot.phase === "device_lost";
 
   return (
-    <main className={styles.shell}>
-      <header className={styles.toolbar}>
-        <div className={styles.identity}>
+    <main className={`${styles.shell} ${shellLayout}`}>
+      <header className="z-[2] flex min-w-0 items-center border-b border-r border-[var(--viewer-border)] bg-white px-3.5 max-[769px]:px-1.5">
+        <div
+          className={`${styles.identity} flex min-w-0 items-center gap-2.5 max-[769px]:gap-1.5`}
+        >
           <Link
             aria-label={`Retour au projet ${projectName}`}
             className={styles.back}
@@ -159,9 +168,12 @@ export function ProjectViewer({
         rootRef={toolBarRef}
       />
 
-      <div className={styles.workspace} data-panel-open={Boolean(activePanel)}>
+      <div
+        className={`${workspaceLayout} ${activePanel ? openPanelLayout : ""}`}
+        data-panel-open={Boolean(activePanel)}
+      >
         <aside
-          className={styles.explorerColumn}
+          className={`${styles.explorerColumn} min-h-0 min-w-0 ${activePanel ? "max-[897px]:hidden" : "max-[769px]:hidden"}`}
           aria-label="Explorateur du projet"
         >
           <ProjectLayers
@@ -186,7 +198,7 @@ export function ProjectViewer({
         </aside>
 
         <section
-          className={styles.viewport}
+          className="relative min-h-0 min-w-0 overflow-hidden bg-[#f7f7fb]"
           aria-label="Visionneuse 3D du projet"
         >
           <canvas

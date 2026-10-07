@@ -15,8 +15,6 @@
 
 .tabs :global(.fr-tabs__list) {
   min-height: 2.75rem;
-  padding: 0.2rem 0.45rem 0;
-  border-bottom: 1px solid var(--viewer-border);
 }
 
 .tabs :global(.fr-tabs__tab) {

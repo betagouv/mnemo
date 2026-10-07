@@ -4,9 +4,12 @@ import styles from "./home-screen.module.css";
 
 export function HomeScreen() {
   return (
-    <main className={styles.panels}>
-      <section className={styles.panel} aria-labelledby="mission-title">
-        <div className={styles.content}>
+    <main className="grid min-h-160 grid-cols-1 bg-[var(--background-default-grey)] text-[var(--text-default-grey)] min-[993px]:grid-cols-2">
+      <section
+        className="flex items-center p-[clamp(2.5rem,6vw,6rem)]"
+        aria-labelledby="mission-title"
+      >
+        <div className={`${styles.content} max-w-[37rem]`}>
           <p className="fr-badge fr-badge--sm">Comprendre ses données</p>
           <h1 id="mission-title">
             Piloter vos décisions numériques pour le bâtiment patrimonial
@@ -32,11 +35,11 @@ export function HomeScreen() {
       </section>
 
       <section
-        className={`${styles.panel} ${styles.accessPanel}`}
+        className="flex items-center bg-[var(--background-alt-blue-france)] p-[clamp(2.5rem,6vw,6rem)]"
         id="acces"
         aria-labelledby="access-title"
       >
-        <div className={styles.content}>
+        <div className={`${styles.content} max-w-[37rem]`}>
           <p className="fr-badge fr-badge--sm">Espace de travail</p>
           <h2 id="access-title">Accéder à vos fichiers et à vos données</h2>
           <p className="fr-text--lead">

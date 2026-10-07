@@ -49,7 +49,7 @@ export function ViewerToolBar({
   return (
     <div
       aria-label="Outils de la visionneuse"
-      className={styles.bar}
+      className="relative z-[5] flex min-h-0 min-w-0 items-center border-b border-[var(--viewer-border)] bg-white px-3.5 py-1.5 [container-type:inline-size] max-[769px]:px-1"
       onKeyDown={(event) => {
         if (event.key !== "Escape" || !openGroup) return;
         event.preventDefault();
@@ -62,13 +62,15 @@ export function ViewerToolBar({
       }}
       role="group"
     >
-      <ul className={styles.list}>
+      <ul
+        className={`${styles.list} m-0 flex w-full list-none flex-nowrap items-center gap-1.5 p-0`}
+      >
         {viewerToolGroups.map((group) => {
           const hasMenu = group.actions.length > 1;
           const expanded = openGroup === group.id;
           const isActive = group.id === activeGroupId;
           return (
-            <li className={styles.item} key={group.id}>
+            <li className="relative m-0 p-0 last:ml-auto" key={group.id}>
               <button
                 aria-label={
                   group.id === "annotations" && bcfTopicCount > 0

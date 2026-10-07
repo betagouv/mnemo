@@ -1,8 +1,6 @@
 import Footer from "@codegouvfr/react-dsfr/Footer";
 import Header from "@codegouvfr/react-dsfr/Header";
 
-import styles from "./site-shell.module.css";
-
 const brand = (
   <>
     RÉPUBLIQUE
@@ -20,7 +18,7 @@ export function SiteShell({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <div className={styles.shell}>
+    <div className="flex min-h-screen flex-col">
       <Header
         brandTop={brand}
         homeLinkProps={homeLinkProps}
@@ -34,7 +32,7 @@ export function SiteShell({
           },
         ]}
       />
-      <div className={styles.content}>{children}</div>
+      <div className="flex-1">{children}</div>
       <Footer
         accessibility="non compliant"
         brandTop={brand}

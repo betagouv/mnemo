@@ -41,6 +41,12 @@ app -> screens -> widgets -> features -> entities -> shared
 - Slices expose a public API from `index.ts`; do not deep-import another slice.
 - Do not create empty layers or placeholder folders before a real slice needs them.
 
+## Frontend styling
+
+- Use DSFR components for controls and established design patterns.
+- Use Tailwind utilities for application layout: grid/flex composition, sizing, spacing, positioning, and responsive behavior. Keep component-specific rendering, DSFR overrides, and 3D controls in scoped CSS when clearer.
+- Tailwind Preflight is disabled to avoid resetting DSFR. Do not add a second global reset or duplicate layout rules in utilities and CSS modules.
+
 ## Server boundaries
 
 - Route handlers are transport adapters. They must not contain SQL, S3 calls, or substantial business rules.

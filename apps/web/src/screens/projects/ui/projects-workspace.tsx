@@ -33,8 +33,10 @@ export function ProjectsWorkspace({ initialProjects }: ProjectsWorkspaceProps) {
   );
 
   return (
-    <div className={`fr-container ${styles.page}`}>
-      <header className={styles.heading}>
+    <div className="fr-container pb-16 pt-8">
+      <header
+        className={`${styles.heading} my-10 mb-6 flex flex-col items-stretch justify-between gap-6 min-[769px]:flex-row min-[769px]:items-end`}
+      >
         <div>
           <h1>Mes dossiers</h1>
           <p>
@@ -47,8 +49,8 @@ export function ProjectsWorkspace({ initialProjects }: ProjectsWorkspaceProps) {
         />
       </header>
 
-      <div className={styles.controls}>
-        <div className="fr-input-group">
+      <div className="mb-6 flex flex-col items-stretch justify-between gap-6 min-[769px]:flex-row min-[769px]:items-start">
+        <div className="fr-input-group flex-1">
           <label className="fr-label" htmlFor="project-search">
             Rechercher un dossier
           </label>
@@ -61,7 +63,7 @@ export function ProjectsWorkspace({ initialProjects }: ProjectsWorkspaceProps) {
             value={search}
           />
         </div>
-        <div className="fr-select-group">
+        <div className="fr-select-group min-w-0 min-[769px]:min-w-60">
           <label className="fr-label" htmlFor="project-sort">
             Trier par
           </label>
@@ -80,7 +82,9 @@ export function ProjectsWorkspace({ initialProjects }: ProjectsWorkspaceProps) {
       </div>
 
       {projects.length === 0 ? (
-        <div className={styles.empty}>
+        <div
+          className={`${styles.empty} border border-dashed border-[var(--border-default-grey)] px-6 py-12 text-center`}
+        >
           <span className="fr-icon-folder-2-line" aria-hidden="true" />
           <h2>Aucun dossier pour le moment</h2>
           <p>Créez votre premier dossier pour y rassembler vos fichiers.</p>
@@ -88,7 +92,10 @@ export function ProjectsWorkspace({ initialProjects }: ProjectsWorkspaceProps) {
       ) : visibleProjects.length === 0 ? (
         <p role="status">Aucun dossier ne correspond à votre recherche.</p>
       ) : (
-        <div className={styles.grid} aria-label="Liste des dossiers">
+        <div
+          className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,19rem),1fr))] gap-6"
+          aria-label="Liste des dossiers"
+        >
           {visibleProjects.map((project) => (
             <ProjectCard key={project.id} project={project} />
           ))}
