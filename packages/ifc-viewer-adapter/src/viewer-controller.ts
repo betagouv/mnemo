@@ -6,7 +6,11 @@ import {
   type BCFViewpoint,
   type ViewerCameraState,
 } from "@ifc-lite/bcf";
-import { FederationRegistry, type Renderer } from "@ifc-lite/renderer";
+import {
+  FederationRegistry,
+  type Renderer,
+  type SectionPlaneAxis,
+} from "@ifc-lite/renderer";
 import type { BcfViewpointPayload } from "@mnemo/contracts/bcf";
 import type { PointCloudTransform } from "@mnemo/point-cloud-viewer-adapter";
 
@@ -16,6 +20,7 @@ import { IfcModelLoader, type LoadedIfcModel } from "./ifc-model-loader";
 import { PointCloudLayers } from "./point-cloud-layers";
 import { switchProjectionAtVisibleSurface } from "./projection-switch";
 import { SceneInteractions } from "./scene-interactions";
+import { SectionController } from "./section-controller";
 import { createDefaultRuntime } from "./viewer-runtime";
 import { createEmptyViewerSnapshot } from "./viewer-snapshot";
 import type {
@@ -51,6 +56,7 @@ export type {
   IfcModelSnapshot,
   IfcProcessingEngine,
   IfcProcessingSnapshot,
+  IfcSectionSnapshot,
   IfcPropertyValue,
   IfcValueItem,
   IfcValueSet,
@@ -128,6 +134,7 @@ export class IfcViewerController {
   private unsubscribeDeviceLoss: (() => void) | null = null;
   private disposed = false;
   private readonly interactions: SceneInteractions;
+  private readonly sections: SectionController;
   private selectionGeneration = 0;
   private hiddenIds = new Set<number>();
   private readonly layerVisibility: BimLayerVisibility;
@@ -172,6 +179,17 @@ export class IfcViewerController {
           ),
         }),
     });
+    this.sections = new SectionController(
+      this.renderer,
+      (section) => this.updateSnapshot({ section }),
+      () => ({
+        hiddenIds: new Set([
+          ...this.hiddenIds,
+          ...this.layerVisibility.hiddenIds,
+        ]),
+        isolatedIds: this.isolatedIds,
+      }),
+    );
     this.interactions = new SceneInteractions({
       canvas,
       renderer: this.renderer,
@@ -214,6 +232,88 @@ export class IfcViewerController {
 
   getSnapshot() {
     return this.snapshot;
+  }
+
+  getSectionBounds() {
+    return this.sections.bounds;
+  }
+
+  setSectionAxis(axis: SectionPlaneAxis) {
+    this.sections.setAxis(axis);
+  }
+
+  setSectionPosition(position: number) {
+    this.sections.setPosition(position);
+  }
+
+  setSectionCustomDistance(distance: number) {
+    this.sections.setCustomDistance(distance);
+  }
+
+  projectWorldPoint(point: { x: number; y: number; z: number }) {
+    return this.projectWorldPoints([point])[0] ?? null;
+  }
+
+  projectWorldPoints(points: readonly { x: number; y: number; z: number }[]) {
+    const bounds = this.canvas.getBoundingClientRect();
+    if (
+      bounds.width <= 0 ||
+      bounds.height <= 0 ||
+      this.canvas.width <= 0 ||
+      this.canvas.height <= 0
+    ) {
+      return points.map(() => null);
+    }
+    const camera = this.renderer.getCamera();
+    return points.map((point) => {
+      const projected = camera.projectToScreen(
+        point,
+        this.canvas.width,
+        this.canvas.height,
+      );
+      return projected
+        ? {
+            x: projected.x * (bounds.width / this.canvas.width),
+            y: projected.y * (bounds.height / this.canvas.height),
+          }
+        : null;
+    });
+  }
+
+  setSectionFlipped(flipped: boolean) {
+    this.sections.setFlipped(flipped);
+  }
+
+  showSectionPlane() {
+    this.sections.showPlane();
+  }
+
+  showSectionBox() {
+    return this.sections.showBox();
+  }
+
+  fitSectionBox() {
+    return this.sections.fitBox();
+  }
+
+  moveSectionBoxFace(axis: 0 | 1 | 2, side: "min" | "max", value: number) {
+    this.sections.moveBoxFace(axis, side, value);
+  }
+
+  startSectionPick(mode: "face" | "two-point") {
+    this.sections.startPick(mode);
+  }
+
+  cancelSectionPick() {
+    this.sections.cancelPick();
+  }
+
+  hideSection() {
+    this.sections.hide();
+  }
+
+  resetSection() {
+    this.sections.reset();
   }
 
   getStore() {
@@ -814,6 +914,7 @@ export class IfcViewerController {
               : this.layerVisibility.ghostExceptIds
             : this.ghostExceptIds,
           ghostAlpha: this.snapshot.visual.contextOpacity,
+          ...this.sections.renderOptions,
         });
       }
 
@@ -838,6 +939,7 @@ export class IfcViewerController {
   }
 
   private pickEntity(x: number, y: number) {
+    if (this.sections.pick(x, y)) return;
     const generation = this.modelLoader.generation;
     void this.renderer
       .pick(x, y, {

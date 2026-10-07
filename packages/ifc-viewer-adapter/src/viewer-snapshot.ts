@@ -1,4 +1,5 @@
 import type { IfcViewerSnapshot } from "./viewer-types";
+import { createEmptySectionSnapshot } from "./section-controller";
 
 export function createEmptyViewerSnapshot(): IfcViewerSnapshot {
   return {
@@ -21,6 +22,7 @@ export function createEmptyViewerSnapshot(): IfcViewerSnapshot {
       showContext: true,
       contextOpacity: 0.1,
     },
+    section: createEmptySectionSnapshot(),
     pointClouds: [],
     pointCloudOptions: { pointSize: 2 },
   };

@@ -11,9 +11,16 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { IfcElementProperties } from "@/entities/ifc-element";
+import {
+  SectionBoxGizmo,
+  SectionPanel,
+  SectionPlaneGizmo,
+  SectionSketchOverlay,
+} from "@/features/control-section";
 import { IfcAssistantPanel } from "@/features/interact-with-ifc-assistant";
 import { BcfTopicsPanel } from "@/features/manage-bcf-topics";
 import { useProjectScene } from "../model/use-project-scene";
+import { getActiveViewerModifiers } from "../model/viewer-active-modifiers";
 import {
   viewerPanels,
   type ViewerPanelId,
@@ -28,6 +35,7 @@ import type {
 import styles from "./ifc-viewer.module.css";
 import { ProjectLayers } from "./project-layers";
 import { ViewCube } from "./view-cube";
+import { ViewerActiveModifiers } from "./viewer-active-modifiers";
 import { ViewerSidePanel } from "./viewer-side-panel";
 import { ViewerToolBar } from "./viewer-tool-bar";
 
@@ -96,7 +104,7 @@ export function ProjectViewer({
   const [panelFocusRequest, setPanelFocusRequest] = useState(0);
   const [bcfTopicCount, setBcfTopicCount] = useState(initialBcfTopics.length);
   const toolBarRef = useRef<HTMLDivElement>(null);
-  const lastToolbarTrigger = useRef<HTMLButtonElement | null>(null);
+  const lastPanelTrigger = useRef<HTMLButtonElement | null>(null);
   const lastSelectionKey = useRef<string | null>(null);
 
   const activeModelId = snapshot.activeModelId;
@@ -107,6 +115,7 @@ export function ProjectViewer({
     ? `${activeModelId}:${snapshot.selection.expressId}`
     : null;
   const activePanelConfig = activePanel ? viewerPanels[activePanel] : null;
+  const activeModifiers = getActiveViewerModifiers(snapshot);
   const upcomingDescription =
     activePanelConfig && "upcoming" in activePanelConfig
       ? activePanelConfig.upcoming
@@ -114,7 +123,7 @@ export function ProjectViewer({
 
   useEffect(() => {
     if (selectionKey && selectionKey !== lastSelectionKey.current) {
-      lastToolbarTrigger.current = null;
+      lastPanelTrigger.current = null;
       setPanelFocusRequest(0);
       setActivePanel("properties");
       setActiveToolGroup("data");
@@ -135,6 +144,23 @@ export function ProjectViewer({
     snapshot.phase === "processing";
   const hasFailed =
     snapshot.phase === "error" || snapshot.phase === "device_lost";
+
+  const openPanel = (
+    panel: ViewerPanelId,
+    groupId: ViewerToolGroupId,
+    trigger: HTMLButtonElement,
+  ) => {
+    if (
+      (activePanel === "cut-plane" || activePanel === "cut-box") &&
+      panel !== activePanel
+    ) {
+      controllerRef.current?.cancelSectionPick();
+    }
+    lastPanelTrigger.current = trigger;
+    setActivePanel(panel);
+    setActiveToolGroup(groupId);
+    setPanelFocusRequest((request) => request + 1);
+  };
 
   return (
     <main className={`${styles.shell} ${shellLayout}`}>
@@ -159,12 +185,7 @@ export function ProjectViewer({
       <ViewerToolBar
         activeGroupId={activeToolGroup}
         bcfTopicCount={bcfTopicCount}
-        onSelect={(panel, groupId, trigger) => {
-          lastToolbarTrigger.current = trigger;
-          setActivePanel(panel);
-          setActiveToolGroup(groupId);
-          setPanelFocusRequest((request) => request + 1);
-        }}
+        onSelect={openPanel}
         rootRef={toolBarRef}
       />
 
@@ -203,9 +224,31 @@ export function ProjectViewer({
         >
           <canvas
             aria-label={`Vue 3D du projet ${projectName}`}
-            className={styles.canvas}
+            className={`${styles.canvas} ${snapshot.section.pickMode ? styles.pickingCanvas : ""}`}
             ref={canvasRef}
           />
+
+          {activePanel === "cut-plane" &&
+          snapshot.section.active === "plane" ? (
+            <SectionPlaneGizmo
+              getViewer={getViewer}
+              plane={snapshot.section.plane}
+            />
+          ) : null}
+          {activePanel === "cut-box" &&
+          snapshot.section.active === "box" &&
+          snapshot.section.box ? (
+            <SectionBoxGizmo box={snapshot.section.box} getViewer={getViewer} />
+          ) : null}
+          {activePanel === "cut-plane" &&
+          (snapshot.section.pickMode ||
+            (snapshot.section.active === "plane" && snapshot.section.trace)) ? (
+            <SectionSketchOverlay
+              canvasRef={canvasRef}
+              getViewer={getViewer}
+              section={snapshot.section}
+            />
+          ) : null}
 
           {snapshot.meshCount > 0 ||
           snapshot.pointClouds.some((cloud) => cloud.pointCount > 0) ? (
@@ -253,6 +296,14 @@ export function ProjectViewer({
               ) : null}
             </div>
           ) : null}
+
+          <ViewerActiveModifiers
+            activePanel={activePanel}
+            modifiers={activeModifiers}
+            onOpen={(modifier, trigger) =>
+              openPanel(modifier.panel, modifier.group, trigger)
+            }
+          />
 
           {hasFailed || accessError || pointCloudFailures.length ? (
             <div className={styles.errorCard} role="alert">
@@ -317,8 +368,9 @@ export function ProjectViewer({
             setActiveToolGroup(null);
             setPanelFocusRequest(0);
             const returnTarget =
-              lastToolbarTrigger.current ??
-              toolBarRef.current?.querySelector("button");
+              (lastPanelTrigger.current?.isConnected
+                ? lastPanelTrigger.current
+                : null) ?? toolBarRef.current?.querySelector("button");
             returnTarget?.focus();
           }}
           title={activePanelConfig?.title ?? "Panneau d’outils"}
@@ -378,6 +430,20 @@ export function ProjectViewer({
               projectId={projectId}
               selection={snapshot.selection}
               availableIfcAssetIds={ifcSources.map((source) => source.assetId)}
+            />
+          ) : activePanel === "cut-plane" || activePanel === "cut-box" ? (
+            <SectionPanel
+              getViewer={getViewer}
+              hasIfcGeometry={snapshot.meshCount > 0}
+              hasPointCloud={snapshot.pointClouds.some(
+                (cloud) => cloud.pointCount > 0,
+              )}
+              mode={activePanel === "cut-box" ? "box" : "plane"}
+              onModeChange={(mode) => {
+                controllerRef.current?.cancelSectionPick();
+                setActivePanel(mode === "box" ? "cut-box" : "cut-plane");
+              }}
+              section={snapshot.section}
             />
           ) : activePanel !== "properties" ? (
             upcomingDescription ? (

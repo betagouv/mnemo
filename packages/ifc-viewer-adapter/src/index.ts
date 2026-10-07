@@ -10,6 +10,7 @@ export {
   type IfcViewerPhase,
   type IfcProcessingEngine,
   type IfcProcessingSnapshot,
+  type IfcSectionSnapshot,
   type IfcViewerRuntime,
   type IfcViewerSnapshot,
   type LoadIfcInput,

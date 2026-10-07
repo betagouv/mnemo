@@ -61,7 +61,7 @@ test("opens viewer tools in a reusable side panel", async ({ page }) => {
     await gotoHydrated(page, `${projectHref}/viewer`);
     const tools = page.getByRole("group", { name: "Outils de la visionneuse" });
     const sidePanel = page.getByRole("complementary", {
-      name: "Coupe par plan",
+      name: "Coupes",
     });
 
     await expect(tools.getByRole("button", { name: "Coupes" })).toBeVisible();
@@ -81,8 +81,15 @@ test("opens viewer tools in a reusable side panel", async ({ page }) => {
     await tools.getByRole("button", { name: "Coupe par plan" }).click();
     await expect(sidePanel).toBeVisible();
     await expect(
-      sidePanel.getByRole("heading", { name: "Outil en préparation" }),
+      sidePanel.getByRole("heading", { name: "Plan de coupe" }),
     ).toBeVisible();
+    await expect(sidePanel.locator('input[type="range"]')).toHaveCount(0);
+    await expect(sidePanel.getByText("Remplir les surfaces coupées")).toHaveCount(0);
+    await sidePanel.getByRole("button", { name: "Boîte de coupe" }).click();
+    await expect(
+      sidePanel.getByRole("heading", { name: "Boîte de coupe" }),
+    ).toBeVisible();
+    await expect(sidePanel.locator('input[type="range"]')).toHaveCount(0);
 
     await tools.getByRole("button", { name: "Mesures" }).click();
     await tools.getByRole("button", { name: "Distance" }).click();

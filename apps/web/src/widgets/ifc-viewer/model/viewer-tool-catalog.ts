@@ -12,14 +12,12 @@ export const viewerPanels = {
     icon: "fr-icon-chat-3-line",
   },
   "cut-plane": {
-    title: "Coupe par plan",
+    title: "Coupes",
     icon: "fr-icon-crop-line",
-    upcoming: "Définir un plan de coupe dans la scène sera disponible ici.",
   },
   "cut-box": {
-    title: "Coupe par boîte",
+    title: "Coupes",
     icon: "fr-icon-crop-line",
-    upcoming: "Délimiter une zone de coupe sera disponible ici.",
   },
   distance: {
     title: "Mesure de distance",

@@ -45,6 +45,7 @@ function createHarness({
     pointCloudOptions: 0,
     pointCloudsRemoved: 0,
     cameraPosesApplied: 0,
+    lastRenderOptions: null as Parameters<Renderer["render"]>[0] | null,
   };
   let renderRequested = false;
   let pickExpressId = 42;
@@ -103,6 +104,11 @@ function createHarness({
     getViewProjMatrix: () => ({
       m: new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),
     }),
+    projectToScreen: (
+      point: { x: number; y: number; z: number },
+      width: number,
+      height: number,
+    ) => ({ x: width / 2 + point.x, y: height / 2 - point.y }),
     getTarget: () => cameraTarget,
     getUp: () => cameraUp,
     getFOV: () => Math.PI / 3,
@@ -222,7 +228,9 @@ function createHarness({
       renderRequested = false;
       return requested;
     },
-    render: () => undefined,
+    render: (options: Parameters<Renderer["render"]>[0]) => {
+      calls.lastRenderOptions = options;
+    },
     pick: async () => {
       calls.pick += 1;
       return {
@@ -509,6 +517,10 @@ function createHarness({
   return {
     calls,
     controller: new IfcViewerController(canvas, runtime),
+    setCanvasPixelSize(width: number, height: number) {
+      canvas.width = width;
+      canvas.height = height;
+    },
     advanceFrame(time = 16) {
       frameCallback?.(time);
     },
@@ -548,6 +560,43 @@ function createHarness({
 }
 
 describe("IfcViewerController", () => {
+  it("projects world anchors into CSS pixels for scene overlays", () => {
+    const { controller, setCanvasPixelSize } = createHarness();
+    setCanvasPixelSize(500, 350);
+    expect(controller.projectWorldPoint({ x: 10, y: 5, z: 0 })).toEqual({
+      x: 520,
+      y: 340,
+    });
+    controller.dispose();
+  });
+
+  it("passes section options to IFC-Lite without changing camera or renderer", async () => {
+    const { calls, controller, advanceFrame } = createHarness();
+    await controller.init();
+
+    controller.setSectionAxis("front");
+    controller.setSectionPosition(25);
+    advanceFrame();
+    expect(calls.lastRenderOptions?.sectionPlane).toMatchObject({
+      axis: "front",
+      position: 25,
+      enabled: true,
+    });
+    expect(calls.rendererCreated).toBe(1);
+    expect(calls.fitToView).toBe(0);
+
+    controller.showSectionBox();
+    advanceFrame(32);
+    expect(calls.lastRenderOptions?.clipBox?.enabled).toBe(true);
+    expect(calls.lastRenderOptions?.sectionPlane).toBeUndefined();
+
+    controller.hideSection();
+    advanceFrame(48);
+    expect(calls.lastRenderOptions?.clipBox).toBeUndefined();
+    expect(calls.lastRenderOptions?.sectionPlane).toBeUndefined();
+    controller.dispose();
+  });
+
   it("switches projection without reframing and reflects external camera changes", async () => {
     const { calls, controller, advanceFrame, setExternalProjectionMode } =
       createHarness();

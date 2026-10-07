@@ -1,6 +1,6 @@
 import type { GeometryProcessor } from "@ifc-lite/geometry";
 import type { IfcDataStore, IfcParser } from "@ifc-lite/parser";
-import type { Renderer } from "@ifc-lite/renderer";
+import type { Renderer, SectionPlaneAxis } from "@ifc-lite/renderer";
 import type { BcfViewpointPayload } from "@mnemo/contracts/bcf";
 import type {
   PointCloudFormat,
@@ -39,6 +39,7 @@ export type IfcViewerSnapshot = {
   models: IfcModelSnapshot[];
   activeModelId: string | null;
   visual: IfcVisualSnapshot;
+  section: IfcSectionSnapshot;
   pointClouds: PointCloudSnapshot[];
   pointCloudOptions: PointCloudOptionsSnapshot;
 };
@@ -112,6 +113,30 @@ export type IfcVisualPlan = {
   showContext?: boolean;
   contextOpacity?: number;
   label?: string | null;
+};
+
+export type IfcSectionSnapshot = {
+  active: "plane" | "box" | null;
+  plane: {
+    source: "axis" | "face" | "two-point";
+    axis: SectionPlaneAxis;
+    position: number;
+    flipped: boolean;
+    normal: [number, number, number] | null;
+    distance: number | null;
+    pickedAt: [number, number, number] | null;
+  };
+  box: {
+    min: [number, number, number];
+    max: [number, number, number];
+  } | null;
+  pickMode: "face" | "two-point" | null;
+  draftPoint: [number, number, number] | null;
+  trace: {
+    start: [number, number, number];
+    end: [number, number, number];
+  } | null;
+  message: string | null;
 };
 
 export type IfcPropertyValue =

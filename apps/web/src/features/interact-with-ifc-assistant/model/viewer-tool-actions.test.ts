@@ -40,6 +40,23 @@ function createSnapshot(): IfcViewerSnapshot {
     },
     pointClouds: [],
     pointCloudOptions: { pointSize: 2 },
+    section: {
+      active: null,
+      plane: {
+        source: "axis",
+        axis: "down",
+        position: 50,
+        flipped: false,
+        normal: null,
+        distance: null,
+        pickedAt: null,
+      },
+      box: null,
+      pickMode: null,
+      draftPoint: null,
+      trace: null,
+      message: null,
+    },
   };
 }
 

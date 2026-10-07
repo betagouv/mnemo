@@ -121,6 +121,10 @@
   touch-action: none;
 }
 
+.pickingCanvas {
+  cursor: crosshair !important;
+}
+
 .loadCard,
 .errorCard,
 .modelStats,

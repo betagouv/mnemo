@@ -1,0 +1,34 @@
+.card {
+  border: 1px solid var(--border-default-grey);
+  border-radius: 0.5rem;
+  background: var(--background-default-grey);
+}
+
+.modeButton {
+  border-radius: 0.25rem;
+  color: var(--text-action-high-blue-france);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.modeButton[aria-pressed="true"] {
+  color: var(--text-inverted-blue-france);
+  background: var(--background-action-high-blue-france);
+}
+
+.axisButton {
+  border: 1px solid var(--border-default-grey);
+  border-radius: 0.25rem;
+  color: var(--text-action-high-blue-france);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.axisButton[aria-pressed="true"] {
+  border-color: var(--border-action-high-blue-france);
+  background: var(--background-alt-blue-france);
+}
+
+.muted {
+  color: var(--text-mention-grey);
+}
