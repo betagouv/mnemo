@@ -13,7 +13,8 @@ packages/database/src/generated/prisma/
 # Environment and secrets
 .env
 .env.*
-!.env.example
+!.env.local.example
+!.env.s3.example
 
 # Local data
 .data/

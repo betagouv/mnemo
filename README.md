@@ -21,7 +21,7 @@ See [`AGENTS.md`](./AGENTS.md) for engineering rules and `docs/adr` for architec
 Prerequisites: Node.js 22+, pnpm 10+, and Docker Compose.
 
 ```bash
-cp .env.example .env
+cp .env.local.example .env.local
 pnpm install
 make dev
 ```
@@ -32,6 +32,23 @@ in Docker, then runs the Next.js web server locally with hot reload at
 already running on that port. Press `Ctrl+C` to stop the development web server;
 `make stop` stops the supporting containers. A shared local IFC MCP cache lives
 under `.data/` so model queries also work in development.
+All `make` commands use `.env.local` by default, so the web server and worker
+read from the same local MinIO bucket. Values in the selected profile take
+precedence over variables already exported in the shell. To develop against an
+external S3 bucket:
+
+```bash
+cp .env.s3.example .env.s3
+# Fill in the bucket, credentials and region in .env.s3.
+make dev-s3
+```
+
+The external bucket must already exist and allow browser CORS requests from
+`http://localhost:3200`. Switching profiles does not migrate files: assets
+uploaded to MinIO remain there until explicitly copied to S3. The old `.env`
+file is not used by `make`; copy any needed private keys (such as
+`OPENROUTER_API_KEY`) into the chosen ignored profile. Restart `make dev` after
+changing profiles so Next.js recreates its storage client.
 
 To run the complete local stack:
 
@@ -83,7 +100,9 @@ The default local endpoints are:
 - IFC-Lite MCP server: <http://localhost:8765> (bearer token required)
 - PostgreSQL: `localhost:5436`
 
-Ports can be changed through the variables documented in [`.env.example`](./.env.example).
+Ports can be changed through the variables documented in
+[`.env.local.example`](./.env.local.example). Use `ENV_FILE=.env.s3` with other
+`make` commands when operating on the external S3 profile.
 
 The standalone browser parser handles IFC files below 25 MiB by default. Larger files use the IFC-Lite Rust server and progressive Parquet batches. Docker Compose sets the threshold to zero so the server path is exercised for every local IFC; change `IFC_BROWSER_PROCESSING_MAX_BYTES` to test the browser path.
 

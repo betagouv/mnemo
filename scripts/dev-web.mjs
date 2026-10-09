@@ -4,6 +4,14 @@ import { resolve } from "node:path";
 const port = process.env.MNEMO_WEB_PORT ?? "3200";
 const modelDirectory =
   process.env.MNEMO_DEV_MODEL_DIR ?? resolve(".data/ifc-mcp-models");
+
+function requireEnvironment(name) {
+  const value = process.env[name];
+  if (!value)
+    throw new Error(`${name} is required in the selected env profile`);
+  return value;
+}
+
 const environment = {
   ...process.env,
   MNEMO_AUTH_MODE: process.env.MNEMO_AUTH_MODE ?? "development",
@@ -11,16 +19,12 @@ const environment = {
   DATABASE_URL:
     process.env.DATABASE_URL ??
     `postgresql://mnemo:mnemo@localhost:${process.env.MNEMO_POSTGRES_PORT ?? "5436"}/mnemo`,
-  S3_ENDPOINT:
-    process.env.S3_ENDPOINT ??
-    `http://localhost:${process.env.MNEMO_MINIO_PORT ?? "9200"}`,
-  S3_PUBLIC_ENDPOINT:
-    process.env.S3_PUBLIC_ENDPOINT ??
-    `http://localhost:${process.env.MNEMO_MINIO_PORT ?? "9200"}`,
-  S3_REGION: process.env.S3_REGION ?? "us-east-1",
-  S3_BUCKET: process.env.S3_BUCKET ?? "mnemo-files",
-  S3_ACCESS_KEY: process.env.S3_ACCESS_KEY ?? "mnemo",
-  S3_SECRET_KEY: process.env.S3_SECRET_KEY ?? "mnemo-local-password",
+  S3_ENDPOINT: requireEnvironment("S3_ENDPOINT"),
+  S3_PUBLIC_ENDPOINT: requireEnvironment("S3_PUBLIC_ENDPOINT"),
+  S3_REGION: requireEnvironment("S3_REGION"),
+  S3_BUCKET: requireEnvironment("S3_BUCKET"),
+  S3_ACCESS_KEY: requireEnvironment("S3_ACCESS_KEY"),
+  S3_SECRET_KEY: requireEnvironment("S3_SECRET_KEY"),
   IFC_LITE_PUBLIC_URL:
     process.env.IFC_LITE_PUBLIC_URL ??
     `http://localhost:${process.env.MNEMO_IFC_SERVER_PORT ?? "3301"}`,

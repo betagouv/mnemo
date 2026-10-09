@@ -19,7 +19,7 @@
     "lint": "turbo run lint && pnpm lint:architecture",
     "lint:architecture": "node scripts/check-fsd-boundaries.mjs",
     "start": "pnpm --filter @mnemo/web start",
-    "test": "turbo run test",
+    "test": "turbo run test && node --test scripts/*.test.mjs",
     "test:e2e": "pnpm --filter @mnemo/web test:e2e",
     "test:integration": "turbo run test:integration",
     "typecheck": "turbo run typecheck"
