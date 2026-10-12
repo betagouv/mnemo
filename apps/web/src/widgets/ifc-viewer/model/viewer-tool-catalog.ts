@@ -79,12 +79,12 @@ export const viewerToolGroups = [
     icon: "fr-icon-chat-3-line",
     actions: [{ label: "Remarques BCF", panel: "bcf" }],
   },
-  {
-    id: "assistant",
-    label: "Assistant",
-    icon: "fr-icon-chat-3-line",
-    actions: [{ label: "Assistant", panel: "assistant" }],
-  },
+  // {
+  //   id: "assistant",
+  //   label: "Assistant",
+  //   icon: "fr-icon-chat-3-line",
+  //   actions: [{ label: "Assistant", panel: "assistant" }],
+  // },
   {
     id: "colors",
     label: "Colorisation",

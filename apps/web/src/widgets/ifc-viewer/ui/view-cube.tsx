@@ -22,7 +22,7 @@ const faces: { view: ViewerPresetView; label: string; shortLabel: string }[] = [
 function ProjectionIcon({ mode }: { mode: ViewerProjectionMode }) {
   return mode === "orthographic" ? (
     <svg aria-hidden="true" viewBox="0 0 24 24">
-      <path d="M3 7h13v13H3zM8 3h13v13H8M3 7l5-4m8 4 5-4m-5 17 5-4" />
+      <path d="M3 7h13v13H3zM8 3h13v13M3 7l5-4m8 4 5-4m-5 17 5-4" />
     </svg>
   ) : (
     <svg aria-hidden="true" viewBox="0 0 24 24">
@@ -30,7 +30,6 @@ function ProjectionIcon({ mode }: { mode: ViewerProjectionMode }) {
     </svg>
   );
 }
-
 /** Camera readout stays outside React state so orbiting never rerenders the viewer. */
 export function ViewCube({
   getViewer,
