@@ -6,7 +6,6 @@ import { useEffect, useId, useRef, type ReactNode } from "react";
 import styles from "./viewer-side-panel.module.css";
 
 export function ViewerSidePanel({
-  actions,
   children,
   focusRequest,
   iconClass,
@@ -15,7 +14,6 @@ export function ViewerSidePanel({
   onClose,
   title,
 }: {
-  actions?: ReactNode;
   children: ReactNode;
   focusRequest: number;
   iconClass?: string;
@@ -46,16 +44,13 @@ export function ViewerSidePanel({
             {title}
           </h2>
         </div>
-        <div className="flex min-w-0 flex-none items-center gap-2">
-          {actions}
-          <Button
-            iconId="fr-icon-close-line"
-            onClick={onClose}
-            priority="tertiary no outline"
-            size="small"
-            title="Fermer le panneau"
-          />
-        </div>
+        <Button
+          iconId="fr-icon-close-line"
+          onClick={onClose}
+          priority="tertiary no outline"
+          size="small"
+          title="Fermer le panneau"
+        />
       </header>
       <div className={`${styles.body} min-h-0 overflow-auto`} data-mode={mode}>
         {children}

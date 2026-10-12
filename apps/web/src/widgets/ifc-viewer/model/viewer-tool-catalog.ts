@@ -1,8 +1,4 @@
 export const viewerPanels = {
-  properties: {
-    title: "Propriétés IFC",
-    icon: "fr-icon-file-text-line",
-  },
   bcf: {
     title: "Remarques BCF",
     icon: "fr-icon-chat-3-line",
@@ -84,13 +80,10 @@ export const viewerToolGroups = [
     actions: [{ label: "Remarques BCF", panel: "bcf" }],
   },
   {
-    id: "data",
-    label: "Données",
-    icon: "fr-icon-file-text-line",
-    actions: [
-      { label: "Propriétés IFC", panel: "properties" },
-      { label: "Assistant", panel: "assistant" },
-    ],
+    id: "assistant",
+    label: "Assistant",
+    icon: "fr-icon-chat-3-line",
+    actions: [{ label: "Assistant", panel: "assistant" }],
   },
   {
     id: "colors",

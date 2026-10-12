@@ -1,0 +1,91 @@
+.root {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+  background: #fff;
+}
+
+.header {
+  display: flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--viewer-border);
+  padding: 0.25rem 0.45rem 0.25rem 0.7rem;
+}
+
+.heading,
+.actions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.heading > span {
+  color: var(--viewer-accent);
+  font-size: 0.9rem;
+}
+
+.heading h2 {
+  overflow: hidden;
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actions {
+  flex: none;
+}
+
+.body {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.message,
+.error {
+  margin: 0;
+  padding: 0.75rem;
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.error {
+  color: #b34000;
+}
+
+.empty {
+  display: grid;
+  min-height: 100%;
+  align-content: center;
+  justify-items: center;
+  gap: 0.35rem;
+  padding: 1rem;
+  color: var(--viewer-muted);
+  text-align: center;
+}
+
+.empty > span {
+  color: var(--viewer-accent);
+  font-size: 1.3rem;
+}
+
+.empty strong {
+  color: var(--viewer-text);
+  font-size: 0.75rem;
+}
+
+.empty p {
+  margin: 0;
+  font-size: 0.7rem;
+  line-height: 1.4;
+}

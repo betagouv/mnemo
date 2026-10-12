@@ -1,3 +1,4 @@
+import Accordion from "@codegouvfr/react-dsfr/Accordion";
 import type {
   IfcElementDetails,
   IfcPropertyValue,
@@ -19,8 +20,10 @@ function formatValue(value: IfcPropertyValue): string {
 
 export function IfcElementProperties({
   element,
+  modelName,
 }: {
   element: IfcElementDetails;
+  modelName: string | null;
 }) {
   const groups = [
     ...element.propertySets.map((set) => ({ ...set, kind: "Propriétés" })),
@@ -31,49 +34,68 @@ export function IfcElementProperties({
     <div className={styles.content}>
       <section className={styles.identity}>
         <span>{element.ifcClass}</span>
-        <h2>{element.name || `${element.ifcClass} #${element.expressId}`}</h2>
+        <h3>{element.name || `${element.ifcClass} #${element.expressId}`}</h3>
+        {modelName ? <p title={modelName}>{modelName}</p> : null}
         {element.description ? <p>{element.description}</p> : null}
       </section>
 
-      <dl className={styles.metadata}>
-        <div>
-          <dt>Express ID</dt>
-          <dd>{element.expressId}</dd>
-        </div>
-        <div>
-          <dt>GlobalId</dt>
-          <dd title={element.globalId}>{element.globalId || "—"}</dd>
-        </div>
-        {element.objectType ? (
+      <Accordion
+        className={styles.group}
+        defaultExpanded
+        label="Identification"
+        titleAs="h4"
+      >
+        <dl className={styles.values}>
           <div>
-            <dt>Type d’objet</dt>
-            <dd>{element.objectType}</dd>
+            <dt>Nom</dt>
+            <dd title={element.name}>{element.name || "—"}</dd>
           </div>
-        ) : null}
-        {element.tag ? (
           <div>
-            <dt>Repère</dt>
-            <dd>{element.tag}</dd>
+            <dt>Type IFC</dt>
+            <dd>{element.ifcClass}</dd>
           </div>
-        ) : null}
-      </dl>
+          <div>
+            <dt>Express ID</dt>
+            <dd>{element.expressId}</dd>
+          </div>
+          <div>
+            <dt>GlobalId</dt>
+            <dd title={element.globalId}>{element.globalId || "—"}</dd>
+          </div>
+          {element.objectType ? (
+            <div>
+              <dt>Type d’objet</dt>
+              <dd title={element.objectType}>{element.objectType}</dd>
+            </div>
+          ) : null}
+          {element.tag ? (
+            <div>
+              <dt>Repère</dt>
+              <dd title={element.tag}>{element.tag}</dd>
+            </div>
+          ) : null}
+        </dl>
+      </Accordion>
 
       <div className={styles.groups}>
         {groups.length ? (
           groups.map((group, index) => (
-            <details
+            <Accordion
               className={styles.group}
+              defaultExpanded={index === 0}
               key={`${group.kind}-${group.name}-${index}`}
-              open={index === 0}
-            >
-              <summary>
-                <span>
-                  <small>{group.kind}</small>
-                  {group.name || "Sans nom"}
+              label={
+                <span className={styles.groupLabel}>
+                  <span>
+                    <small>{group.kind}</small>
+                    <span title={group.name}>{group.name || "Sans nom"}</span>
+                  </span>
+                  <strong>{group.values.length}</strong>
                 </span>
-                <strong>{group.values.length}</strong>
-              </summary>
-              <dl>
+              }
+              titleAs="h4"
+            >
+              <dl className={styles.values}>
                 {group.values.map((property, propertyIndex) => (
                   <div key={`${property.name}-${propertyIndex}`}>
                     <dt>{property.name}</dt>
@@ -84,7 +106,7 @@ export function IfcElementProperties({
                   </div>
                 ))}
               </dl>
-            </details>
+            </Accordion>
           ))
         ) : (
           <p className={styles.empty}>

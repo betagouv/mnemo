@@ -6,11 +6,9 @@ import type {
   AssistantThreadSummary,
 } from "@mnemo/contracts/assistant";
 import Alert from "@codegouvfr/react-dsfr/Alert";
-import Button from "@codegouvfr/react-dsfr/Button";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
-import { IfcElementProperties } from "@/entities/ifc-element";
 import {
   SectionBoxGizmo,
   SectionPanel,
@@ -33,9 +31,11 @@ import type {
 } from "../model/viewer-sources";
 
 import styles from "./ifc-viewer.module.css";
+import { IfcPropertiesPane } from "./ifc-properties-pane";
 import { ProjectLayers } from "./project-layers";
 import { ViewCube } from "./view-cube";
 import { ViewerActiveModifiers } from "./viewer-active-modifiers";
+import { ViewerExplorerSplit } from "./viewer-explorer-split";
 import { ViewerSidePanel } from "./viewer-side-panel";
 import { ViewerToolBar } from "./viewer-tool-bar";
 
@@ -105,15 +105,11 @@ export function ProjectViewer({
   const [bcfTopicCount, setBcfTopicCount] = useState(initialBcfTopics.length);
   const toolBarRef = useRef<HTMLDivElement>(null);
   const lastPanelTrigger = useRef<HTMLButtonElement | null>(null);
-  const lastSelectionKey = useRef<string | null>(null);
 
   const activeModelId = snapshot.activeModelId;
   const activeIfcSource = ifcSources.find(
     (source) => source.assetId === activeModelId,
   );
-  const selectionKey = snapshot.selection
-    ? `${activeModelId}:${snapshot.selection.expressId}`
-    : null;
   const activePanelConfig = activePanel ? viewerPanels[activePanel] : null;
   const activeModifiers = getActiveViewerModifiers(snapshot);
   const upcomingDescription =
@@ -121,15 +117,6 @@ export function ProjectViewer({
       ? activePanelConfig.upcoming
       : null;
 
-  useEffect(() => {
-    if (selectionKey && selectionKey !== lastSelectionKey.current) {
-      lastPanelTrigger.current = null;
-      setPanelFocusRequest(0);
-      setActivePanel("properties");
-      setActiveToolGroup("data");
-    }
-    lastSelectionKey.current = selectionKey;
-  }, [selectionKey]);
   const failedSource = ifcSources.find(
     (source) =>
       source.assetId === failedAssetId ||
@@ -197,24 +184,39 @@ export function ProjectViewer({
           className={`${styles.explorerColumn} min-h-0 min-w-0 ${activePanel ? "max-[897px]:hidden" : "max-[769px]:hidden"}`}
           aria-label="Explorateur du projet"
         >
-          <ProjectLayers
-            getViewer={getViewer}
-            hiddenPointCloudIds={hiddenPointCloudIds}
-            ifcSources={ifcSources}
-            onPointBudgetChange={(maxPoints) =>
-              void reloadPointClouds(maxPoints)
+          <ViewerExplorerSplit
+            explorer={
+              <ProjectLayers
+                getViewer={getViewer}
+                hiddenPointCloudIds={hiddenPointCloudIds}
+                ifcSources={ifcSources}
+                onPointBudgetChange={(maxPoints) =>
+                  void reloadPointClouds(maxPoints)
+                }
+                onPointCloudConfigurationChange={updatePointCloudConfiguration}
+                onPointSizeChange={(pointSize) =>
+                  controllerRef.current?.setPointCloudPointSize(pointSize)
+                }
+                onPointCloudVisibilityChange={setPointCloudVisible}
+                pointBudget={pointBudget}
+                pointCloudConfigurations={pointCloudConfigurations}
+                pointCloudFailures={pointCloudFailures}
+                pointSize={snapshot.pointCloudOptions.pointSize}
+                projectId={projectId}
+                snapshot={snapshot}
+              />
             }
-            onPointCloudConfigurationChange={updatePointCloudConfiguration}
-            onPointSizeChange={(pointSize) =>
-              controllerRef.current?.setPointCloudPointSize(pointSize)
+            inspector={
+              <IfcPropertiesPane
+                activeModelId={activeModelId}
+                modelName={activeIfcSource?.fileName ?? null}
+                onClearSelection={() =>
+                  controllerRef.current?.selectEntity(null)
+                }
+                onFrameSelection={() => controllerRef.current?.frameSelection()}
+                snapshot={snapshot}
+              />
             }
-            onPointCloudVisibilityChange={setPointCloudVisible}
-            pointBudget={pointBudget}
-            pointCloudConfigurations={pointCloudConfigurations}
-            pointCloudFailures={pointCloudFailures}
-            pointSize={snapshot.pointCloudOptions.pointSize}
-            projectId={projectId}
-            snapshot={snapshot}
           />
         </aside>
 
@@ -348,17 +350,6 @@ export function ProjectViewer({
         </section>
 
         <ViewerSidePanel
-          actions={
-            activePanel === "properties" && snapshot.selection ? (
-              <Button
-                iconId="fr-icon-focus-3-line"
-                onClick={() => controllerRef.current?.frameSelection()}
-                priority="tertiary no outline"
-                size="small"
-                title="Cadrer l’élément sélectionné"
-              />
-            ) : null
-          }
           focusRequest={panelFocusRequest}
           iconClass={activePanelConfig?.icon}
           isOpen={activePanel !== null}
@@ -407,8 +398,6 @@ export function ProjectViewer({
               initialTopics={initialBcfTopics}
               onApplyViewpoint={(data, targetDistance) => {
                 controllerRef.current?.applyBcfViewpoint(data, targetDistance);
-                setActivePanel("properties");
-                setActiveToolGroup("data");
               }}
               onCaptureViewpoint={() => {
                 const controller = controllerRef.current;
@@ -423,8 +412,6 @@ export function ProjectViewer({
                 controllerRef.current?.setActiveModel(assetId);
                 controllerRef.current?.selectEntity(expressId);
                 controllerRef.current?.frameSelection();
-                setActivePanel("properties");
-                setActiveToolGroup("data");
               }}
               onTopicCountChange={setBcfTopicCount}
               projectId={projectId}
@@ -445,36 +432,16 @@ export function ProjectViewer({
               }}
               section={snapshot.section}
             />
-          ) : activePanel !== "properties" ? (
-            upcomingDescription ? (
-              <div className={styles.upcoming}>
-                <Alert
-                  description={upcomingDescription}
-                  role="status"
-                  severity="info"
-                  title="Outil en préparation"
-                />
-              </div>
-            ) : null
-          ) : snapshot.selectionPhase === "loading" ? (
-            <p className={styles.panelState}>Lecture des propriétés…</p>
-          ) : snapshot.selectionPhase === "error" ? (
-            <p className={styles.panelError}>
-              {snapshot.selectionMessage ??
-                "Les propriétés n’ont pas pu être lues."}
-            </p>
-          ) : snapshot.selection ? (
-            <IfcElementProperties element={snapshot.selection} />
-          ) : (
-            <div className={styles.panelEmpty}>
-              <span className="fr-icon-cursor-line" aria-hidden="true" />
-              <strong>Sélectionnez un élément</strong>
-              <p>
-                Cliquez sur la maquette pour afficher son identité IFC et ses
-                jeux de propriétés.
-              </p>
+          ) : upcomingDescription ? (
+            <div className={styles.upcoming}>
+              <Alert
+                description={upcomingDescription}
+                role="status"
+                severity="info"
+                title="Outil en préparation"
+              />
             </div>
-          )}
+          ) : null}
         </ViewerSidePanel>
       </div>
     </main>
