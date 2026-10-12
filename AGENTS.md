@@ -86,7 +86,7 @@ app -> screens -> widgets -> features -> entities -> shared
 - Keep modules focused. Do not recreate an application-wide `App.tsx` orchestration component.
 - Keep secrets server-only. Public environment variables must use the `NEXT_PUBLIC_` prefix deliberately.
 - Do not commit `.env` files, credentials, generated uploads, database volumes, or model files.
-- Add an ADR when changing a durable architecture boundary or selecting a foundational vendor.
+- Add an ADR when changing a durable architecture boundary or selecting a foundational vendor. Follow the [ADR guide](docs/adr/README.md) and its template.
 
 ## Tests and validation
 

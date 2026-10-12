@@ -14,7 +14,8 @@ This repository is a clean rewrite of the validated prototype. Features are rein
 - IFC-Lite MCP and OpenRouter
 - IFC-Lite WebGPU renderer with native point-cloud overlays
 
-See [`AGENTS.md`](./AGENTS.md) for engineering rules and `docs/adr` for architecture decisions.
+See [`AGENTS.md`](./AGENTS.md) for engineering rules and the
+[ADR index](./docs/adr/README.md) for architecture decisions and the template.
 
 ## Local development
 
