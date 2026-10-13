@@ -12,17 +12,31 @@ async function main() {
     ...config.storage,
     publicEndpoint: config.storage.endpoint,
   });
-  await runRemotePointCloudJob({
-    job: config.job,
-    storage,
-    artifacts: new PotreePointCloudArtifactBuilder(
+  const startedAt = Date.now();
+  console.info("Point cloud one-off started", { jobId: config.job.jobId });
+  const heartbeat = setInterval(() => {
+    console.info("Point cloud one-off still running", {
+      jobId: config.job.jobId,
+      elapsedMinutes: Math.floor((Date.now() - startedAt) / 60_000),
+    });
+  }, 5 * 60_000);
+  heartbeat.unref();
+  try {
+    await runRemotePointCloudJob({
+      job: config.job,
       storage,
-      new PotreeConverterProcessor({
-        executablePath: config.potreeConverterPath,
-      }),
-      remotePointCloudPrefix(config.job),
-    ),
-  });
+      artifacts: new PotreePointCloudArtifactBuilder(
+        storage,
+        new PotreeConverterProcessor({
+          executablePath: config.potreeConverterPath,
+        }),
+        remotePointCloudPrefix(config.job),
+      ),
+    });
+    console.info("Point cloud one-off completed", { jobId: config.job.jobId });
+  } finally {
+    clearInterval(heartbeat);
+  }
 }
 
 void main().catch((error: unknown) => {

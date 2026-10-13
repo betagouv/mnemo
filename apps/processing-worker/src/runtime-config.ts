@@ -1,3 +1,5 @@
+import { fileURLToPath } from "node:url";
+
 import { remotePointCloudJobSchema } from "./application/remote-point-cloud-protocol";
 
 function required(name: string) {
@@ -18,6 +20,8 @@ export function getPointCloudOneOffConfig() {
       accessKeyId: required("S3_ACCESS_KEY"),
       secretAccessKey: required("S3_SECRET_KEY"),
     },
-    potreeConverterPath: required("POTREE_CONVERTER_PATH"),
+    potreeConverterPath:
+      process.env.POTREE_CONVERTER_PATH?.trim() ||
+      fileURLToPath(new URL("../bin/potree-converter", import.meta.url)),
   };
 }
