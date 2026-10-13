@@ -12,6 +12,8 @@ import {
 const maxMetadataBytes = 2 * 1_024 * 1_024;
 const maxHierarchyPageBytes = 64 * 1_024 * 1_024;
 const maxNodeBytes = 128 * 1_024 * 1_024;
+const maxGroupedNodeBytes = 8 * 1_024 * 1_024;
+const nodeFetchConcurrency = 12;
 const accessRefreshMarginMs = 30_000;
 
 export type PointCloudOctreeAccess = {
@@ -273,6 +275,43 @@ async function mapConcurrent<T, R>(
   return results;
 }
 
+type NodeRange = {
+  offset: bigint;
+  size: bigint;
+  nodes: PotreeNode[];
+};
+
+function groupContiguousNodes(nodes: PotreeNode[]): NodeRange[] {
+  const ranges: NodeRange[] = [];
+  const sorted = [...nodes].sort((left, right) =>
+    left.byteOffset < right.byteOffset
+      ? -1
+      : left.byteOffset > right.byteOffset
+        ? 1
+        : 0,
+  );
+
+  for (const node of sorted) {
+    const last = ranges.at(-1);
+    if (
+      last &&
+      last.offset + last.size === node.byteOffset &&
+      last.size + node.byteSize <= BigInt(maxGroupedNodeBytes)
+    ) {
+      last.size += node.byteSize;
+      last.nodes.push(node);
+    } else {
+      ranges.push({
+        offset: node.byteOffset,
+        size: node.byteSize,
+        nodes: [node],
+      });
+    }
+  }
+
+  return ranges;
+}
+
 class PotreeOctreeStream implements PointCloudOctreeStreamHandle {
   readonly ready: Promise<void>;
   private readonly abort = new AbortController();
@@ -281,7 +320,9 @@ class PotreeOctreeStream implements PointCloudOctreeStreamHandle {
   private metadata: PotreeMetadata | null = null;
   private root: PotreeNode | null = null;
   private view: PointCloudLodView | null = null;
-  private resident = new Set<string>();
+  private resident = new Map<string, PotreeNode>();
+  private residentPointCount = 0;
+  private revision = 0;
   private running = false;
   private dirty = false;
   private failed = false;
@@ -307,6 +348,7 @@ class PotreeOctreeStream implements PointCloudOctreeStreamHandle {
   update(view: PointCloudLodView) {
     if (this.abort.signal.aborted || this.failed) return;
     this.view = view;
+    this.revision++;
     this.dirty = true;
     void this.drain();
   }
@@ -346,6 +388,7 @@ class PotreeOctreeStream implements PointCloudOctreeStreamHandle {
     try {
       while (this.dirty && !this.abort.signal.aborted) {
         this.dirty = false;
+        const revision = this.revision;
         let selection = selectPointCloudLod(this.root, this.view);
         if (selection.hierarchyPages.length) {
           await mapConcurrent(selection.hierarchyPages, 4, async (node) => {
@@ -363,33 +406,47 @@ class PotreeOctreeStream implements PointCloudOctreeStreamHandle {
         const missing = selection.nodes.filter(
           (node) => !this.resident.has(node.name) && node.byteSize > BigInt(0),
         );
-        const decoded = await mapConcurrent(missing, 4, async (node) => {
-          const buffer = await this.reader.octree(
-            node.byteOffset,
-            node.byteSize,
+        const ranges = groupContiguousNodes(missing);
+        let completedRanges = 0;
+        await mapConcurrent(ranges, nodeFetchConcurrency, async (range) => {
+          if (revision !== this.revision || this.abort.signal.aborted) return;
+          const buffer = await this.reader.octree(range.offset, range.size);
+          let offset = 0;
+          const decoded = await Promise.all(
+            range.nodes.map(async (node) => {
+              const size = Number(node.byteSize);
+              const nodeBuffer = buffer.slice(offset, offset + size);
+              offset += size;
+              return {
+                nodeId: node.name,
+                chunk: await this.decoder.decode(
+                  nodeBuffer,
+                  this.metadata as PotreeMetadata,
+                  node,
+                  this.abort.signal,
+                ),
+              };
+            }),
           );
-          return {
-            nodeId: node.name,
-            chunk: await this.decoder.decode(
-              buffer,
-              this.metadata as PotreeMetadata,
-              node,
-              this.abort.signal,
-            ),
-          };
+          if (revision !== this.revision || this.abort.signal.aborted) return;
+
+          for (const node of range.nodes) {
+            this.resident.set(node.name, node);
+            this.residentPointCount += node.numPoints;
+          }
+          completedRanges++;
+          const finished = completedRanges === ranges.length;
+          const remove = finished ? this.removeUndesired(desired) : [];
+          this.publish(decoded, remove);
         });
         if (this.abort.signal.aborted) return;
-
-        const remove = [...this.resident].filter(
-          (nodeId) => !desired.has(nodeId),
-        );
-        this.options.onSwap({
-          add: decoded,
-          remove,
-          pointCount: selection.pointCount,
-          nodeCount: selection.nodes.length,
-        });
-        this.resident = desired;
+        if (revision !== this.revision) {
+          this.dirty = true;
+          continue;
+        }
+        if (ranges.length === 0) {
+          this.publish([], this.removeUndesired(desired));
+        }
       }
     } catch (error) {
       this.fail(error);
@@ -397,6 +454,26 @@ class PotreeOctreeStream implements PointCloudOctreeStreamHandle {
       this.running = false;
       if (this.dirty && !this.failed) void this.drain();
     }
+  }
+
+  private removeUndesired(desired: Set<string>) {
+    const remove = [...this.resident.keys()].filter(
+      (nodeId) => !desired.has(nodeId),
+    );
+    for (const nodeId of remove) {
+      this.residentPointCount -= this.resident.get(nodeId)?.numPoints ?? 0;
+      this.resident.delete(nodeId);
+    }
+    return remove;
+  }
+
+  private publish(add: PointCloudOctreeSwap["add"], remove: string[]) {
+    this.options.onSwap({
+      add,
+      remove,
+      pointCount: this.residentPointCount,
+      nodeCount: this.resident.size,
+    });
   }
 
   private fail(error: unknown) {
