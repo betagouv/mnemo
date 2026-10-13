@@ -1,5 +1,7 @@
 # Mnemo
 
+⚠️ Ce projet est en cours de développement. ⚠️
+
 Mnemo is a web BIM workspace for IFC models, large point clouds, BCF collaboration, and AI-assisted model interaction.
 
 This repository is a clean rewrite of the validated prototype. Features are reintroduced incrementally behind explicit domain and rendering boundaries.
