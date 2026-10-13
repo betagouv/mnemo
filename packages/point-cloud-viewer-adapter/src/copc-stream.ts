@@ -222,7 +222,9 @@ export function createPointCloudCopcStream(options: PointCloudCopcStreamOptions)
     const controller = new AbortController();
     updateAbort = controller;
     const signal = AbortSignal.any([lifetime.signal, controller.signal]);
-    void run(view, signal).catch(report);
+    void run(view, signal).catch((error) => {
+      if (!signal.aborted) report(error);
+    });
   }
 
   void open().catch(report);
