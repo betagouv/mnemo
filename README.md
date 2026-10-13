@@ -18,6 +18,8 @@ This repository is a clean rewrite of the validated prototype. Features are rein
 
 See [`AGENTS.md`](./AGENTS.md) for engineering rules and the
 [ADR index](./docs/adr/README.md) for architecture decisions and the template.
+The first protected Scalingo staging deployment is described in the
+[deployment guide](./docs/deployment/scalingo-staging.md).
 
 ## Local development
 

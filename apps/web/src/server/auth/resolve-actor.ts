@@ -13,9 +13,13 @@ export function resolveActor(): Actor {
     throw new Error(`Unsupported authentication mode: ${authenticationMode}`);
   }
 
-  if (deploymentEnvironment === "production") {
+  if (
+    deploymentEnvironment === "production" ||
+    (deploymentEnvironment === "local" &&
+      (process.env.APP || process.env.SCALINGO_APPLICATION_ID))
+  ) {
     throw new Error(
-      "Development authentication cannot be used in a production deployment",
+      "Development authentication cannot be used without an explicit staging deployment",
     );
   }
 
