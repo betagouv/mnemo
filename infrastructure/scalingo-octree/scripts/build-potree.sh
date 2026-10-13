@@ -9,7 +9,7 @@ git init "$potree_source"
 git -C "$potree_source" remote add origin https://github.com/potree/PotreeConverter.git
 git -C "$potree_source" fetch --depth 1 origin "$potree_revision"
 git -C "$potree_source" checkout --detach FETCH_HEAD
-cmake -S "$potree_source" -B "$potree_source/build"
+cmake -S "$potree_source" -B "$potree_source/build" -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 cmake --build "$potree_source/build" --parallel 2
 mkdir -p bin
 cp "$potree_source/build/PotreeConverter" bin/PotreeConverter
