@@ -200,7 +200,7 @@ export class PointCloudLayers {
           totalPointCount: info.totalPointCount,
         });
       },
-      onSwap: ({ add, remove, pointCount, nodeCount }) => {
+      onSwap: ({ add, remove, pointCount, nodeCount, complete }) => {
         if (this.loads.get(input.assetId) !== load) return;
         const transform = composePointCloudTransform(load.transform);
 
@@ -223,13 +223,15 @@ export class PointCloudLayers {
           load.handles.delete(nodeId);
         }
         this.host.onSnapshot(input.assetId, {
-          phase: "ready",
-          progress: 1,
+          phase: complete ? "ready" : "streaming",
+          progress: complete
+            ? 1
+            : Math.min(0.99, pointCount / Math.max(1, load.pointBudget)),
           pointCount,
           residentNodeCount: nodeCount,
           message: null,
         });
-        this.host.renderer.requestRender();
+        if (add.length || remove.length) this.host.renderer.requestRender();
       },
       onError: (error) => {
         if (this.loads.get(input.assetId) !== load) return;

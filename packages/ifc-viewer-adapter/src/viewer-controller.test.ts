@@ -480,6 +480,7 @@ function createHarness({
               remove: [],
               pointCount: 1,
               nodeCount: 1,
+              complete: false,
             });
           } else {
             options.onSwap({
@@ -504,6 +505,7 @@ function createHarness({
               remove: ["r"],
               pointCount: 2,
               nodeCount: 2,
+              complete: true,
             });
           }
         },
@@ -1304,12 +1306,13 @@ describe("IfcViewerController", () => {
 
     expect(controller.getSnapshot().pointClouds[0]).toMatchObject({
       source: "octree",
-      phase: "ready",
+      phase: "streaming",
       pointCount: 1,
       residentNodeCount: 1,
     });
     controller.setPointCloudPointBudget(4_000_000);
     expect(controller.getSnapshot().pointClouds[0]).toMatchObject({
+      phase: "ready",
       pointCount: 2,
       residentNodeCount: 2,
     });

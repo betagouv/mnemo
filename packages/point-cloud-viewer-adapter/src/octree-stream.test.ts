@@ -14,13 +14,14 @@ function hierarchyFixture() {
   view.setUint8(0, 0);
   view.setUint8(1, 1);
   view.setUint32(2, 1, true);
-  view.setBigUint64(6, BigInt(0), true);
+  // Potree often stores the coarse root after its detailed descendants.
+  view.setBigUint64(6, BigInt(12), true);
   view.setBigUint64(14, BigInt(12), true);
 
   view.setUint8(22, 1);
   view.setUint8(23, 0);
   view.setUint32(24, 1, true);
-  view.setBigUint64(28, BigInt(12), true);
+  view.setBigUint64(28, BigInt(0), true);
   view.setBigUint64(36, BigInt(12), true);
   return buffer;
 }
@@ -56,8 +57,12 @@ describe("Potree octree stream", () => {
       ],
     };
     const ranges: string[] = [];
-    const swaps: Array<{ add: string[]; remove: string[]; points: number }> =
-      [];
+    const swaps: Array<{
+      add: string[];
+      remove: string[];
+      points: number;
+      complete: boolean;
+    }> = [];
     const fetch = vi.fn(
       async (url: string | URL | Request, init?: RequestInit) => {
         const href = String(url);
@@ -85,11 +90,12 @@ describe("Potree octree stream", () => {
       refreshAccess: async () => {
         throw new Error("access should not refresh");
       },
-      onSwap: ({ add, remove, pointCount }) => {
+      onSwap: ({ add, remove, pointCount, complete }) => {
         swaps.push({
           add: add.map((node) => node.nodeId),
           remove,
           points: pointCount,
+          complete,
         });
       },
       runtime: {
@@ -113,8 +119,30 @@ describe("Potree octree stream", () => {
     });
     await stream.ready;
 
-    expect(swaps).toEqual([{ add: ["r", "r0"], remove: [], points: 2 }]);
-    expect(ranges).toEqual(["bytes=0-43", "bytes=0-23"]);
+    expect(swaps).toEqual([
+      { add: ["r"], remove: [], points: 1, complete: false },
+      { add: ["r0"], remove: [], points: 2, complete: false },
+      { add: [], remove: [], points: 2, complete: true },
+    ]);
+    expect(ranges).toEqual(["bytes=0-43", "bytes=12-23", "bytes=0-11"]);
+
+    const view = {
+      viewProjectionMatrix: identity,
+      modelMatrix: identity,
+      cameraPosition: [0, 0, -2] as [number, number, number],
+      verticalFovRadians: Math.PI / 3,
+      viewportHeight: 800,
+    };
+    stream.update({ ...view, pointBudget: 1 });
+    await vi.waitFor(() => expect(swaps.at(-1)?.remove).toEqual(["r0"]));
+    const swapCount = swaps.length;
+    stream.update({ ...view, pointBudget: 2 });
+    await vi.waitFor(() =>
+      expect(
+        swaps.slice(swapCount).some((swap) => swap.add.includes("r0")),
+      ).toBe(true),
+    );
+    expect(ranges).toEqual(["bytes=0-43", "bytes=12-23", "bytes=0-11"]);
     stream.cancel();
   });
 
@@ -137,6 +165,7 @@ describe("Potree octree stream", () => {
     const swaps: number[] = [];
     let activeRanges = 0;
     let peakRanges = 0;
+    let abortedRanges = 0;
     let releaseConcurrentRanges: (() => void) | undefined;
     const concurrentRanges = new Promise<void>((resolve) => {
       releaseConcurrentRanges = resolve;
@@ -183,8 +212,22 @@ describe("Potree octree stream", () => {
         }
         activeRanges++;
         peakRanges = Math.max(peakRanges, activeRanges);
-        await concurrentRanges;
-        if (start === 24) await heldRange;
+        if (start !== 0) await concurrentRanges;
+        if (start === 24) {
+          await Promise.race([
+            heldRange,
+            new Promise<never>((_resolve, reject) => {
+              init?.signal?.addEventListener(
+                "abort",
+                () => {
+                  abortedRanges++;
+                  reject(new DOMException("Aborted", "AbortError"));
+                },
+                { once: true },
+              );
+            }),
+          ]);
+        }
         activeRanges--;
         return new Response(octree.slice(start, end), { status: 206 });
       },
@@ -236,6 +279,7 @@ describe("Potree octree stream", () => {
     await stream.ready;
     expect(swaps.at(-1)).toBe(1);
     expect(swaps).not.toContain(7);
+    expect(abortedRanges).toBeGreaterThan(0);
     stream.update({ ...view, cameraPosition: [...view.cameraPosition] });
     await vi.waitFor(() => expect(swaps.at(-1)).toBe(7));
     stream.cancel();
