@@ -19,7 +19,7 @@ import type {
 } from "./object-storage";
 
 const multipartThresholdBytes = 64 * 1024 * 1024;
-const multipartPartSizeBytes = 64 * 1024 * 1024;
+const multipartPartSizeBytes = 512 * 1024 * 1024;
 
 export type S3ObjectStorageOptions = {
   endpoint: string;
@@ -202,7 +202,7 @@ export class S3ObjectStorage implements ObjectStorage {
       client: this.internalClient,
       params,
       partSize: multipartPartSizeBytes,
-      queueSize: 2,
+      queueSize: 4,
       leavePartsOnError: false,
     }).done();
   }

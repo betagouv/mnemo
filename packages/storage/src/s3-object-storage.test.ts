@@ -75,8 +75,8 @@ describe("S3 streamed uploads", () => {
         ContentLength: contentLength,
         ContentType: "application/octet-stream",
       }),
-      partSize: 64 * 1024 * 1024,
-      queueSize: 2,
+      partSize: 512 * 1024 * 1024,
+      queueSize: 4,
       leavePartsOnError: false,
     });
     expect(uploadMocks.done).toHaveBeenCalledOnce();
