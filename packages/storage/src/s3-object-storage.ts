@@ -5,6 +5,7 @@ import {
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
+import { Upload } from "@aws-sdk/lib-storage";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { Readable } from "node:stream";
 
@@ -16,6 +17,9 @@ import type {
   WriteObjectInput,
   WriteObjectStreamInput,
 } from "./object-storage";
+
+const multipartThresholdBytes = 64 * 1024 * 1024;
+const multipartPartSizeBytes = 64 * 1024 * 1024;
 
 export type S3ObjectStorageOptions = {
   endpoint: string;
@@ -180,15 +184,27 @@ export class S3ObjectStorage implements ObjectStorage {
     contentLength,
     body,
   }: WriteObjectStreamInput) {
-    await this.internalClient.send(
-      new PutObjectCommand({
-        Bucket: this.options.bucket,
-        Key: objectKey,
-        Body: Readable.from(body),
-        ContentLength: contentLength,
-        ContentType: contentType,
-      }),
-    );
+    const stream = Readable.from(body, { objectMode: false });
+    const params = {
+      Bucket: this.options.bucket,
+      Key: objectKey,
+      Body: stream,
+      ContentLength: contentLength,
+      ContentType: contentType,
+    };
+
+    if (contentLength <= multipartThresholdBytes) {
+      await this.internalClient.send(new PutObjectCommand(params));
+      return;
+    }
+
+    await new Upload({
+      client: this.internalClient,
+      params,
+      partSize: multipartPartSizeBytes,
+      queueSize: 2,
+      leavePartsOnError: false,
+    }).done();
   }
 
   async deleteObject(objectKey: string) {
