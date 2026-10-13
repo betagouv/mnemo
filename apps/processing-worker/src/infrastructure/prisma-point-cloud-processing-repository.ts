@@ -43,13 +43,16 @@ export class PrismaPointCloudProcessingRepository implements PointCloudProcessin
     >(Prisma.sql`
       INSERT INTO point_cloud_processing_results (
         asset_id, format, processor, processor_version, metadata_object_key,
-        hierarchy_object_key, octree_object_key, point_count, spacing,
+        hierarchy_object_key, octree_object_key, copc_object_key, point_count, spacing,
         processed_at, created_at, updated_at
       )
       SELECT
         ${assetId}::uuid, ${result.format}, ${result.processor},
-        ${result.processorVersion}, ${result.metadataObjectKey},
-        ${result.hierarchyObjectKey}, ${result.octreeObjectKey},
+        ${result.processorVersion},
+        ${result.format === "potree-v2" ? result.metadataObjectKey : null},
+        ${result.format === "potree-v2" ? result.hierarchyObjectKey : null},
+        ${result.format === "potree-v2" ? result.octreeObjectKey : null},
+        ${result.format === "copc-v1" ? result.copcObjectKey : null},
         ${result.pointCount}, ${result.spacing}, ${processedAt},
         ${processedAt}, ${processedAt}
       FROM assets
@@ -70,6 +73,7 @@ export class PrismaPointCloudProcessingRepository implements PointCloudProcessin
         metadata_object_key = EXCLUDED.metadata_object_key,
         hierarchy_object_key = EXCLUDED.hierarchy_object_key,
         octree_object_key = EXCLUDED.octree_object_key,
+        copc_object_key = EXCLUDED.copc_object_key,
         point_count = EXCLUDED.point_count,
         spacing = EXCLUDED.spacing,
         processed_at = EXCLUDED.processed_at,

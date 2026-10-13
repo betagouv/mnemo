@@ -38,9 +38,19 @@ RUN apt-get update \
   && cmake -S /source -B /source/build \
   && cmake --build /source/build --parallel 2
 
+FROM node:22-bookworm-slim AS pdal-converter
+WORKDIR /app
+RUN apt-get update \
+  && apt-get install --yes --no-install-recommends ca-certificates curl bzip2 \
+  && rm -rf /var/lib/apt/lists/*
+COPY infrastructure/scalingo-octree/scripts/install-pdal.sh scripts/install-pdal.sh
+COPY infrastructure/scalingo-octree/scripts/pdal scripts/pdal
+RUN bash scripts/install-pdal.sh
+
 FROM node:22-bookworm-slim AS runtime
 ENV NODE_ENV=production
 ENV LD_LIBRARY_PATH=/usr/local/lib
+ENV PDAL_PATH=/opt/pdal/bin/pdal
 WORKDIR /app
 RUN apt-get update \
   && apt-get install --yes --no-install-recommends libtbb12 \
@@ -49,6 +59,7 @@ RUN apt-get update \
   && useradd --system --uid 1001 --gid mnemo --home-dir /app mnemo
 COPY --from=potree-converter /source/build/PotreeConverter /usr/local/bin/PotreeConverter
 COPY --from=potree-converter /source/build/liblaszip.so /usr/local/lib/liblaszip.so
+COPY --from=pdal-converter /app/bin /opt/pdal/bin
 COPY --from=build --chown=mnemo:mnemo /workspace/apps/processing-worker/dist ./dist
 USER mnemo
 CMD ["node", "dist/process-point-cloud-once.js"]

@@ -6,16 +6,22 @@ export type PointCloudAssetForProcessing = {
   sizeBytes: number;
 };
 
-export type PointCloudProcessingResult = {
-  format: "potree-v2";
+type PointCloudProcessingResultBase = {
   processor: string;
   processorVersion: string;
-  metadataObjectKey: string;
-  hierarchyObjectKey: string;
-  octreeObjectKey: string;
   pointCount: number;
   spacing: number;
 };
+
+export type PointCloudProcessingResult = PointCloudProcessingResultBase & ({
+  format: "potree-v2";
+  metadataObjectKey: string;
+  hierarchyObjectKey: string;
+  octreeObjectKey: string;
+} | {
+  format: "copc-v1";
+  copcObjectKey: string;
+});
 
 export interface PointCloudProcessingRepository {
   findPointCloudAsset(

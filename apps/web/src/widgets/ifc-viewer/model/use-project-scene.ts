@@ -89,16 +89,35 @@ export function useProjectScene({
         maxPointsInMemory,
         transform,
       };
-      const input: LoadPointCloudInput =
-        source.source.mode === "preview"
-          ? {
+      let input: LoadPointCloudInput;
+      if (source.source.mode === "preview") {
+        input = {
               ...base,
               source: {
                 mode: "preview",
                 downloadUrl: source.source.downloadUrl,
               },
-            }
-          : {
+            };
+      } else if (source.source.mode === "copc") {
+        input = {
+          ...base,
+          source: {
+            mode: "copc",
+            access: source.source,
+            refreshAccess: async () => {
+              const refreshed = await fetchJson(
+                `/api/projects/${projectId}/assets/${source.assetId}/point-cloud/source`,
+                pointCloudSourceSchema,
+              );
+              if (refreshed.mode !== "copc") {
+                throw new Error("Le COPC du nuage de points n’est plus disponible.");
+              }
+              return refreshed;
+            },
+          },
+        };
+      } else {
+        input = {
               ...base,
               source: {
                 mode: "octree",
@@ -117,6 +136,7 @@ export function useProjectScene({
                 },
               },
             };
+      }
       await controller.loadPointCloud(input);
     },
     [projectId],

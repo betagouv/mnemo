@@ -127,7 +127,8 @@ export class PrismaAssetRepository implements AssetRepository {
                     result.metadata_object_key,
                     result.hierarchy_object_key,
                     result.octree_object_key,
-                  ]
+                    result.copc_object_key,
+                  ].filter((key): key is string => key !== null)
                 : []),
             ],
             available_at: requestedAt,

@@ -5,6 +5,7 @@ import {
   type PointCloudFormat,
   type PointCloudLodView,
   type PointCloudOctreeStreamHandle,
+  type PointCloudOctreeStreamOptions,
   type PointCloudStreamHandle,
   type PointCloudTransform,
 } from "@mnemo/point-cloud-viewer-adapter";
@@ -19,7 +20,7 @@ type PreviewInput = Extract<
   LoadPointCloudInput,
   { source: { mode: "preview" } }
 >;
-type OctreeInput = Extract<LoadPointCloudInput, { source: { mode: "octree" } }>;
+type OctreeInput = Exclude<LoadPointCloudInput, { source: { mode: "preview" } }>;
 
 function isPreviewInput(input: LoadPointCloudInput): input is PreviewInput {
   return input.source.mode === "preview";
@@ -41,7 +42,7 @@ type PointCloudLayerHost = {
   canvas: HTMLCanvasElement;
   runtime: Pick<
     IfcViewerRuntime,
-    "fetch" | "createPointCloudStream" | "createPointCloudOctreeStream"
+    "fetch" | "createPointCloudStream" | "createPointCloudOctreeStream" | "createPointCloudCopcStream"
   >;
   initialize: () => Promise<void>;
   isDisposed: () => boolean;
@@ -190,9 +191,7 @@ export class PointCloudLayers {
 
   private async loadOctree(input: OctreeInput, load: PointCloudLoad) {
     this.host.onSnapshot(input.assetId, { phase: "streaming" });
-    const stream = this.host.runtime.createPointCloudOctreeStream({
-      access: input.source.access,
-      refreshAccess: input.source.refreshAccess,
+    const common: Pick<PointCloudOctreeStreamOptions, "signal" | "onOpen" | "onSwap" | "onError"> = {
       signal: load.abort.signal,
       onOpen: (info) => {
         if (this.loads.get(input.assetId) !== load) return;
@@ -241,7 +240,18 @@ export class PointCloudLayers {
           message: error.message,
         });
       },
-    });
+    };
+    const stream = input.source.mode === "copc"
+      ? this.host.runtime.createPointCloudCopcStream({
+          ...common,
+          access: input.source.access,
+          refreshAccess: input.source.refreshAccess,
+        })
+      : this.host.runtime.createPointCloudOctreeStream({
+          ...common,
+          access: input.source.access,
+          refreshAccess: input.source.refreshAccess,
+        });
     load.octree = stream;
     load.lastLodSignature = null;
     this.updateLod();

@@ -7,6 +7,8 @@ import type {
   PointCloudOctreeAccess,
   PointCloudOctreeStreamHandle,
   PointCloudOctreeStreamOptions,
+  PointCloudCopcAccess,
+  PointCloudCopcStreamOptions,
   PointCloudStreamHandle,
   PointCloudStreamOptions,
   PointCloudTransform,
@@ -74,7 +76,7 @@ export type PointCloudSnapshot = {
   pointCount: number;
   totalPointCount: number | null;
   sampleStride: number;
-  source: "preview" | "octree";
+  source: "preview" | "octree" | "copc";
   residentNodeCount: number;
   message: string | null;
 };
@@ -194,6 +196,13 @@ export type LoadPointCloudInput =
         access: PointCloudOctreeAccess;
         refreshAccess: () => Promise<PointCloudOctreeAccess>;
       };
+    })
+  | (LoadPointCloudBase & {
+      source: {
+        mode: "copc";
+        access: PointCloudCopcAccess;
+        refreshAccess: () => Promise<PointCloudCopcAccess>;
+      };
     });
 
 export type CapturedBcfViewpoint = {
@@ -223,6 +232,9 @@ export type IfcViewerRuntime = {
   ) => PointCloudStreamHandle;
   createPointCloudOctreeStream: (
     options: PointCloudOctreeStreamOptions,
+  ) => PointCloudOctreeStreamHandle;
+  createPointCloudCopcStream: (
+    options: PointCloudCopcStreamOptions,
   ) => PointCloudOctreeStreamHandle;
   fetch: typeof fetch;
   requestFrame: FrameRequest;

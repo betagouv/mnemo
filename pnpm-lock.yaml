@@ -276,8 +276,8 @@ importers:
   packages/point-cloud-viewer-adapter:
     dependencies:
       '@ifc-lite/pointcloud':
-        specifier: 0.7.2
-        version: 0.7.2
+        specifier: 0.12.0
+        version: 0.12.0
       '@ifc-lite/renderer':
         specifier: 2.0.1
         version: 2.0.1
@@ -1014,6 +1014,9 @@ packages:
 
   '@ifc-lite/parser@5.2.0':
     resolution: {integrity: sha512-L14gblllkj7SMMrHYP/0bJOMUix6U7HI5Z9pVzsqF+cPFbwo34bVwF+lKO0BQUyXvMJpquQtdCTjWLdPEAkumg==}
+
+  '@ifc-lite/pointcloud@0.12.0':
+    resolution: {integrity: sha512-pLqypOtKzXEdcxlVX+45gro0oM25wZMYNiaXNB9JBMWonizq4m56S8LABdZac1y0hdu1PQ0SHvFIVma/kLxE6w==}
 
   '@ifc-lite/pointcloud@0.7.2':
     resolution: {integrity: sha512-Du/2d+go3fqJMgz7NLT4nZPbDw8p8TkucUNrEUY3wEgr7r/1xbHPx9uhqeePCOQK8BNfYaIIkclil98Tp+0AEw==}
@@ -6254,6 +6257,10 @@ snapshots:
       '@ifc-lite/wasm': 6.4.0
       fflate: 0.8.3
       jszip: 3.10.2
+
+  '@ifc-lite/pointcloud@0.12.0':
+    dependencies:
+      laz-perf: 0.0.7
 
   '@ifc-lite/pointcloud@0.7.2':
     dependencies:

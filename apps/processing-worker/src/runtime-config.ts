@@ -23,5 +23,8 @@ export function getPointCloudOneOffConfig() {
     potreeConverterPath:
       process.env.POTREE_CONVERTER_PATH?.trim() ||
       fileURLToPath(new URL("../bin/potree-converter", import.meta.url)),
+    pdalPath:
+      process.env.PDAL_PATH?.trim() ||
+      fileURLToPath(new URL("../bin/pdal", import.meta.url)),
   };
 }

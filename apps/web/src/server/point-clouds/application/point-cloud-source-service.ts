@@ -43,6 +43,16 @@ export class PointCloudSourceService {
       };
     }
 
+    if (record.result.format === "copc-v1") {
+      return {
+        mode: "copc",
+        copcUrl: await this.sign(record.result.copcObjectKey),
+        pointCount: record.result.pointCount,
+        spacing: record.result.spacing,
+        expiresAt,
+      };
+    }
+
     const [metadataUrl, hierarchyUrl, octreeUrl] = await Promise.all([
       this.sign(record.result.metadataObjectKey),
       this.sign(record.result.hierarchyObjectKey),

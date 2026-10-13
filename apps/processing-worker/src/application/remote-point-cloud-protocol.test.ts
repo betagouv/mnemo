@@ -1,0 +1,42 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  remotePointCloudJobSchema,
+  remotePointCloudOutcomeSchema,
+  remotePointCloudPrefix,
+} from "./remote-point-cloud-protocol";
+
+const job = {
+  jobId: "0291d65a-a810-4ca2-8c27-28f98b11fb94",
+  attempt: 1,
+  assetId: "e7371b07-6646-4b62-b559-4ced9e1a56d1",
+  projectId: "1a6e6575-6179-4096-a50d-96b0950c7760",
+  originalFileName: "scan.laz",
+  originalObjectKey: "projects/scan/original.laz",
+  sizeBytes: 1_000,
+};
+
+describe("remote point cloud protocol", () => {
+  it("keeps old Potree jobs readable while addressing new COPC artifacts separately", () => {
+    expect(remotePointCloudJobSchema.parse(job).targetFormat).toBe("potree-v2");
+    expect(remotePointCloudPrefix(remotePointCloudJobSchema.parse({
+      ...job, targetFormat: "copc-v1",
+    }))).toContain("/derived/copc-v1/");
+  });
+
+  it("accepts a COPC result without Potree-only object keys", () => {
+    expect(remotePointCloudOutcomeSchema.parse({
+      jobId: job.jobId,
+      attempt: job.attempt,
+      status: "succeeded",
+      result: {
+        format: "copc-v1",
+        processor: "PDAL writers.copc",
+        processorVersion: "2.9.3",
+        copcObjectKey: "projects/scan/derived/copc-v1/cloud.copc.laz",
+        pointCount: 1_800,
+        spacing: 0.15,
+      },
+    }).status).toBe("succeeded");
+  });
+});

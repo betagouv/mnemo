@@ -15,3 +15,9 @@ export {
   type PointCloudOctreeStreamOptions,
 } from "./octree-stream";
 export { type PointCloudLodView } from "./octree-lod";
+export {
+  createPointCloudCopcStream,
+  type PointCloudCopcAccess,
+  type PointCloudCopcStreamHandle,
+  type PointCloudCopcStreamOptions,
+} from "./copc-stream";

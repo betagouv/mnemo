@@ -46,6 +46,7 @@ export function createProcessRemotePointCloudAssetHandler(input: {
       originalFileName: asset.originalFileName,
       originalObjectKey: asset.originalObjectKey,
       sizeBytes: asset.sizeBytes,
+      targetFormat: "copc-v1",
     });
     const original = await input.storage.statObject(job.originalObjectKey);
     if (!original || original.contentLength !== job.sizeBytes) {
@@ -78,12 +79,15 @@ export function createProcessRemotePointCloudAssetHandler(input: {
           throw new Error(outcome.error);
         }
         const prefix = `${remotePointCloudPrefix(job)}/`;
-        const expected = ["metadata.json", "hierarchy.bin", "octree.bin"];
-        const actual = [
-          outcome.result.metadataObjectKey,
-          outcome.result.hierarchyObjectKey,
-          outcome.result.octreeObjectKey,
-        ];
+        const expected = outcome.result.format === "copc-v1"
+          ? ["cloud.copc.laz"]
+          : ["metadata.json", "hierarchy.bin", "octree.bin"];
+        const actual = outcome.result.format === "copc-v1"
+          ? [outcome.result.copcObjectKey]
+          : [outcome.result.metadataObjectKey, outcome.result.hierarchyObjectKey, outcome.result.octreeObjectKey];
+        if (outcome.result.format !== job.targetFormat) {
+          throw new Error("Point-cloud result format does not match its job");
+        }
         if (
           actual.some((key, index) => key !== `${prefix}${expected[index]}`)
         ) {

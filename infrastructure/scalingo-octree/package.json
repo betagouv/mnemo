@@ -7,6 +7,6 @@
     "node": "22.x"
   },
   "scripts": {
-    "scalingo-postbuild": "bash scripts/build-potree.sh"
+    "scalingo-postbuild": "bash scripts/build-potree.sh && bash scripts/install-pdal.sh"
   }
 }

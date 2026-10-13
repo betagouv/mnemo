@@ -179,9 +179,10 @@ model point_cloud_processing_results {
   format               String   @db.VarChar(40)
   processor            String   @db.VarChar(80)
   processor_version    String   @db.VarChar(80)
-  metadata_object_key  String
-  hierarchy_object_key String
-  octree_object_key    String
+  metadata_object_key  String?
+  hierarchy_object_key String?
+  octree_object_key    String?
+  copc_object_key      String?
   point_count          BigInt
   spacing              Float
   processed_at         DateTime @db.Timestamptz(6)

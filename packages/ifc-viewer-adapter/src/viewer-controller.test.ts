@@ -451,6 +451,7 @@ function createHarness({
       options.onChunk({
         positions: new Float32Array([0, 0, 0, 1, 1, 1]),
         colors: new Float32Array([1, 0, 0, 0, 1, 0]),
+        normalState: "absent",
         pointCount: 2,
         bbox: { min: [0, 0, 0], max: [1, 1, 1] },
       });
@@ -512,6 +513,11 @@ function createHarness({
         cancel: () => undefined,
       };
     },
+    createPointCloudCopcStream: () => ({
+      ready: Promise.resolve(),
+      update: () => undefined,
+      cancel: () => undefined,
+    }),
     readElementDetails: (_store, expressId) => ({
       expressId,
       globalId: "3vB1mExampleGlobalId",

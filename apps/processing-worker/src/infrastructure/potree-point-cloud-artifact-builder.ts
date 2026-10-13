@@ -1,5 +1,5 @@
 import { createReadStream } from "node:fs";
-import { mkdir, mkdtemp, open, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 
@@ -11,6 +11,7 @@ import {
 import type {
   PointCloudArtifactBuilder,
   PointCloudAssetForProcessing,
+  PointCloudProcessingResult,
 } from "../application/process-point-cloud-asset";
 import {
   isPotreeConvertibleFile,
@@ -26,47 +27,7 @@ const outputFiles = {
   octree: { name: "octree.bin", contentType: "application/octet-stream" },
 } as const;
 
-function sourceExtension(fileName: string) {
-  return fileName.toLowerCase().endsWith(".laz") ? "laz" : "las";
-}
-
-async function stageOriginal(
-  storage: ObjectStorage,
-  asset: PointCloudAssetForProcessing,
-  path: string,
-) {
-  const source = await storage.readObjectStream(asset.originalObjectKey);
-  const destination = await open(path, "wx", 0o600);
-  let bytesWritten = 0;
-  try {
-    for await (const chunk of source) {
-      let offset = 0;
-      while (offset < chunk.byteLength) {
-        const written = await destination.write(
-          chunk,
-          offset,
-          chunk.byteLength - offset,
-          null,
-        );
-        if (written.bytesWritten <= 0) {
-          throw new Error(
-            "Point-cloud staging stopped before the original ended",
-          );
-        }
-        offset += written.bytesWritten;
-      }
-      bytesWritten += chunk.byteLength;
-      if (bytesWritten > asset.sizeBytes) {
-        throw new Error("Point-cloud original exceeds its declared size");
-      }
-    }
-  } finally {
-    await destination.close();
-  }
-  if (bytesWritten !== asset.sizeBytes) {
-    throw new Error("Point-cloud original changed during staging");
-  }
-}
+import { sourceExtension, stageOriginal } from "./stage-point-cloud";
 
 export class PotreePointCloudArtifactBuilder implements PointCloudArtifactBuilder {
   constructor(
@@ -152,11 +113,8 @@ export class PotreePointCloudArtifactBuilder implements PointCloudArtifactBuilde
     }
   }
 
-  async remove(result: {
-    metadataObjectKey: string;
-    hierarchyObjectKey: string;
-    octreeObjectKey: string;
-  }) {
+  async remove(result: PointCloudProcessingResult) {
+    if (result.format !== "potree-v2") return;
     await Promise.all(
       [
         result.metadataObjectKey,

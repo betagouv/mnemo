@@ -14,20 +14,29 @@ export const remotePointCloudJobSchema = z.strictObject({
     .regex(/\.(?:las|laz)$/i),
   originalObjectKey: z.string().min(1),
   sizeBytes: z.number().int().positive().safe(),
+  targetFormat: z.enum(["potree-v2", "copc-v1"]).default("potree-v2"),
 });
 
 export type RemotePointCloudJob = z.infer<typeof remotePointCloudJobSchema>;
 
-const pointCloudResultSchema = z.strictObject({
-  format: z.literal("potree-v2"),
+const resultBase = {
   processor: z.string().min(1),
   processorVersion: z.string().min(1),
+  pointCount: z.number().int().nonnegative().safe(),
+  spacing: z.number().positive().finite(),
+};
+
+const pointCloudResultSchema = z.discriminatedUnion("format", [z.strictObject({
+  format: z.literal("potree-v2"),
+  ...resultBase,
   metadataObjectKey: z.string().min(1),
   hierarchyObjectKey: z.string().min(1),
   octreeObjectKey: z.string().min(1),
-  pointCount: z.number().int().nonnegative().safe(),
-  spacing: z.number().positive().finite(),
-});
+}), z.strictObject({
+  format: z.literal("copc-v1"),
+  ...resultBase,
+  copcObjectKey: z.string().min(1),
+})]);
 
 export const remotePointCloudOutcomeSchema = z.discriminatedUnion("status", [
   z.strictObject({
@@ -49,7 +58,7 @@ export type RemotePointCloudOutcome = z.infer<
 >;
 
 export function remotePointCloudPrefix(job: RemotePointCloudJob) {
-  return `projects/${job.projectId}/assets/${job.assetId}/derived/potree-v2/attempts/${job.jobId}-${job.attempt}`;
+  return `projects/${job.projectId}/assets/${job.assetId}/derived/${job.targetFormat}/attempts/${job.jobId}-${job.attempt}`;
 }
 
 export function remotePointCloudOutcomeKey(job: RemotePointCloudJob) {

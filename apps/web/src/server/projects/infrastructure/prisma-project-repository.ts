@@ -166,6 +166,7 @@ export class PrismaProjectRepository implements ProjectRepository {
             metadata_object_key: true,
             hierarchy_object_key: true,
             octree_object_key: true,
+            copc_object_key: true,
           },
         }),
       ]);
@@ -190,7 +191,8 @@ export class PrismaProjectRepository implements ProjectRepository {
                 artifact.metadata_object_key,
                 artifact.hierarchy_object_key,
                 artifact.octree_object_key,
-              ]),
+                artifact.copc_object_key,
+              ].filter((key): key is string => key !== null)),
             ],
             available_at: requestedAt,
           },
