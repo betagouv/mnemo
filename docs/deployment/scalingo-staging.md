@@ -41,4 +41,12 @@ scalingo --region osc-secnum-fr1 --app mnemo-web run 'pnpm db:seed'
 
 Le mot de passe partagé ne protège **pas** directement les URL S3 présignées déjà émises ni les autres applications Scalingo (`mnemo-ifc-rust`, `mnemo-potree`). Garder le bucket privé, limiter la durée des URL et protéger les endpoints des services avant de les rendre publics.
 
+## Serveur IFC-Lite Rust
+
+`mnemo-ifc-rust` est une application Scalingo distincte, construite depuis `PROJECT_DIR=infrastructure/scalingo-ifc-rust`. Ce dossier contient seulement le paquet binaire IFC-Lite épinglé, son lockfile, un `Procfile` et un lancement qui **refuse de démarrer** sans `IFC_SERVER_API_TOKEN`. Configurer un jeton aléatoire long dans l'environnement de cette application uniquement, ainsi que `MAX_FILE_SIZE_MB` et `WORKER_THREADS` selon la mémoire disponible. Aucun accès PostgreSQL ni S3 n'est nécessaire au binaire IFC-Lite actuel. Son cache dans `/tmp/mnemo-ifc-lite-cache` est éphémère : S3 reste la source des fichiers originaux.
+
+Après le déploiement, vérifier que `/api/v1/health` répond `200` et qu'une route de calcul ou de cache répond `401` sans jeton. Ne pas placer `IFC_SERVER_API_TOKEN` dans `NEXT_PUBLIC_*`, dans les props React, ni dans l'URL du viewer. Un navigateur ne doit pas appeler directement ce service protégé avec un jeton global.
+
+**Limite du flux actuel :** le viewer envoie les octets IFC en multipart à IFC-Lite. [L'ingress Scalingo limite une requête à 75 Mo](https://doc.scalingo.com/platform/networking/public/ingress), quel que soit le nombre de conteneurs. Un simple proxy Next.js ne supprime pas cette limite et retransférerait le fichier par `mnemo-web`. Pour les gros IFC, il faut une étape de traitement qui lit l'original depuis S3 côté serveur, appelle IFC-Lite hors ingress public, puis met des artefacts consultables à disposition du viewer. Le déploiement du serveur seul ne rend **pas encore** ce parcours opérationnel. L'API publique du serveur doit rester protégée par Bearer tant que cette intégration n'est pas réalisée.
+
 Références : [Proxy Next.js](https://nextjs.org/docs/app/api-reference/file-conventions/proxy), [sortie standalone Next.js](https://nextjs.org/docs/app/api-reference/config/next-config-js/output), [buildpack Node.js Scalingo](https://github.com/Scalingo/nodejs-buildpack), [pare-feu applicatif Scalingo](https://doc.scalingo.com/platform/networking/public/application-firewall).

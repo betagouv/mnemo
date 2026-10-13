@@ -1,6 +1,6 @@
 FROM node:22-bookworm-slim AS downloader
 
-RUN npm install --global @ifc-lite/server-bin@1.17.0 \
+RUN npm install --global @ifc-lite/server-bin@2.0.0 \
   && ifc-lite-server download \
   && cp /usr/local/lib/node_modules/@ifc-lite/server-bin/.cache/ifc-lite-server /ifc-lite-server
 

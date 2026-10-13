@@ -1,0 +1,14 @@
+{
+  "name": "mnemo-scalingo-ifc-rust",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "postinstall": "ifc-lite-server download"
+  },
+  "dependencies": {
+    "@ifc-lite/server-bin": "2.0.0"
+  }
+}

@@ -102,7 +102,7 @@ services:
     build:
       context: .
       dockerfile: infrastructure/ifc-lite-server/Dockerfile
-    image: mnemo-ifc-lite-server:1.17.0
+    image: mnemo-ifc-lite-server:2.0.0
     environment:
       PORT: 8080
       RUST_LOG: info

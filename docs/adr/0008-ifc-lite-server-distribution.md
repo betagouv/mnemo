@@ -7,11 +7,11 @@
 
 IFC-Lite recommends its Rust server for large IFC processing, Parquet generation, streaming, and reusable geometry caches. The documented GHCR image cannot currently be pulled anonymously in the local development environment.
 
-IFC-Lite also publishes `@ifc-lite/server-bin`, whose installer downloads the platform-specific Rust binary and verifies its release checksum. The distribution package and embedded server use independent version numbers: package `1.17.0` currently provides server `9.2.0`.
+IFC-Lite also publishes `@ifc-lite/server-bin`, whose installer downloads the platform-specific Rust binary and verifies its release checksum. The distribution package and embedded server use independent version numbers: package `2.0.0` provides server `20.2.0` in the local smoke test.
 
 ## Decision
 
-Build a small local image from the pinned `@ifc-lite/server-bin@1.17.0` package. Node.js is present only in the download stage; the runtime image contains the native server binary, CA certificates, and the health-check client.
+Build a small local image from the pinned `@ifc-lite/server-bin@2.0.0` package. Node.js is present only in the download stage; the runtime image contains the native server binary, CA certificates, and the health-check client. On Scalingo, use the same pinned binary through the Node.js buildpack in `infrastructure/scalingo-ifc-rust`; its launch script refuses to start without an API token.
 
 Run the server as a non-root user. Mount `/app/cache` as a dedicated Docker volume and treat it as disposable processing data. Original IFC files remain in S3-compatible object storage.
 
