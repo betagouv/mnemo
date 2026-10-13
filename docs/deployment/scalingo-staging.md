@@ -19,6 +19,27 @@ Dans les variables d'environnement de **`mnemo-web` uniquement** :
 
 Saisir le mot de passe dans le tableau de bord Scalingo ; ne jamais le committer, le transmettre dans le chat ni le placer dans une ligne de commande conservée par l'historique shell. `S3_DOCKER_ENDPOINT` sert uniquement à Docker Compose, pas à cette application Scalingo. Vérifier que l'accès HTTPS forcé est activé.
 
+### CORS du bucket S3
+
+Le navigateur envoie les originaux directement à `S3_PUBLIC_ENDPOINT` avec une URL `PUT` présignée, puis lit les fichiers et les octrees par URL `GET` présignée. Le bucket doit donc autoriser l'origine de la webapp, y compris pour les préflights `OPTIONS`. En préproduction, le bucket OVH `mnemo` utilise la règle suivante (les origines locales servent à `make dev-s3`) :
+
+```json
+{
+  "ID": "mnemo-web-browser-access",
+  "AllowedOrigins": [
+    "https://mnemo-web.osc-secnum-fr1.scalingo.io",
+    "http://localhost:3200",
+    "http://127.0.0.1:3200"
+  ],
+  "AllowedMethods": ["GET", "HEAD", "PUT"],
+  "AllowedHeaders": ["content-type", "range", "x-amz-*"],
+  "ExposeHeaders": ["ETag", "Accept-Ranges", "Content-Range", "Content-Length"],
+  "MaxAgeSeconds": 3000
+}
+```
+
+Cette règle doit être appliquée dans la configuration CORS **du bucket**, pas dans l'environnement Scalingo ni dans Next.js. La permission CORS seule ne donne pas accès aux objets : les requêtes utilisent toujours une URL présignée. Lors d'un changement de domaine, mettre à jour `AllowedOrigins` sans utiliser `*`, puis vérifier un préflight `PUT` avec `Origin` et `Access-Control-Request-Method`, ainsi qu'un petit upload signé. Un fichier correctement déposé restera au statut « Reçu » tant qu'aucun worker ne traite la tâche associée.
+
 ## Build et lancement
 
 `mnemo-web` doit être construit depuis **la racine du monorepo** : ne pas définir `PROJECT_DIR=apps/web`, car les packages `@mnemo/*` frères ne seraient pas présents. Le buildpack Node.js détecte `pnpm-lock.yaml`. Son hook `scalingo-postbuild` ne construit que `@mnemo/web`, puis copie les ressources statiques dans la sortie Next standalone. Le `Procfile` racine lance `web` sur le port fourni par Scalingo. Le workflow local `make dev` reste indépendant.
