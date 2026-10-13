@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Generated from IFC-Lite and laz-perf during predev/prebuild.
+    "public/pointcloud/**",
   ]),
 ]);
 

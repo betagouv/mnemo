@@ -133,6 +133,9 @@ export function createPointCloudCopcStream(options: PointCloudCopcStreamOptions)
         source: { kind: "http", url: access.copcUrl },
         originOffset,
         signal: lifetime.signal,
+        spawn: () => new Worker("/pointcloud/decode-worker.js", {
+          name: "mnemo-copc-decode",
+        }),
       });
       if (lifetime.signal.aborted) {
         opened.close();

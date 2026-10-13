@@ -9,6 +9,7 @@ test-results/
 .turbo/
 *.tsbuildinfo
 packages/database/src/generated/prisma/
+apps/web/public/pointcloud/
 
 # Environment and secrets
 .env
