@@ -1,15 +1,4 @@
-import { randomUUID } from "node:crypto";
-import { hostname } from "node:os";
-
-function positiveInteger(name: string, fallback: number, minimum: number) {
-  const value = Number.parseInt(process.env[name] ?? String(fallback), 10);
-
-  if (!Number.isFinite(value) || value < minimum) {
-    throw new Error(`${name} must be at least ${minimum}`);
-  }
-
-  return value;
-}
+import { remotePointCloudJobSchema } from "./application/remote-point-cloud-protocol";
 
 function required(name: string) {
   const value = process.env[name]?.trim();
@@ -17,12 +6,11 @@ function required(name: string) {
   return value;
 }
 
-export function getWorkerConfig() {
+export function getPointCloudOneOffConfig() {
   return {
-    databaseUrl: required("DATABASE_URL"),
-    ifcLiteServerUrl: required("IFC_LITE_SERVER_URL"),
-    ifcMcpCacheDirectory: required("IFC_MCP_CACHE_DIR"),
-    potreeConverterPath: required("POTREE_CONVERTER_PATH"),
+    job: remotePointCloudJobSchema.parse(
+      JSON.parse(required("MNEMO_POINT_CLOUD_JOB")) as unknown,
+    ),
     storage: {
       endpoint: required("S3_ENDPOINT"),
       region: required("S3_REGION"),
@@ -30,15 +18,6 @@ export function getWorkerConfig() {
       accessKeyId: required("S3_ACCESS_KEY"),
       secretAccessKey: required("S3_SECRET_KEY"),
     },
-    workerId:
-      process.env.WORKER_ID ??
-      `${hostname()}:${process.pid}:${randomUUID().slice(0, 8)}`,
-    pollIntervalMs: positiveInteger("WORKER_POLL_INTERVAL_MS", 3_000, 250),
-    leaseTimeoutMs: positiveInteger(
-      "WORKER_LEASE_TIMEOUT_MS",
-      15 * 60 * 1_000,
-      10_000,
-    ),
-    retryBaseDelayMs: positiveInteger("WORKER_RETRY_BASE_DELAY_MS", 5_000, 250),
+    potreeConverterPath: required("POTREE_CONVERTER_PATH"),
   };
 }

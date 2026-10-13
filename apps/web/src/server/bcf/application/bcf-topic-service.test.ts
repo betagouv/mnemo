@@ -94,6 +94,9 @@ function storage(): ObjectStorage {
   return {
     createUploadUrl: vi.fn(async () => "http://storage.local/upload"),
     createDownloadUrl: vi.fn(async () => "http://storage.local/download"),
+    createInternalDownloadUrl: vi.fn(
+      async () => "http://storage.local/download",
+    ),
     statObject: vi.fn(async () => null),
     readObject: vi.fn(async () => new Uint8Array()),
     readObjectStream: vi.fn(async () =>

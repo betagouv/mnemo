@@ -34,7 +34,15 @@ export async function ProjectViewerScreen({
     .map((asset) => ({
       assetId: asset.id,
       fileName: asset.originalFileName,
-      processing: selectIfcProcessing(asset.sizeBytes),
+      processing: (() => {
+        const selection = selectIfcProcessing(asset.sizeBytes);
+        return selection.engine === "rust"
+          ? {
+              ...selection,
+              serverBaseUrl: `/api/projects/${project.id}/assets/${asset.id}/ifc`,
+            }
+          : selection;
+      })(),
     }));
   const assistantSessions = Object.fromEntries(
     await Promise.all(

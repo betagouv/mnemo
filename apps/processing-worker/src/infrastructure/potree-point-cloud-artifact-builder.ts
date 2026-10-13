@@ -72,6 +72,7 @@ export class PotreePointCloudArtifactBuilder implements PointCloudArtifactBuilde
   constructor(
     private readonly storage: ObjectStorage,
     private readonly processor: PointCloudProcessor,
+    private readonly outputPrefix?: string,
   ) {}
 
   async build(asset: PointCloudAssetForProcessing) {
@@ -83,22 +84,20 @@ export class PotreePointCloudArtifactBuilder implements PointCloudArtifactBuilde
       `source.${sourceExtension(asset.originalFileName)}`,
     );
     const outputDirectory = join(workspace, "potree-v2");
+    const keyFor = (
+      name: (typeof outputFiles)[keyof typeof outputFiles]["name"],
+    ) =>
+      this.outputPrefix
+        ? `${this.outputPrefix}/${name}`
+        : buildPointCloudArtifactObjectKey({
+            projectId: asset.projectId,
+            assetId: asset.id,
+            name,
+          });
     const keys = {
-      metadata: buildPointCloudArtifactObjectKey({
-        projectId: asset.projectId,
-        assetId: asset.id,
-        name: "metadata.json",
-      }),
-      hierarchy: buildPointCloudArtifactObjectKey({
-        projectId: asset.projectId,
-        assetId: asset.id,
-        name: "hierarchy.bin",
-      }),
-      octree: buildPointCloudArtifactObjectKey({
-        projectId: asset.projectId,
-        assetId: asset.id,
-        name: "octree.bin",
-      }),
+      metadata: keyFor("metadata.json"),
+      hierarchy: keyFor("hierarchy.bin"),
+      octree: keyFor("octree.bin"),
     };
 
     try {

@@ -1,6 +1,6 @@
 # ADR 0006: Lease persistent processing jobs through PostgreSQL
 
-- Status: accepted
+- Status: superseded by ADR 0015
 - Date: 2026-09-09
 
 ## Context

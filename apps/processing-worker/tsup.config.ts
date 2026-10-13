@@ -1,7 +1,7 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/index.ts"],
+  entry: ["src/process-point-cloud-once.ts"],
   format: ["esm"],
   platform: "node",
   target: "node22",

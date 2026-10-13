@@ -326,7 +326,6 @@ enum processing_job_status {
 }
 
 enum processing_job_type {
-  process_ifc
   process_point_cloud
 }
 

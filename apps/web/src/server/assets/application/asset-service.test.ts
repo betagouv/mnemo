@@ -74,15 +74,15 @@ class AssetRepositoryStub implements AssetRepository {
     return this.asset;
   }
 
-  async markUploadedAndEnqueue(assetId: string, uploadedAt: Date) {
+  async completeUpload(assetId: string, uploadedAt: Date) {
     if (!this.asset) {
       throw new Error("Missing test asset");
     }
 
-    this.enqueuedAssetIds.push(assetId);
+    if (this.asset.kind === "point_cloud") this.enqueuedAssetIds.push(assetId);
     this.asset = {
       ...this.asset,
-      status: "uploaded",
+      status: this.asset.kind === "ifc" ? "ready" : "uploaded",
       uploadedAt,
       updatedAt: uploadedAt,
     };
@@ -112,6 +112,10 @@ class ObjectStorageStub implements ObjectStorage {
   }) {
     this.downloadRequests.push(input);
     return "http://storage.local/download";
+  }
+
+  async createInternalDownloadUrl() {
+    return "http://storage.local/internal-download";
   }
 
   async statObject() {
@@ -183,7 +187,7 @@ describe("AssetService", () => {
     ).rejects.toBeInstanceOf(UnsupportedAssetFileError);
   });
 
-  it("marks the upload received only after checking the stored size", async () => {
+  it("makes an IFC ready only after checking the stored size", async () => {
     const { assets, service } = createService();
     const started = await service.beginUpload("actor-id", {
       projectId: project.id,
@@ -198,8 +202,8 @@ describe("AssetService", () => {
         projectId: project.id,
         assetId: started.asset.id,
       }),
-    ).resolves.toMatchObject({ status: "uploaded" });
-    expect(assets.enqueuedAssetIds).toEqual([started.asset.id]);
+    ).resolves.toMatchObject({ status: "ready" });
+    expect(assets.enqueuedAssetIds).toEqual([]);
   });
 
   it("opens an uploaded original through a short-lived authorized URL", async () => {
@@ -222,7 +226,7 @@ describe("AssetService", () => {
         assetId: started.asset.id,
       }),
     ).resolves.toMatchObject({
-      asset: { id: started.asset.id, status: "uploaded" },
+      asset: { id: started.asset.id, status: "ready" },
       downloadUrl: "http://storage.local/download",
       expiresAt: "2026-09-09T10:05:00.000Z",
     });

@@ -1,8 +1,6 @@
 import { randomUUID } from "node:crypto";
 
 import { createPrismaDatabase } from "@mnemo/database";
-import type { AssetKind } from "@mnemo/domain/asset";
-import { processingJobTypeForAsset } from "@mnemo/domain/processing-job";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { PrismaProcessingJobQueue } from "./prisma-processing-job-queue";
@@ -23,14 +21,14 @@ const projectId = randomUUID();
 const now = new Date(Date.now() + 24 * 60 * 60 * 1_000);
 const availableAt = new Date(now.getTime() - 60_000);
 
-async function createQueuedJob(kind: AssetKind, maxAttempts = 3) {
+async function createQueuedJob(maxAttempts = 3) {
   const assetId = randomUUID();
-  const extension = kind === "ifc" ? "ifc" : "laz";
+  const extension = "laz";
   const asset = await database.db.assets.create({
     data: {
       id: assetId,
       project_id: projectId,
-      kind,
+      kind: "point_cloud",
       original_file_name: `fixture.${extension}`,
       media_type: "application/octet-stream",
       size_bytes: 42n,
@@ -44,7 +42,7 @@ async function createQueuedJob(kind: AssetKind, maxAttempts = 3) {
   const job = await database.db.processing_jobs.create({
     data: {
       asset_id: assetId,
-      type: processingJobTypeForAsset(kind),
+      type: "process_point_cloud",
       max_attempts: maxAttempts,
       available_at: availableAt,
       created_at: availableAt,
@@ -85,20 +83,20 @@ describe("PrismaProcessingJobQueue", () => {
   });
 
   it("leases one job per worker and completes the related asset", async () => {
-    const ifcFixture = await createQueuedJob("ifc");
-    const pointCloudFixture = await createQueuedJob("point_cloud");
+    const firstFixture = await createQueuedJob();
+    const pointCloudFixture = await createQueuedJob();
     const queue = new PrismaProcessingJobQueue(database.db);
 
     const leases = await Promise.all([
       queue.claim({
         workerId: "worker-a",
-        supportedTypes: ["process_ifc", "process_point_cloud"],
+        supportedTypes: ["process_point_cloud"],
         claimedAt: now,
         staleBefore: new Date(now.getTime() - 60_000),
       }),
       queue.claim({
         workerId: "worker-b",
-        supportedTypes: ["process_ifc", "process_point_cloud"],
+        supportedTypes: ["process_point_cloud"],
         claimedAt: now,
         staleBefore: new Date(now.getTime() - 60_000),
       }),
@@ -106,7 +104,7 @@ describe("PrismaProcessingJobQueue", () => {
 
     expect(leases.every(Boolean)).toBe(true);
     expect(new Set(leases.map((lease) => lease?.id))).toEqual(
-      new Set([ifcFixture.job.id, pointCloudFixture.job.id]),
+      new Set([firstFixture.job.id, pointCloudFixture.job.id]),
     );
 
     const firstLease = leases[0]!;
@@ -131,11 +129,11 @@ describe("PrismaProcessingJobQueue", () => {
   });
 
   it("marks both job and asset failed after the last attempt", async () => {
-    const fixture = await createQueuedJob("ifc", 1);
+    const fixture = await createQueuedJob(1);
     const queue = new PrismaProcessingJobQueue(database.db);
     const lease = await queue.claim({
       workerId: "worker-failure",
-      supportedTypes: ["process_ifc"],
+      supportedTypes: ["process_point_cloud"],
       claimedAt: now,
       staleBefore: new Date(now.getTime() - 60_000),
     });
@@ -164,7 +162,7 @@ describe("PrismaProcessingJobQueue", () => {
   });
 
   it("reclaims a lease left behind by a crashed worker", async () => {
-    const fixture = await createQueuedJob("point_cloud");
+    const fixture = await createQueuedJob();
     const staleLock = new Date(now.getTime() - 120_000);
     await database.db.processing_jobs.update({
       where: { id: fixture.job.id },
@@ -197,7 +195,7 @@ describe("PrismaProcessingJobQueue", () => {
   });
 
   it("does not claim or revive an asset that is being deleted", async () => {
-    const fixture = await createQueuedJob("ifc");
+    const fixture = await createQueuedJob();
     await database.db.assets.update({
       where: { id: fixture.asset.id },
       data: { status: "deleting" },
@@ -207,7 +205,7 @@ describe("PrismaProcessingJobQueue", () => {
     await expect(
       queue.claim({
         workerId: "worker-deletion-race",
-        supportedTypes: ["process_ifc"],
+        supportedTypes: ["process_point_cloud"],
         claimedAt: now,
         staleBefore: new Date(now.getTime() - 60_000),
       }),

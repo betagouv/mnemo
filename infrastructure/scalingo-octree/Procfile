@@ -1,0 +1,1 @@
+web: node dist/process-point-cloud-once.js

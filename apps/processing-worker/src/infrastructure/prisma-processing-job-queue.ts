@@ -19,6 +19,21 @@ export class PrismaProcessingJobLeaseLostError extends Error {}
 export class PrismaProcessingJobQueue implements ProcessingJobQueue {
   constructor(private readonly database: MnemoPrismaDatabase) {}
 
+  async renew(input: {
+    job: ProcessingJobLease;
+    workerId: string;
+    renewedAt: Date;
+  }) {
+    const result = await this.database.processing_jobs.updateMany({
+      where: { id: input.job.id, status: "running", locked_by: input.workerId },
+      data: { locked_at: input.renewedAt, updated_at: input.renewedAt },
+    });
+    if (!result.count)
+      throw new PrismaProcessingJobLeaseLostError(
+        `Job ${input.job.id} lease was lost`,
+      );
+  }
+
   async claim(input: {
     workerId: string;
     supportedTypes: ProcessingJobType[];

@@ -158,7 +158,7 @@ export class AssetService {
     }
 
     return toAssetSummary(
-      await this.assets.markUploadedAndEnqueue(match.asset.id, this.now()),
+      await this.assets.completeUpload(match.asset.id, this.now()),
     );
   }
 

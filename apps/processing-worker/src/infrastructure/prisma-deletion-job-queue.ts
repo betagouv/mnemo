@@ -14,6 +14,21 @@ export class PrismaDeletionJobQueue implements BackgroundJobQueue<
 > {
   constructor(private readonly database: MnemoPrismaDatabase) {}
 
+  async renew(input: {
+    job: DeletionJobLease;
+    workerId: string;
+    renewedAt: Date;
+  }) {
+    const result = await this.database.deletion_jobs.updateMany({
+      where: { id: input.job.id, status: "running", locked_by: input.workerId },
+      data: { locked_at: input.renewedAt, updated_at: input.renewedAt },
+    });
+    if (!result.count)
+      throw new PrismaDeletionJobLeaseLostError(
+        `Job ${input.job.id} lease was lost`,
+      );
+  }
+
   async claim(input: {
     workerId: string;
     supportedTypes: DeletionJobType[];

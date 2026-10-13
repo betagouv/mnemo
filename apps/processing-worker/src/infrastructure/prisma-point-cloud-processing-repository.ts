@@ -34,6 +34,7 @@ export class PrismaPointCloudProcessingRepository implements PointCloudProcessin
     assetId: string,
     result: PointCloudProcessingResult,
     processedAt: Date,
+    lease?: { jobId: string; attempt: number; workerId: string },
   ) {
     // Keep this conditional upsert atomic with asset deletion. Prisma's model
     // upsert cannot express the INSERT ... SELECT guard against deleting assets.
@@ -53,6 +54,15 @@ export class PrismaPointCloudProcessingRepository implements PointCloudProcessin
         ${processedAt}, ${processedAt}
       FROM assets
       WHERE assets.id = ${assetId}::uuid AND assets.status <> 'deleting'
+        AND (${lease?.jobId ?? null}::uuid IS NULL OR EXISTS (
+          SELECT 1 FROM processing_jobs AS job
+          WHERE job.id = ${lease?.jobId ?? null}::uuid
+            AND job.asset_id = assets.id
+            AND job.type = 'process_point_cloud'
+            AND job.status = 'running'
+            AND job.attempts = ${lease?.attempt ?? null}
+            AND job.locked_by = ${lease?.workerId ?? null}
+        ))
       ON CONFLICT (asset_id) DO UPDATE SET
         format = EXCLUDED.format,
         processor = EXCLUDED.processor,

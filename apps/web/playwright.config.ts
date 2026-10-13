@@ -28,8 +28,9 @@ export default defineConfig({
             "postgresql://mnemo:mnemo@localhost:5436/mnemo",
           IFC_BROWSER_PROCESSING_MAX_BYTES:
             process.env.IFC_BROWSER_PROCESSING_MAX_BYTES ?? "26214400",
-          IFC_LITE_PUBLIC_URL:
-            process.env.IFC_LITE_PUBLIC_URL ?? "http://localhost:3301",
+          IFC_SERVER_URL: process.env.IFC_SERVER_URL ?? "http://localhost:3301",
+          IFC_SERVER_API_TOKEN:
+            process.env.IFC_SERVER_API_TOKEN ?? "mnemo-local-ifc-token",
           IFC_LITE_SERVER_URL:
             process.env.IFC_LITE_SERVER_URL ?? "http://localhost:3301",
           MNEMO_AUTH_MODE: process.env.MNEMO_AUTH_MODE ?? "development",

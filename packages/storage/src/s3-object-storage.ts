@@ -19,6 +19,7 @@ import type {
 
 export type S3ObjectStorageOptions = {
   endpoint: string;
+  processingEndpoint?: string;
   publicEndpoint: string;
   region: string;
   bucket: string;
@@ -40,10 +41,15 @@ function createClient(endpoint: string, options: S3ObjectStorageOptions) {
 
 export class S3ObjectStorage implements ObjectStorage {
   private readonly internalClient: S3Client;
+  private readonly processingSigningClient: S3Client;
   private readonly publicSigningClient: S3Client;
 
   constructor(private readonly options: S3ObjectStorageOptions) {
     this.internalClient = createClient(options.endpoint, options);
+    this.processingSigningClient = createClient(
+      options.processingEndpoint ?? options.endpoint,
+      options,
+    );
     this.publicSigningClient = createClient(options.publicEndpoint, options);
   }
 
@@ -70,6 +76,17 @@ export class S3ObjectStorage implements ObjectStorage {
         Bucket: this.options.bucket,
         Key: objectKey,
       }),
+      { expiresIn: expiresInSeconds },
+    );
+  }
+
+  createInternalDownloadUrl({
+    objectKey,
+    expiresInSeconds,
+  }: CreateDownloadUrlInput) {
+    return getSignedUrl(
+      this.processingSigningClient,
+      new GetObjectCommand({ Bucket: this.options.bucket, Key: objectKey }),
       { expiresIn: expiresInSeconds },
     );
   }

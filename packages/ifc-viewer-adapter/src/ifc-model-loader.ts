@@ -9,6 +9,7 @@ import type { FederationRegistry, Renderer } from "@ifc-lite/renderer";
 
 import type { IfcBimIndex } from "./bim-index";
 import { classifyIfcGeoreferencing } from "./georeferencing";
+import { createServerDataStore } from "./server-data-store";
 import { toBrowserMeshBatch } from "./server-geometry";
 import type {
   IfcModelSnapshot,
@@ -125,65 +126,96 @@ export class IfcModelLoader {
     let registered = false;
 
     try {
-      const response = await this.host.runtime.fetch(input.downloadUrl, {
-        signal: this.currentDownload.signal,
-      });
-      if (!response.ok) {
-        throw new Error(`Le stockage a répondu HTTP ${response.status}.`);
-      }
-
-      const source = await response.arrayBuffer();
-      if (!this.isCurrentLoad(generation)) return;
-
-      this.host.updateModelSnapshot(input.assetId, { phase: "processing" });
-      this.host.updateSnapshot({ phase: "processing" });
-      const parserOptions: ParseOptions = {
-        onProgress: ({ percent }) => {
-          if (this.isCurrentLoad(generation)) {
-            this.host.updateSnapshot({ parserPercent: Math.round(percent) });
-          }
-        },
-      };
-      const store = await this.parser.parseColumnar(source, parserOptions);
-      if (!this.isCurrentLoad(generation)) return;
-      const georeference = extractGeoreferencingOnDemand(store);
-      const georeferencing = classifyIfcGeoreferencing(georeference);
-
-      let maxExpressId = 0;
-      for (const id of store.entityIndex.byId.keys()) {
-        if (id > maxExpressId) maxExpressId = id;
-      }
-      const offset = this.host.federation.registerModel(
-        input.assetId,
-        maxExpressId,
-      );
-      registered = true;
-      const modelIndex = this.nextModelIndex++;
       const processing = input.processing ?? { engine: "browser" };
+      const modelIndex = this.nextModelIndex++;
       const processingSnapshot: IfcProcessingSnapshot = {
         engine: processing.engine,
         cacheKey: null,
         cacheHit: null,
       };
-      const result =
-        processing.engine === "rust"
-          ? await this.streamServerGeometry(
-              source.slice(0),
-              processing.serverBaseUrl,
-              generation,
-              input.assetId,
-              offset,
-              modelIndex,
-              meshIds,
-            )
-          : await this.streamBrowserGeometry(
-              new Uint8Array(source.slice(0)),
-              generation,
-              input.assetId,
-              offset,
-              modelIndex,
-              meshIds,
-            );
+      let store: IfcDataStore;
+      let offset: number;
+      let georeferencing;
+      let result: IfcProcessingSnapshot | undefined;
+      if (processing.engine === "rust") {
+        // The browser never downloads or parses a large IFC. Reserve a non-overlapping
+        // Express ID range before the first streamed geometry batch arrives.
+        const reservedIds = 200_000_000;
+        const offset = this.host.federation.registerModel(
+          input.assetId,
+          reservedIds,
+        );
+        registered = true;
+        this.host.updateModelSnapshot(input.assetId, { phase: "processing" });
+        this.host.updateSnapshot({ phase: "processing" });
+        const streamed = await this.streamServerGeometry(
+          processing.serverBaseUrl,
+          generation,
+          input.assetId,
+          offset,
+          modelIndex,
+          meshIds,
+        );
+        if (!this.isCurrentLoad(generation)) return;
+        if (!streamed) return;
+        if (streamed.maxExpressId > reservedIds)
+          throw new Error("Identifiants IFC hors de la plage de fédération.");
+        store = createServerDataStore(
+          streamed.dataModel,
+          streamed.result.metadata.schema_version,
+          0,
+          streamed.result.metadata.entity_count,
+        );
+        const geo = streamed.result.metadata.georeferencing;
+        georeferencing =
+          geo?.source === "siteLocation"
+            ? { kind: "site-only" as const, crs: null }
+            : geo?.crs_name
+              ? { kind: "projected" as const, crs: geo.crs_name }
+              : { kind: "local" as const, crs: null };
+        result = {
+          engine: "rust",
+          cacheKey: streamed.result.cache_key,
+          cacheHit: streamed.result.stats.from_cache,
+        };
+      } else {
+        const response = await this.host.runtime.fetch(input.downloadUrl, {
+          signal: this.currentDownload.signal,
+        });
+        if (!response.ok)
+          throw new Error(`Le stockage a répondu HTTP ${response.status}.`);
+        const source = await response.arrayBuffer();
+        if (!this.isCurrentLoad(generation)) return;
+        this.host.updateModelSnapshot(input.assetId, { phase: "processing" });
+        this.host.updateSnapshot({ phase: "processing" });
+        const parserOptions: ParseOptions = {
+          onProgress: ({ percent }) => {
+            if (this.isCurrentLoad(generation))
+              this.host.updateSnapshot({ parserPercent: Math.round(percent) });
+          },
+        };
+        store = await this.parser.parseColumnar(source, parserOptions);
+        if (!this.isCurrentLoad(generation)) return;
+        georeferencing = classifyIfcGeoreferencing(
+          extractGeoreferencingOnDemand(store),
+        );
+        let maxExpressId = 0;
+        for (const id of store.entityIndex.byId.keys())
+          if (id > maxExpressId) maxExpressId = id;
+        offset = this.host.federation.registerModel(
+          input.assetId,
+          maxExpressId,
+        );
+        registered = true;
+        await this.streamBrowserGeometry(
+          new Uint8Array(source),
+          generation,
+          input.assetId,
+          offset,
+          modelIndex,
+          meshIds,
+        );
+      }
 
       if (!this.isCurrentLoad(generation)) return;
 
@@ -270,7 +302,6 @@ export class IfcModelLoader {
   }
 
   private async streamServerGeometry(
-    source: ArrayBuffer,
     serverBaseUrl: string,
     generation: number,
     assetId: string,
@@ -279,13 +310,14 @@ export class IfcModelLoader {
     meshIds: Set<number>,
   ) {
     const client = this.host.runtime.createServerClient(serverBaseUrl);
-    const result = await client.parseParquetStream(source, (batch) => {
+    const streamed = await client.stream((batch) => {
       if (!this.isCurrentLoad(generation)) return;
       const meshes = toBrowserMeshBatch(batch.meshes);
       this.addMeshes(assetId, meshes, offset, modelIndex, meshIds);
-    });
+    }, this.currentDownload?.signal);
 
     if (!this.isCurrentLoad(generation)) return;
+    const result = streamed.result;
     const [x, y, z] = result.metadata.coordinate_info?.origin_shift ?? [
       0, 0, 0,
     ];
@@ -305,11 +337,7 @@ export class IfcModelLoader {
           );
       }
     }
-    return {
-      engine: "rust" as const,
-      cacheKey: result.cache_key,
-      cacheHit: result.stats.from_cache,
-    };
+    return streamed;
   }
 
   private addMeshes(

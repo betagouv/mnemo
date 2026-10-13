@@ -15,9 +15,10 @@ help: ## Afficher les commandes disponibles
 dev: ## Lancer Next.js avec hot reload et les services annexes dans Docker
 	@test -f "$(ENV_FILE)" || { echo "Profil absent : $(ENV_FILE) (copiez le fichier .example correspondant)"; exit 1; }
 	mkdir -p "$(MNEMO_DEV_MODEL_DIR)"
-	MNEMO_DEV_MODEL_DIR="$(MNEMO_DEV_MODEL_DIR)" MNEMO_DEV_UID="$(MNEMO_DEV_UID)" MNEMO_DEV_GID="$(MNEMO_DEV_GID)" $(COMPOSE_WITH_ENV) -f docker-compose.yml -f docker-compose.dev.yml up --detach postgres minio create-bucket database-migrate ifc-lite-server ifc-mcp processing-worker
+	MNEMO_DEV_MODEL_DIR="$(MNEMO_DEV_MODEL_DIR)" MNEMO_DEV_UID="$(MNEMO_DEV_UID)" MNEMO_DEV_GID="$(MNEMO_DEV_GID)" $(COMPOSE_WITH_ENV) -f docker-compose.yml -f docker-compose.dev.yml up --detach postgres minio create-bucket database-migrate ifc-lite-server ifc-mcp
+	$(COMPOSE_WITH_ENV) build processing-worker
 	$(COMPOSE_WITH_ENV) stop web
-	MNEMO_DEV_MODEL_DIR="$(MNEMO_DEV_MODEL_DIR)" node scripts/with-env-profile.mjs "$(ENV_FILE)" node scripts/dev-web.mjs
+	MNEMO_ENV_FILE="$(ENV_FILE)" MNEMO_DEV_MODEL_DIR="$(MNEMO_DEV_MODEL_DIR)" node scripts/with-env-profile.mjs "$(ENV_FILE)" node scripts/dev-web.mjs
 
 dev-s3: ## Lancer le développement avec le profil S3 externe
 	$(MAKE) dev ENV_FILE=.env.s3

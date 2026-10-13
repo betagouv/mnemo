@@ -9,6 +9,11 @@ export type ProcessingJobLease = {
 };
 
 export interface ProcessingJobQueue {
+  renew?(input: {
+    job: ProcessingJobLease;
+    workerId: string;
+    renewedAt: Date;
+  }): Promise<void>;
   claim(input: {
     workerId: string;
     supportedTypes: ProcessingJobType[];

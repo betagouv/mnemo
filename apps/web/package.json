@@ -27,6 +27,7 @@
     "@mnemo/database": "workspace:*",
     "@mnemo/domain": "workspace:*",
     "@mnemo/ifc-viewer-adapter": "workspace:*",
+    "@mnemo/processing-worker": "workspace:*",
     "@mnemo/storage": "workspace:*",
     "@openrouter/ai-sdk-provider": "3.0.0",
     "@ai-sdk/mcp": "2.0.47",

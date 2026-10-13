@@ -51,4 +51,4 @@ COPY --from=potree-converter /source/build/PotreeConverter /usr/local/bin/Potree
 COPY --from=potree-converter /source/build/liblaszip.so /usr/local/lib/liblaszip.so
 COPY --from=build --chown=mnemo:mnemo /workspace/apps/processing-worker/dist ./dist
 USER mnemo
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/process-point-cloud-once.js"]

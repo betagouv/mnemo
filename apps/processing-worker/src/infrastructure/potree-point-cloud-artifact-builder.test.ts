@@ -21,6 +21,7 @@ function createStorage() {
   const storage: ObjectStorage = {
     createUploadUrl: vi.fn(),
     createDownloadUrl: vi.fn(),
+    createInternalDownloadUrl: vi.fn(),
     statObject: vi.fn(),
     readObject: vi.fn(),
     readObjectStream: vi.fn(async () => ({

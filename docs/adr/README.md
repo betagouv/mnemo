@@ -35,19 +35,20 @@ same change as a new record.
 
 ## Decision index
 
-| ADR                                                 | Decision                                   | Status                                          |
-| --------------------------------------------------- | ------------------------------------------ | ----------------------------------------------- |
-| [0001](0001-nextjs-modular-monolith.md)             | Next.js modular monolith                   | Accepted                                        |
-| [0002](0002-code-boundaries.md)                     | Feature slices and clean server boundaries | Accepted                                        |
-| [0003](0003-file-and-processing-ownership.md)       | File ownership and processing caches       | Accepted                                        |
-| [0004](0004-viewer-runtime.md)                      | Stable WebGPU viewer runtime               | Accepted                                        |
-| [0005](0005-type-safe-api.md)                       | tRPC and Zod API                           | Superseded by [0014](0014-nextjs-zod-prisma.md) |
-| [0006](0006-persistent-processing-leases.md)        | Persistent processing leases               | Accepted                                        |
-| [0007](0007-ifc-lite-webpack-integration.md)        | IFC-Lite and Webpack                       | Accepted                                        |
-| [0008](0008-ifc-lite-server-distribution.md)        | IFC-Lite Rust binary distribution          | Accepted                                        |
-| [0009](0009-point-cloud-ingestion-and-rendering.md) | Point-cloud ingestion and rendering        | Accepted                                        |
-| [0010](0010-bcf-persistence.md)                     | BCF persistence and interoperability       | Accepted                                        |
-| [0011](0011-assistant-runtime-and-viewer-tools.md)  | Assistant runtime and viewer tools         | Accepted                                        |
-| [0012](0012-ifc-lite-mcp-runtime.md)                | Dedicated IFC-Lite MCP runtime             | Accepted                                        |
-| [0013](0013-persistent-assistant-threads.md)        | Persistent assistant threads               | Accepted                                        |
-| [0014](0014-nextjs-zod-prisma.md)                   | Native Next.js boundaries and Prisma       | Accepted                                        |
+| ADR                                                 | Decision                                   | Status                                                            |
+| --------------------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------- |
+| [0001](0001-nextjs-modular-monolith.md)             | Next.js modular monolith                   | Accepted                                                          |
+| [0002](0002-code-boundaries.md)                     | Feature slices and clean server boundaries | Accepted                                                          |
+| [0003](0003-file-and-processing-ownership.md)       | File ownership and processing caches       | Accepted                                                          |
+| [0004](0004-viewer-runtime.md)                      | Stable WebGPU viewer runtime               | Accepted                                                          |
+| [0005](0005-type-safe-api.md)                       | tRPC and Zod API                           | Superseded by [0014](0014-nextjs-zod-prisma.md)                   |
+| [0006](0006-persistent-processing-leases.md)        | Persistent processing leases               | Superseded by [0015](0015-s3-native-ifc-and-oneoff-processing.md) |
+| [0007](0007-ifc-lite-webpack-integration.md)        | IFC-Lite and Webpack                       | Accepted                                                          |
+| [0008](0008-ifc-lite-server-distribution.md)        | IFC-Lite Rust binary distribution          | Superseded by [0015](0015-s3-native-ifc-and-oneoff-processing.md) |
+| [0009](0009-point-cloud-ingestion-and-rendering.md) | Point-cloud ingestion and rendering        | Accepted                                                          |
+| [0010](0010-bcf-persistence.md)                     | BCF persistence and interoperability       | Accepted                                                          |
+| [0011](0011-assistant-runtime-and-viewer-tools.md)  | Assistant runtime and viewer tools         | Accepted                                                          |
+| [0012](0012-ifc-lite-mcp-runtime.md)                | Dedicated IFC-Lite MCP runtime             | Accepted                                                          |
+| [0013](0013-persistent-assistant-threads.md)        | Persistent assistant threads               | Accepted                                                          |
+| [0014](0014-nextjs-zod-prisma.md)                   | Native Next.js boundaries and Prisma       | Accepted                                                          |
+| [0015](0015-s3-native-ifc-and-oneoff-processing.md) | S3-native IFC and on-demand Potree         | Accepted                                                          |

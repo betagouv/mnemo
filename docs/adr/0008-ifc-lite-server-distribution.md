@@ -1,6 +1,6 @@
 # ADR 0008: Build the IFC-Lite server from its pinned binary package
 
-- Status: accepted
+- Status: superseded by ADR 0015
 - Date: 2026-09-09
 
 ## Context

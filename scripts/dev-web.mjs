@@ -16,6 +16,9 @@ const environment = {
   ...process.env,
   MNEMO_AUTH_MODE: process.env.MNEMO_AUTH_MODE ?? "development",
   MNEMO_DEPLOYMENT_ENV: process.env.MNEMO_DEPLOYMENT_ENV ?? "local",
+  MNEMO_BACKGROUND_JOBS: "1",
+  MNEMO_REPO_ROOT: process.cwd(),
+  MNEMO_ENV_FILE: process.env.MNEMO_ENV_FILE ?? ".env.local",
   DATABASE_URL:
     process.env.DATABASE_URL ??
     `postgresql://mnemo:mnemo@localhost:${process.env.MNEMO_POSTGRES_PORT ?? "5436"}/mnemo`,
@@ -25,9 +28,13 @@ const environment = {
   S3_BUCKET: requireEnvironment("S3_BUCKET"),
   S3_ACCESS_KEY: requireEnvironment("S3_ACCESS_KEY"),
   S3_SECRET_KEY: requireEnvironment("S3_SECRET_KEY"),
-  IFC_LITE_PUBLIC_URL:
-    process.env.IFC_LITE_PUBLIC_URL ??
+  S3_PROCESSING_ENDPOINT:
+    process.env.S3_DOCKER_ENDPOINT ?? process.env.S3_ENDPOINT,
+  IFC_SERVER_URL:
+    process.env.IFC_SERVER_URL ??
     `http://localhost:${process.env.MNEMO_IFC_SERVER_PORT ?? "3301"}`,
+  IFC_SERVER_API_TOKEN:
+    process.env.IFC_SERVER_API_TOKEN ?? "mnemo-local-ifc-token",
   IFC_BROWSER_PROCESSING_MAX_BYTES:
     process.env.IFC_BROWSER_PROCESSING_MAX_BYTES ?? "0",
   IFC_MCP_URL:

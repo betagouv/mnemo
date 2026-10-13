@@ -9,6 +9,7 @@ import type {
   MeshData as ServerMeshData,
   ParquetStreamResult,
 } from "@ifc-lite/server-client";
+import { ServerEntityIndex } from "@ifc-lite/server-client";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -340,7 +341,13 @@ function createHarness({
     createServerClient: () => {
       calls.serverClientCreated += 1;
       return {
-        async parseParquetStream(_source, onBatch) {
+        async stream(
+          onBatch: (batch: {
+            batch_number: number;
+            decode_time_ms: number;
+            meshes: ServerMeshData[];
+          }) => void,
+        ) {
           onBatch({
             batch_number: 0,
             decode_time_ms: 1,
@@ -356,12 +363,35 @@ function createHarness({
             ],
           });
 
-          return {
+          const result = {
             cache_key: "sha256-model-medium",
             total_meshes: 1,
             stats: { from_cache: true },
-            metadata: {},
+            metadata: { schema_version: "IFC4" },
           } as unknown as ParquetStreamResult;
+          return {
+            result,
+            maxExpressId: 42,
+            dataModel: {
+              entities: ServerEntityIndex.fromRows([
+                { entity_id: 42, type_name: "IfcWall", has_geometry: true },
+              ]),
+              propertySets: new Map(),
+              quantitySets: new Map(),
+              relationships: [],
+              classifications: [],
+              materials: [],
+              documents: [],
+              spatialHierarchy: {
+                nodes: [],
+                project_id: 0,
+                element_to_storey: new Map(),
+                element_to_building: new Map(),
+                element_to_site: new Map(),
+                element_to_space: new Map(),
+              },
+            },
+          };
         },
       };
     },

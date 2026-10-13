@@ -44,6 +44,7 @@ export interface BackgroundJobQueue<
     failedAt: Date;
     retryAt: Date;
   }): Promise<void>;
+  renew?(input: { job: Job; workerId: string; renewedAt: Date }): Promise<void>;
 }
 
 function errorMessage(error: unknown) {
@@ -112,6 +113,25 @@ export class BackgroundWorker<
       throw new Error(`No handler registered for ${job.type}`);
     }
 
+    const heartbeat = this.queue.renew
+      ? setInterval(
+          () => {
+            void this.queue
+              .renew?.({
+                job,
+                workerId: this.options.workerId,
+                renewedAt: this.now(),
+              })
+              .catch((error) =>
+                this.logger.error("Job heartbeat failed", {
+                  jobId: job.id,
+                  error: errorMessage(error),
+                }),
+              );
+          },
+          Math.min(60_000, Math.max(1_000, this.options.leaseTimeoutMs / 3)),
+        )
+      : null;
     try {
       await handler(job);
     } catch (error) {
@@ -134,6 +154,8 @@ export class BackgroundWorker<
         error: message,
       });
       return true;
+    } finally {
+      if (heartbeat) clearInterval(heartbeat);
     }
 
     await this.queue.complete({

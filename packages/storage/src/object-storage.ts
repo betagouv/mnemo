@@ -31,6 +31,8 @@ export type WriteObjectStreamInput = {
 export interface ObjectStorage {
   createUploadUrl(input: CreateUploadUrlInput): Promise<string>;
   createDownloadUrl(input: CreateDownloadUrlInput): Promise<string>;
+  /** Signed against the endpoint reachable by server-side processing services. */
+  createInternalDownloadUrl(input: CreateDownloadUrlInput): Promise<string>;
   statObject(objectKey: string): Promise<StoredObject | null>;
   readObject(objectKey: string): Promise<Uint8Array>;
   readObjectStream(objectKey: string): Promise<AsyncIterable<Uint8Array>>;

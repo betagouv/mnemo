@@ -15,6 +15,28 @@ import type { ViewerIfcSource, ViewerPointCloudSource } from "./viewer-sources";
 
 const initialPointBudget = 2_000_000;
 
+async function loadIfcSource(
+  controller: IfcViewerController,
+  projectId: string,
+  source: ViewerIfcSource,
+) {
+  const downloadUrl =
+    source.processing.engine === "rust"
+      ? ""
+      : (
+          await fetchJson(
+            `/api/projects/${projectId}/assets/${source.assetId}/access`,
+            openAssetResultSchema,
+          )
+        ).downloadUrl;
+  await controller.loadIfc({
+    assetId: source.assetId,
+    fileName: source.fileName,
+    downloadUrl,
+    processing: source.processing,
+  });
+}
+
 export function useProjectScene({
   ifcSources,
   pointCloudSources,
@@ -116,16 +138,7 @@ export function useProjectScene({
         for (const source of ifcSourcesRef.current) {
           if (cancelled) return;
           try {
-            const access = await fetchJson(
-              `/api/projects/${projectId}/assets/${source.assetId}/access`,
-              openAssetResultSchema,
-            );
-            await controller.loadIfc({
-              assetId: source.assetId,
-              fileName: source.fileName,
-              downloadUrl: access.downloadUrl,
-              processing: source.processing,
-            });
+            await loadIfcSource(controller, projectId, source);
           } catch (error) {
             if (!cancelled) {
               setFailedAssetId(source.assetId);
@@ -307,16 +320,7 @@ export function useProjectScene({
       setFailedAssetId(null);
 
       try {
-        const access = await fetchJson(
-          `/api/projects/${projectId}/assets/${source.assetId}/access`,
-          openAssetResultSchema,
-        );
-        await controller.loadIfc({
-          assetId: source.assetId,
-          fileName: source.fileName,
-          downloadUrl: access.downloadUrl,
-          processing: source.processing,
-        });
+        await loadIfcSource(controller, projectId, source);
       } catch (error) {
         setFailedAssetId(source.assetId);
         setAccessError(

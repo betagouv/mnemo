@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
     "@mnemo/domain",
     "@mnemo/ifc-viewer-adapter",
     "@mnemo/point-cloud-viewer-adapter",
+    "@mnemo/processing-worker",
     "@mnemo/storage",
   ],
   headers() {

@@ -24,6 +24,7 @@ export function getRuntimeObjectStorage(): ObjectStorage {
   const endpoint = requireStorageEnvironment("S3_ENDPOINT");
   globalStorage.mnemoObjectStorage = new S3ObjectStorage({
     endpoint,
+    processingEndpoint: process.env.S3_PROCESSING_ENDPOINT ?? endpoint,
     publicEndpoint: process.env.S3_PUBLIC_ENDPOINT ?? endpoint,
     region: requireStorageEnvironment("S3_REGION"),
     bucket: requireStorageEnvironment("S3_BUCKET"),

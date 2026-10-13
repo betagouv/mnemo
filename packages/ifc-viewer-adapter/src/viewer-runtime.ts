@@ -14,6 +14,7 @@ import {
 
 import { createIfcBimIndex } from "./bim-index";
 import { createIfcServerGeometryClient } from "./server-geometry";
+import { getServerEntity } from "./server-data-store";
 import type { IfcElementDetails, IfcViewerRuntime } from "./viewer-types";
 
 function readElementDetails(
@@ -22,6 +23,38 @@ function readElementDetails(
 ): IfcElementDetails | null {
   if (!store.entityIndex.byId.has(expressId)) return null;
 
+  const serverEntity = getServerEntity(store, expressId);
+  if (serverEntity) {
+    return {
+      expressId,
+      globalId: serverEntity.global_id ?? "",
+      ifcClass: serverEntity.type_name,
+      name: serverEntity.name ?? "",
+      description: serverEntity.description ?? "",
+      objectType: serverEntity.object_type ?? "",
+      tag: serverEntity.tag ?? "",
+      propertySets: store.getProperties(expressId).map((set) => ({
+        name: set.name,
+        globalId: set.globalId,
+        values: set.properties.map((property) => ({
+          name: property.name,
+          type: property.type,
+          value: property.value,
+          values: property.values,
+          dataType: property.dataType,
+        })),
+      })),
+      quantitySets: store.getQuantities(expressId).map((set) => ({
+        name: set.name,
+        globalId: set.globalId,
+        values: set.quantities.map((quantity) => ({
+          name: quantity.name,
+          type: quantity.type,
+          value: quantity.value,
+        })),
+      })),
+    };
+  }
   const attributes = extractEntityAttributesOnDemand(store, expressId);
 
   return {

@@ -16,10 +16,11 @@ function readBrowserProcessingLimit() {
 }
 
 export function selectIfcProcessing(sizeBytes: number): IfcProcessingSelection {
-  const serverBaseUrl = process.env.IFC_LITE_PUBLIC_URL?.trim();
-
-  if (serverBaseUrl && sizeBytes >= readBrowserProcessingLimit()) {
-    return { engine: "rust", serverBaseUrl };
+  if (
+    process.env.IFC_SERVER_URL?.trim() &&
+    sizeBytes >= readBrowserProcessingLimit()
+  ) {
+    return { engine: "rust", serverBaseUrl: "" };
   }
 
   return { engine: "browser" };

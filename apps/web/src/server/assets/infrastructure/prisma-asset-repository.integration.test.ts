@@ -67,21 +67,16 @@ describe("PrismaAssetRepository", () => {
       repository.findForActor(actorId, projectId, assetId),
     ).resolves.toMatchObject({ role: "owner", asset: pending });
 
-    const completed = await repository.markUploadedAndEnqueue(
-      assetId,
-      new Date(),
-    );
-    expect(completed.status).toBe("uploaded");
+    const completed = await repository.completeUpload(assetId, new Date());
+    expect(completed.status).toBe("ready");
     const jobs = await database.db.processing_jobs.findMany({
       where: { asset_id: assetId },
     });
-    expect(jobs).toMatchObject([
-      { asset_id: assetId, type: "process_ifc", status: "queued", attempts: 0 },
-    ]);
-    await repository.markUploadedAndEnqueue(assetId, new Date());
+    expect(jobs).toEqual([]);
+    await repository.completeUpload(assetId, new Date());
     await expect(
       database.db.processing_jobs.count({ where: { asset_id: assetId } }),
-    ).resolves.toBe(1);
+    ).resolves.toBe(0);
 
     await repository.requestDeletion(assetId, new Date());
     await expect(repository.listForActor(actorId, projectId)).resolves.toEqual(

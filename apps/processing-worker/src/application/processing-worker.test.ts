@@ -10,7 +10,7 @@ class JobQueueStub implements ProcessingJobQueue {
   job: ProcessingJobLease | null = {
     id: "job-id",
     assetId: "asset-id",
-    type: "process_ifc",
+    type: "process_point_cloud",
     attempt: 1,
     maxAttempts: 3,
   };
@@ -35,7 +35,7 @@ class JobQueueStub implements ProcessingJobQueue {
 function createWorker(queue: JobQueueStub, handler: () => Promise<void>) {
   return new ProcessingWorker(
     queue,
-    { process_ifc: handler },
+    { process_point_cloud: handler },
     {
       workerId: "test-worker",
       pollIntervalMs: 3_000,
@@ -58,7 +58,7 @@ describe("ProcessingWorker", () => {
 
     await expect(createWorker(queue, handler).runOnce()).resolves.toBe(true);
 
-    expect(queue.claimedTypes).toEqual(["process_ifc"]);
+    expect(queue.claimedTypes).toEqual(["process_point_cloud"]);
     expect(handler).toHaveBeenCalledWith(queue.job);
     expect(queue.completed).toEqual([queue.job]);
     expect(queue.failures).toEqual([]);

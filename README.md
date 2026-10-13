@@ -31,13 +31,13 @@ pnpm install
 make dev
 ```
 
-`make dev` starts PostgreSQL, MinIO, IFC-Lite, IFC MCP, and the processing worker
-in Docker, then runs the Next.js web server locally with hot reload at
+`make dev` starts PostgreSQL, MinIO, IFC-Lite and IFC MCP in Docker, builds the
+Potree one-off image, then runs the Next.js web server locally with hot reload at
 <http://localhost:3200>. It stops the production `web` container if it was
 already running on that port. Press `Ctrl+C` to stop the development web server;
 `make stop` stops the supporting containers. A shared local IFC MCP cache lives
 under `.data/` so model queries also work in development.
-All `make` commands use `.env.local` by default, so the web server and worker
+All `make` commands use `.env.local` by default, so the web server and one-off
 read from the same local MinIO bucket. Values in the selected profile take
 precedence over variables already exported in the shell. To develop against an
 external S3 bucket:
@@ -62,7 +62,7 @@ make start
 ```
 
 On a fresh PostgreSQL volume, Compose applies the Prisma baseline before
-starting the web application and worker. If this is an existing Mnemo database
+starting the web application. If this is an existing Mnemo database
 created with Drizzle, verify that it matches the Prisma baseline, then mark the
 baseline as applied once before starting the new stack:
 
@@ -109,7 +109,13 @@ Ports can be changed through the variables documented in
 [`.env.local.example`](./.env.local.example). Use `ENV_FILE=.env.s3` with other
 `make` commands when operating on the external S3 profile.
 
-The standalone browser parser handles IFC files below 25 MiB by default. Larger files use the IFC-Lite Rust server and progressive Parquet batches. Docker Compose sets the threshold to zero so the server path is exercised for every local IFC; change `IFC_BROWSER_PROCESSING_MAX_BYTES` to test the browser path.
+The standalone browser parser handles IFC files below 25 MiB by default. Larger
+files stay in S3: Next.js authorizes the asset and sends a short-lived signed
+GET URL to the IFC-Lite application, whose gateway streams the original to the
+Rust parser. The browser receives progressive Parquet geometry and the decoded
+data model, not the full IFC. Compose sets the threshold to zero so this path
+is exercised for every local IFC. The Rust parser still needs enough memory
+and `MAX_FILE_SIZE_MB` for the chosen file size.
 
 A project opens as one scene at `/projets/[projectId]/viewer`: all ready IFC
 models and point clouds are loaded into the same IFC-Lite WebGPU renderer. The
@@ -122,7 +128,11 @@ resources. UI changes do not recreate the scene or reset the camera.
 
 LAS, LAZ, PLY, and E57 point clouds can be attached to a project and overlaid in
 the IFC viewer. LAS/LAZ originals are converted asynchronously by
-PotreeConverter 2.1.1 into persistent Potree v2 octree artifacts in MinIO. The
+PotreeConverter 2.1.1 into persistent Potree v2 octree artifacts in MinIO. Next
+owns the durable PostgreSQL job queue and deletion retries. Conversion runs in
+an ephemeral local container (`make dev`), in a child process (`make start`), or
+in a Scalingo one-off (`POINT_CLOUD_PROCESSING_MODE=scalingo`); no separate
+permanent worker is needed. The
 browser range-loads only camera-relevant hierarchy and point nodes, decodes
 them in a worker, and uploads an additive LOD selection to the same native
 IFC-Lite WebGPU renderer as the IFC. The point budget and point size update the
@@ -160,7 +170,7 @@ turn so text, model metadata, and tool traces survive a page reload.
 ```text
 apps/
   web/                 Next.js application and HTTP boundary
-  processing-worker/   asynchronous processing runtime
+  processing-worker/   Potree one-off and reusable job queue code (not a permanent app)
 packages/
   contracts/           shared domain schemas and DTOs
   bcf-adapter/         BCF 2.1/3.0 archive interoperability
@@ -170,7 +180,7 @@ packages/
   point-cloud-viewer-adapter/ octree LOD, worker decoding and transforms
   storage/             S3-compatible object-storage adapter
 apps/web/src/server/assistant/infrastructure/  IFC-Lite MCP sessions
-apps/processing-worker/src/infrastructure/     IFC-Lite and Potree processors
+apps/processing-worker/src/infrastructure/     Potree converter and job persistence
 docs/adr/              durable architecture decisions
 ```
 

@@ -1,5 +1,4 @@
 import type { MnemoPrismaDatabase, PrismaAssetRecord } from "@mnemo/database";
-import { processingJobTypeForAsset } from "@mnemo/domain/processing-job";
 
 import type {
   AssetForActor,
@@ -74,12 +73,17 @@ export class PrismaAssetRepository implements AssetRepository {
     return toAsset(row);
   }
 
-  async markUploadedAndEnqueue(assetId: string, uploadedAt: Date) {
+  async completeUpload(assetId: string, uploadedAt: Date) {
     return this.database.$transaction(async (transaction) => {
+      const pending = await transaction.assets.findUnique({
+        where: { id: assetId },
+        select: { kind: true },
+      });
+      if (!pending) throw new Error("Asset update returned no record");
       await transaction.assets.updateMany({
         where: { id: assetId, status: "upload_pending" },
         data: {
-          status: "uploaded",
+          status: pending.kind === "ifc" ? "ready" : "uploaded",
           uploaded_at: uploadedAt,
           updated_at: uploadedAt,
         },
@@ -88,10 +92,12 @@ export class PrismaAssetRepository implements AssetRepository {
         where: { id: assetId },
       });
       if (!row) throw new Error("Asset update returned no record");
-      await transaction.processing_jobs.createMany({
-        data: [{ asset_id: row.id, type: processingJobTypeForAsset(row.kind) }],
-        skipDuplicates: true,
-      });
+      if (row.kind === "point_cloud") {
+        await transaction.processing_jobs.createMany({
+          data: [{ asset_id: row.id, type: "process_point_cloud" }],
+          skipDuplicates: true,
+        });
+      }
       return toAsset(row);
     });
   }
