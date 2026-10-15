@@ -245,6 +245,28 @@ test("creates, reloads, opens and deletes a project asset", async ({
     const stats = page
       .locator('[aria-label="Visionneuse 3D du projet"] [role="status"]')
       .filter({ hasText: "entités IFC" });
+    const viewerError = page.locator(
+      '[aria-label="Visionneuse 3D du projet"] [role="alert"]',
+    );
+    try {
+      await expect(stats.or(viewerError)).toBeVisible({ timeout: 120_000 });
+    } catch (error) {
+      const visibleText = (await page.locator("body").innerText()).slice(
+        0,
+        2_000,
+      );
+      throw new Error(
+        `Le viewer ne s'est pas chargé. Texte visible : ${visibleText}`,
+        {
+          cause: error,
+        },
+      );
+    }
+    if (await viewerError.isVisible()) {
+      throw new Error(
+        `Le viewer IFC a échoué : ${await viewerError.innerText()}`,
+      );
+    }
     await expect(stats).toContainText(/47\s*309\s*entités IFC/, {
       timeout: 120_000,
     });
