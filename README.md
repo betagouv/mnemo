@@ -194,5 +194,10 @@ pnpm build
 docker compose config
 ```
 
-To run the browser suite against an existing `make dev` server without starting
-another Next.js process: `PLAYWRIGHT_BASE_URL=http://localhost:3200 pnpm test:e2e`.
+With `make dev` running in another terminal, use `make test-e2e` to run the
+browser suite in a visible Chrome window, one test at a time, without starting
+another Next.js process. Override `PLAYWRIGHT_BASE_URL` if the local port differs.
+The suite uploads the bundled `Ifc4_SampleHouse.ifc` fixture and checks that
+the viewer loads 47,309 IFC entities and 223 meshes. It runs in GitHub Actions
+too. Tests create and delete projects, so use local MinIO rather than a shared
+S3 profile when running them locally.

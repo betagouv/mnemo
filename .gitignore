@@ -23,6 +23,7 @@ tmp/
 uploads/
 models/
 *.ifc
+!apps/web/tests/fixtures/Ifc4_SampleHouse.ifc
 *.ifczip
 *.las
 *.laz
