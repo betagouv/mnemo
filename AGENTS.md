@@ -115,4 +115,5 @@ docker compose config
 - Use Gitmoji at the start of every commit subject, followed by an imperative English description.
 - Examples: `🎉 Initialize Mnemo repository`, `🏗️ Add typed API boundary`, `✨ Add project creation flow`, `✅ Test project permissions`.
 - Do not mix unrelated cleanup with a feature branch.
-- Do not merge a branch until its acceptance criteria are verified.
+- Open a pull request from the feature branch to `main`; do not push feature work directly to `main`.
+- Merge only after the acceptance criteria and required CI checks pass. Keep the PR open if validation fails, and fix the branch before merging.
