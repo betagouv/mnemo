@@ -5,21 +5,15 @@ export type PointCloudSourceRecord = {
     id: string;
     kind: "point_cloud";
     status: AssetStatus;
+    originalFileName: string;
     originalObjectKey: string;
   };
-  result: ({
-    format: "potree-v2";
-    metadataObjectKey: string;
-    hierarchyObjectKey: string;
-    octreeObjectKey: string;
-    pointCount: number;
-    spacing: number;
-  } | {
+  result: {
     format: "copc-v1";
     copcObjectKey: string;
     pointCount: number;
     spacing: number;
-  }) | null;
+  } | null;
 };
 
 export interface PointCloudSourceRepository {

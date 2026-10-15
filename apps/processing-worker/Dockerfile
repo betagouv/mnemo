@@ -20,46 +20,22 @@ COPY --from=pruner /workspace/out/full/ ./
 COPY tsconfig.base.json ./tsconfig.base.json
 RUN pnpm --filter @mnemo/processing-worker build
 
-FROM debian:bookworm-slim AS potree-converter
-
-ARG POTREE_CONVERTER_COMMIT=d9387d52807bf8936fe98096b9992ea13b50ba94
-
-RUN apt-get update \
-  && apt-get install --yes --no-install-recommends \
-    build-essential \
-    ca-certificates \
-    cmake \
-    git \
-    libtbb-dev \
-  && git init /source \
-  && git -C /source remote add origin https://github.com/potree/PotreeConverter.git \
-  && git -C /source fetch --depth 1 origin "${POTREE_CONVERTER_COMMIT}" \
-  && git -C /source checkout --detach FETCH_HEAD \
-  && cmake -S /source -B /source/build \
-  && cmake --build /source/build --parallel 2
-
-FROM node:22-bookworm-slim AS pdal-converter
+FROM node:22-bookworm-slim AS untwine-converter
 WORKDIR /app
 RUN apt-get update \
   && apt-get install --yes --no-install-recommends ca-certificates curl bzip2 \
   && rm -rf /var/lib/apt/lists/*
-COPY infrastructure/scalingo-octree/scripts/install-pdal.sh scripts/install-pdal.sh
-COPY infrastructure/scalingo-octree/scripts/pdal scripts/pdal
-RUN bash scripts/install-pdal.sh
+COPY infrastructure/scalingo-copc/scripts/install-untwine.sh scripts/install-untwine.sh
+COPY infrastructure/scalingo-copc/scripts/untwine scripts/untwine
+RUN bash scripts/install-untwine.sh
 
 FROM node:22-bookworm-slim AS runtime
 ENV NODE_ENV=production
-ENV LD_LIBRARY_PATH=/usr/local/lib
-ENV PDAL_PATH=/opt/pdal/bin/pdal
+ENV UNTWINE_PATH=/opt/pdal/bin/untwine
 WORKDIR /app
-RUN apt-get update \
-  && apt-get install --yes --no-install-recommends libtbb12 \
-  && rm -rf /var/lib/apt/lists/* \
-  && groupadd --system --gid 1001 mnemo \
+RUN groupadd --system --gid 1001 mnemo \
   && useradd --system --uid 1001 --gid mnemo --home-dir /app mnemo
-COPY --from=potree-converter /source/build/PotreeConverter /usr/local/bin/PotreeConverter
-COPY --from=potree-converter /source/build/liblaszip.so /usr/local/lib/liblaszip.so
-COPY --from=pdal-converter /app/bin /opt/pdal/bin
+COPY --from=untwine-converter /app/bin /opt/pdal/bin
 COPY --from=build --chown=mnemo:mnemo /workspace/apps/processing-worker/dist ./dist
 USER mnemo
 CMD ["node", "dist/process-point-cloud-once.js"]

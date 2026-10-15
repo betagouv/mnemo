@@ -1,4 +1,3 @@
-import { spawn } from "node:child_process";
 import { createReadStream } from "node:fs";
 import { mkdtemp, open, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -6,8 +5,13 @@ import { join } from "node:path";
 
 import type { ObjectStorage } from "@mnemo/storage";
 
-import type { PointCloudArtifactBuilder, PointCloudAssetForProcessing, PointCloudProcessingResult } from "../application/process-point-cloud-asset";
+import type {
+  PointCloudArtifactBuilder,
+  PointCloudAssetForProcessing,
+  PointCloudProcessingResult,
+} from "../application/process-point-cloud-asset";
 import { sourceExtension, stageOriginal } from "./stage-point-cloud";
+import type { CopcConverter } from "./untwine-copc-converter";
 
 const copcProbeBytes = 589;
 
@@ -19,15 +23,24 @@ export async function inspectCopc(path: string) {
     if (bytesRead < copcProbeBytes) return null;
     const view = new DataView(bytes.buffer);
     // COPC 1.0: LAS 1.4 header followed by the `copc` info VLR.
-    if (view.getUint32(0, true) !== 0x4653414c || view.getUint8(24) !== 1 ||
-      view.getUint8(25) !== 4 || view.getUint16(94, true) !== 375 ||
+    if (
+      view.getUint32(0, true) !== 0x4653414c ||
+      view.getUint8(24) !== 1 ||
+      view.getUint8(25) !== 4 ||
+      view.getUint16(94, true) !== 375 ||
       String.fromCharCode(...bytes.subarray(377, 381)) !== "copc" ||
       view.getUint16(393, true) !== 1 ||
-      ![6, 7, 8].includes(view.getUint8(104) & 63)) return null;
+      ![6, 7, 8].includes(view.getUint8(104) & 63)
+    )
+      return null;
     const extendedPointCount = view.getBigUint64(247, true);
-    const pointCount = Number(extendedPointCount || BigInt(view.getUint32(107, true)));
+    const pointCount = Number(
+      extendedPointCount || BigInt(view.getUint32(107, true)),
+    );
     if (!Number.isSafeInteger(pointCount) || pointCount < 0) {
-      throw new Error("COPC point count is invalid or exceeds JavaScript's safe integer range");
+      throw new Error(
+        "COPC point count is invalid or exceeds JavaScript's safe integer range",
+      );
     }
     const spacing = view.getFloat64(375 + 54 + 32, true);
     if (!Number.isFinite(spacing) || spacing <= 0) {
@@ -39,51 +52,49 @@ export async function inspectCopc(path: string) {
   }
 }
 
-async function convertWithPdal(executable: string, source: string, output: string) {
-  if (!executable.startsWith("/")) {
-    throw new Error("PDAL executable path must be absolute");
-  }
-  await new Promise<void>((resolve, reject) => {
-    const child = spawn(executable, [
-      "translate", source, output,
-      "--writer=writers.copc",
-      "--writers.copc.forward=all",
-      "--writers.copc.threads=4",
-    ], { stdio: ["ignore", "pipe", "pipe"] });
-    let diagnostics = "";
-    const capture = (chunk: Buffer) => {
-      diagnostics = `${diagnostics}${chunk.toString()}`.slice(-4_096);
-    };
-    child.stdout.on("data", capture);
-    child.stderr.on("data", capture);
-    child.once("error", reject);
-    child.once("close", (code, signal) => {
-      if (code === 0) resolve();
-      else reject(new Error(`PDAL COPC conversion failed (${signal ?? code}): ${diagnostics.trim()}`));
-    });
-  });
-}
-
 /** S3-only conversion: local files exist solely during this one-off. */
 export class CopcPointCloudArtifactBuilder implements PointCloudArtifactBuilder {
   constructor(
     private readonly storage: ObjectStorage,
-    private readonly pdalPath: string,
+    private readonly converter: CopcConverter,
     private readonly outputPrefix: string,
   ) {}
 
   async build(asset: PointCloudAssetForProcessing) {
     if (!/\.(las|laz)$/i.test(asset.originalFileName)) return null;
     const workspace = await mkdtemp(join(tmpdir(), "mnemo-copc-"));
-    const sourcePath = join(workspace, `source.${sourceExtension(asset.originalFileName)}`);
+    const sourcePath = join(
+      workspace,
+      `source.${sourceExtension(asset.originalFileName)}`,
+    );
     const outputPath = join(workspace, "cloud.copc.laz");
     const objectKey = `${this.outputPrefix}/cloud.copc.laz`;
     try {
+      const stagedAt = Date.now();
       await stageOriginal(this.storage, asset, sourcePath);
+      console.info("Point cloud source staged", {
+        assetId: asset.id,
+        bytes: asset.sizeBytes,
+        elapsedSeconds: Math.round((Date.now() - stagedAt) / 1_000),
+      });
       const sourceInfo = await inspectCopc(sourcePath);
-      if (!sourceInfo) await convertWithPdal(this.pdalPath, sourcePath, outputPath);
+      if (!sourceInfo) {
+        const conversionStartedAt = Date.now();
+        console.info("COPC conversion started", { assetId: asset.id });
+        await this.converter.convert({
+          sourcePath,
+          outputPath,
+          tempDirectory: join(workspace, "untwine-temp"),
+        });
+        console.info("COPC conversion completed", {
+          assetId: asset.id,
+          elapsedSeconds: Math.round(
+            (Date.now() - conversionStartedAt) / 1_000,
+          ),
+        });
+      }
       const publishedPath = sourceInfo ? sourcePath : outputPath;
-      const info = sourceInfo ?? await inspectCopc(publishedPath);
+      const info = sourceInfo ?? (await inspectCopc(publishedPath));
       if (!info) throw new Error("Converter output is not a valid COPC file");
       const { size } = await stat(publishedPath);
       await this.storage.writeObjectStream({
@@ -92,10 +103,14 @@ export class CopcPointCloudArtifactBuilder implements PointCloudArtifactBuilder 
         contentLength: size,
         body: createReadStream(publishedPath),
       });
+      console.info("COPC artifact published", {
+        assetId: asset.id,
+        bytes: size,
+      });
       return {
         format: "copc-v1" as const,
-        processor: sourceInfo ? "COPC passthrough" : "PDAL writers.copc",
-        processorVersion: sourceInfo ? "1.0" : "2.x",
+        processor: sourceInfo ? "COPC passthrough" : "Untwine",
+        processorVersion: sourceInfo ? "1.0" : "1.5.1",
         copcObjectKey: objectKey,
         pointCount: info.pointCount,
         spacing: info.spacing,
@@ -109,8 +124,8 @@ export class CopcPointCloudArtifactBuilder implements PointCloudArtifactBuilder 
   }
 
   async remove(result: PointCloudProcessingResult) {
-    if (result.format === "copc-v1") {
-      await this.storage.deleteObject(result.copcObjectKey).catch(() => undefined);
-    }
+    await this.storage
+      .deleteObject(result.copcObjectKey)
+      .catch(() => undefined);
   }
 }

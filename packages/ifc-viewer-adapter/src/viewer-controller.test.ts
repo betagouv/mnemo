@@ -459,7 +459,7 @@ function createHarness({
       options.onComplete?.({ min: [0, 0, 0], max: [1, 1, 1] }, 2, null);
       return { cancel: () => undefined, done: Promise.resolve() };
     },
-    createPointCloudOctreeStream: (options) => {
+    createPointCloudCopcStream: (options) => {
       let updateCount = 0;
       options.onOpen?.({ totalPointCount: 10_000_000, spacing: 0.1 });
       return {
@@ -513,11 +513,6 @@ function createHarness({
         cancel: () => undefined,
       };
     },
-    createPointCloudCopcStream: () => ({
-      ready: Promise.resolve(),
-      update: () => undefined,
-      cancel: () => undefined,
-    }),
     readElementDetails: (_store, expressId) => ({
       expressId,
       globalId: "3vB1mExampleGlobalId",
@@ -1279,7 +1274,7 @@ describe("IfcViewerController", () => {
     controller.dispose();
   });
 
-  it("swaps octree LOD frontiers without rebuilding or reframing", async () => {
+  it("swaps COPC LOD frontiers without rebuilding or reframing", async () => {
     const { calls, controller } = createHarness();
     await controller.loadIfc({
       assetId: "model-a",
@@ -1288,14 +1283,12 @@ describe("IfcViewerController", () => {
     });
 
     await controller.loadPointCloud({
-      assetId: "octree-id",
+      assetId: "copc-id",
       fileName: "scan.laz",
       source: {
-        mode: "octree",
+        mode: "copc",
         access: {
-          metadataUrl: "http://storage.local/metadata.json",
-          hierarchyUrl: "http://storage.local/hierarchy.bin",
-          octreeUrl: "http://storage.local/octree.bin",
+          copcUrl: "http://storage.local/cloud.copc.laz",
           expiresAt: "2099-01-01T00:00:00.000Z",
         },
         refreshAccess: async () => {
@@ -1311,7 +1304,7 @@ describe("IfcViewerController", () => {
     });
 
     expect(controller.getSnapshot().pointClouds[0]).toMatchObject({
-      source: "octree",
+      source: "copc",
       phase: "streaming",
       pointCount: 1,
       residentNodeCount: 1,
@@ -1342,11 +1335,9 @@ describe("IfcViewerController", () => {
       assetId,
       fileName: `${assetId}.laz`,
       source: {
-        mode: "octree" as const,
+        mode: "copc" as const,
         access: {
-          metadataUrl: "http://storage.local/metadata.json",
-          hierarchyUrl: "http://storage.local/hierarchy.bin",
-          octreeUrl: "http://storage.local/octree.bin",
+          copcUrl: "http://storage.local/cloud.copc.laz",
           expiresAt: "2099-01-01T00:00:00.000Z",
         },
         refreshAccess: async () => {

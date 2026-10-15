@@ -4,8 +4,8 @@ import {
   detectPointCloudFormat,
   type PointCloudFormat,
   type PointCloudLodView,
-  type PointCloudOctreeStreamHandle,
-  type PointCloudOctreeStreamOptions,
+  type PointCloudCopcStreamHandle,
+  type PointCloudCopcStreamOptions,
   type PointCloudStreamHandle,
   type PointCloudTransform,
 } from "@mnemo/point-cloud-viewer-adapter";
@@ -20,7 +20,7 @@ type PreviewInput = Extract<
   LoadPointCloudInput,
   { source: { mode: "preview" } }
 >;
-type OctreeInput = Exclude<LoadPointCloudInput, { source: { mode: "preview" } }>;
+type CopcInput = Exclude<LoadPointCloudInput, { source: { mode: "preview" } }>;
 
 function isPreviewInput(input: LoadPointCloudInput): input is PreviewInput {
   return input.source.mode === "preview";
@@ -31,7 +31,7 @@ type PointCloudLoad = {
   expressId: number;
   handles: Map<string, PointCloudAssetHandle>;
   stream: PointCloudStreamHandle | null;
-  octree: PointCloudOctreeStreamHandle | null;
+  copc: PointCloudCopcStreamHandle | null;
   transform: PointCloudTransform;
   pointBudget: number;
   lastLodSignature: string | null;
@@ -42,7 +42,7 @@ type PointCloudLayerHost = {
   canvas: HTMLCanvasElement;
   runtime: Pick<
     IfcViewerRuntime,
-    "fetch" | "createPointCloudStream" | "createPointCloudOctreeStream" | "createPointCloudCopcStream"
+    "fetch" | "createPointCloudStream" | "createPointCloudCopcStream"
   >;
   initialize: () => Promise<void>;
   isDisposed: () => boolean;
@@ -77,7 +77,7 @@ export class PointCloudLayers {
       expressId: this.nextExpressId--,
       handles: new Map(),
       stream: null,
-      octree: null,
+      copc: null,
       transform: input.transform,
       pointBudget: input.maxPointsInMemory,
       lastLodSignature: null,
@@ -101,7 +101,7 @@ export class PointCloudLayers {
       if (isPreviewInput(input)) {
         await this.loadPreview(input, load, format);
       } else {
-        await this.loadOctree(input, load);
+        await this.loadCopc(input, load);
       }
     } catch (error) {
       if (this.loads.get(input.assetId) !== load) return;
@@ -189,9 +189,12 @@ export class PointCloudLayers {
     await stream.done;
   }
 
-  private async loadOctree(input: OctreeInput, load: PointCloudLoad) {
+  private async loadCopc(input: CopcInput, load: PointCloudLoad) {
     this.host.onSnapshot(input.assetId, { phase: "streaming" });
-    const common: Pick<PointCloudOctreeStreamOptions, "signal" | "onOpen" | "onSwap" | "onError"> = {
+    const common: Pick<
+      PointCloudCopcStreamOptions,
+      "signal" | "onOpen" | "onSwap" | "onError"
+    > = {
       signal: load.abort.signal,
       onOpen: (info) => {
         if (this.loads.get(input.assetId) !== load) return;
@@ -241,18 +244,12 @@ export class PointCloudLayers {
         });
       },
     };
-    const stream = input.source.mode === "copc"
-      ? this.host.runtime.createPointCloudCopcStream({
-          ...common,
-          access: input.source.access,
-          refreshAccess: input.source.refreshAccess,
-        })
-      : this.host.runtime.createPointCloudOctreeStream({
-          ...common,
-          access: input.source.access,
-          refreshAccess: input.source.refreshAccess,
-        });
-    load.octree = stream;
+    const stream = this.host.runtime.createPointCloudCopcStream({
+      ...common,
+      access: input.source.access,
+      refreshAccess: input.source.refreshAccess,
+    });
+    load.copc = stream;
     load.lastLodSignature = null;
     this.updateLod();
     await stream.ready;
@@ -283,7 +280,7 @@ export class PointCloudLayers {
 
     load.abort.abort();
     load.stream?.cancel();
-    load.octree?.cancel();
+    load.copc?.cancel();
     for (const handle of load.handles.values()) {
       this.host.renderer.removePointCloudAsset(handle);
     }
@@ -339,7 +336,7 @@ export class PointCloudLayers {
       .join(":");
 
     for (const load of this.loads.values()) {
-      if (!load.octree) continue;
+      if (!load.copc) continue;
       const modelMatrix = composePointCloudTransform(load.transform);
       const signature = `${baseSignature}:${load.pointBudget}:${[...modelMatrix]
         .map((value) => Math.round(value * 100_000))
@@ -357,7 +354,7 @@ export class PointCloudLayers {
           ? { orthographicHeight: camera.getOrthoSize() }
           : {}),
       };
-      load.octree.update(view);
+      load.copc.update(view);
     }
   }
 
@@ -365,7 +362,7 @@ export class PointCloudLayers {
     for (const load of this.loads.values()) {
       load.abort.abort();
       load.stream?.cancel();
-      load.octree?.cancel();
+      load.copc?.cancel();
     }
     this.loads.clear();
     this.requests.clear();

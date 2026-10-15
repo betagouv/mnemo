@@ -31,17 +31,17 @@ model {
     protocols = component 'Routes dédiées' 'Streaming assistant et archives BCF'
     usecases = component 'Services applicatifs' 'Autorisations et règles métier'
     adapters = component 'Adaptateurs' 'Prisma, S3, BCF et IFC-Lite MCP'
-    jobs = component 'Orchestrateur de jobs' 'Réservations PostgreSQL, reprises et déclenchement Potree à la demande'
+    jobs = component 'Orchestrateur de jobs' 'Réservations PostgreSQL, reprises et déclenchement COPC à la demande'
   }
 
-  potree = service 'Potree one-off' 'Conversion LAS/LAZ ponctuelle, sans connexion à PostgreSQL' {
-    technology 'PotreeConverter, S3'
+  copc = service 'COPC one-off' 'Conversion LAS/LAZ ponctuelle, sans connexion à PostgreSQL' {
+    technology 'Untwine, S3'
   }
   rust = service 'IFC-Lite Rust + passerelle' 'Lit le S3 signé et streame la géométrie Parquet'
   mcp = service 'IFC-Lite MCP' 'Requêtes sémantiques IFC en lecture seule'
   openrouter = service 'OpenRouter' 'Modèle LLM externe'
   postgres = database 'PostgreSQL' 'Projets, membres, fichiers, jobs, alignements, BCF et conversations'
-  minio = storage 'MinIO / S3' 'Originaux IFC et nuages, octrees Potree et screenshots BCF'
+  minio = storage 'MinIO / S3' 'Originaux IFC et nuages, COPC et screenshots BCF'
 
   user -> browser.workspace 'gère ses projets et fichiers'
   user -> browser.viewer 'inspecte la scène'
@@ -51,7 +51,7 @@ model {
   browser.workspace -> web.actions 'crée, téléverse, supprime et annote'
   browser.workspace -> minio 'envoie les originaux par URL signée'
   browser.viewer -> web.reads 'obtient des URLs signées et les réglages'
-  browser.viewer -> minio 'lit les petits IFC et octrees par URL signée'
+  browser.viewer -> minio 'lit les petits IFC et COPC par URL signée'
   browser.viewer -> web.reads 'reçoit les lots Parquet et le modèle des gros IFC'
   browser.assistantUi -> web.protocols 'ouvre un flux de chat'
   browser.assistantUi -> browser.viewer 'applique les outils visuels'
@@ -67,8 +67,8 @@ model {
   rust -> minio 'lit les originaux IFC directement'
   web.jobs -> postgres 'réserve les jobs et publie les résultats'
   web.jobs -> minio 'vérifie les résultats et supprime les objets'
-  web.jobs -> potree 'lance une conversion à la demande'
-  potree -> minio 'lit le LAS/LAZ et écrit les octrees'
+  web.jobs -> copc 'lance une conversion à la demande'
+  copc -> minio 'lit le LAS/LAZ et écrit le COPC'
   web.protocols -> openrouter 'streaming LLM'
   web.protocols -> mcp 'interroge la sémantique IFC'
   web.adapters -> mcp 'alimente un cache IFC jetable'
@@ -79,7 +79,7 @@ views {
   view index {
     title 'Mnemo — vue d’ensemble'
     description 'Runtimes, sources de vérité et dépendances externes.'
-    include user, browser, web, potree, rust, mcp, openrouter, postgres, minio
+    include user, browser, web, copc, rust, mcp, openrouter, postgres, minio
   }
 
   view application {
@@ -90,7 +90,7 @@ views {
 
   dynamic view upload {
     title 'Téléversement et traitement asynchrone'
-    description 'L’IFC est prêt dès le dépôt ; seul le LAS/LAZ demande une conversion Potree ponctuelle.'
+    description 'L’IFC est prêt dès le dépôt ; seul le LAS/LAZ demande une conversion COPC ponctuelle.'
     user -> browser.workspace 'choisit un IFC ou un nuage de points'
     browser.workspace -> web.actions 'demande une URL de dépôt'
     web.actions -> web.usecases 'vérifie le projet et prépare le fichier'
@@ -102,23 +102,23 @@ views {
     web.usecases -> minio 'vérifie la taille de l’objet'
     web.usecases -> postgres 'marque l’IFC prêt ou enfile un job LAS/LAZ'
     web.jobs -> postgres 'réserve le job LAS/LAZ'
-    web.jobs -> potree 'lance le one-off avec la clé S3'
-    potree -> minio 'lit l’original et écrit l’octree'
+    web.jobs -> copc 'lance le one-off avec la clé S3'
+    copc -> minio 'lit l’original et écrit le COPC'
     web.jobs -> minio 'vérifie les artefacts publiés'
     web.jobs -> postgres 'publie le résultat et le statut'
   }
 
   dynamic view rendering {
     title 'Ouverture IFC et nuage de points'
-    description 'Un projet réunit plusieurs IFC et relevés 3D dans un seul renderer et une seule caméra ; l’octree ne charge que les nœuds utiles.'
+    description 'Un projet réunit plusieurs IFC et relevés 3D dans un seul renderer et une seule caméra ; le COPC ne charge que les nœuds utiles.'
     user -> browser.viewer 'ouvre la scène du projet'
     web.pages -> browser.viewer 'fournit les fichiers prêts et les réglages initiaux'
     browser.viewer -> web.reads 'demande les sources autorisées de chaque fichier'
     web.reads -> web.usecases 'vérifie les droits du projet'
     web.usecases -> postgres 'lit les fichiers et transformations'
-    web.usecases -> minio 'signe originaux et octree'
+    web.usecases -> minio 'signe originaux et COPC'
     web.reads -> browser.viewer 'URLs et réglages'
-    browser.viewer -> minio 'lit les petits IFC et l’octree par plages d’octets'
+    browser.viewer -> minio 'lit les petits IFC et le COPC par plages d’octets'
     browser.viewer -> web.reads 'demande le flux des gros IFC autorisés'
     web.reads -> rust 'transmet une URL GET S3 signée et courte'
     rust -> minio 'lit l’original IFC sans passage par le navigateur'

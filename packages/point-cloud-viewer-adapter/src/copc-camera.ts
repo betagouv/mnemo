@@ -1,6 +1,6 @@
 import type { LodCamera } from "@ifc-lite/pointcloud";
 
-import type { PointCloudLodView } from "./octree-lod";
+import type { PointCloudLodView } from "./lod-types";
 
 function multiply4(a: ArrayLike<number>, b: ArrayLike<number>) {
   const out = new Float64Array(16);
@@ -14,16 +14,34 @@ function multiply4(a: ArrayLike<number>, b: ArrayLike<number>) {
   return out;
 }
 
-function inverseAffinePoint(matrix: ArrayLike<number>, point: readonly [number, number, number]) {
-  const determinant = matrix[0] * (matrix[5] * matrix[10] - matrix[9] * matrix[6])
-    - matrix[4] * (matrix[1] * matrix[10] - matrix[9] * matrix[2])
-    + matrix[8] * (matrix[1] * matrix[6] - matrix[5] * matrix[2]);
-  if (!Number.isFinite(determinant) || Math.abs(determinant) < 1e-18) return null;
-  const [x, y, z] = [point[0] - matrix[12], point[1] - matrix[13], point[2] - matrix[14]];
+function inverseAffinePoint(
+  matrix: ArrayLike<number>,
+  point: readonly [number, number, number],
+) {
+  const determinant =
+    matrix[0] * (matrix[5] * matrix[10] - matrix[9] * matrix[6]) -
+    matrix[4] * (matrix[1] * matrix[10] - matrix[9] * matrix[2]) +
+    matrix[8] * (matrix[1] * matrix[6] - matrix[5] * matrix[2]);
+  if (!Number.isFinite(determinant) || Math.abs(determinant) < 1e-18)
+    return null;
+  const [x, y, z] = [
+    point[0] - matrix[12],
+    point[1] - matrix[13],
+    point[2] - matrix[14],
+  ];
   return [
-    ((matrix[5] * matrix[10] - matrix[9] * matrix[6]) * x + (matrix[8] * matrix[6] - matrix[4] * matrix[10]) * y + (matrix[4] * matrix[9] - matrix[8] * matrix[5]) * z) / determinant,
-    ((matrix[9] * matrix[2] - matrix[1] * matrix[10]) * x + (matrix[0] * matrix[10] - matrix[8] * matrix[2]) * y + (matrix[8] * matrix[1] - matrix[0] * matrix[9]) * z) / determinant,
-    ((matrix[1] * matrix[6] - matrix[5] * matrix[2]) * x + (matrix[4] * matrix[2] - matrix[0] * matrix[6]) * y + (matrix[0] * matrix[5] - matrix[4] * matrix[1]) * z) / determinant,
+    ((matrix[5] * matrix[10] - matrix[9] * matrix[6]) * x +
+      (matrix[8] * matrix[6] - matrix[4] * matrix[10]) * y +
+      (matrix[4] * matrix[9] - matrix[8] * matrix[5]) * z) /
+      determinant,
+    ((matrix[9] * matrix[2] - matrix[1] * matrix[10]) * x +
+      (matrix[0] * matrix[10] - matrix[8] * matrix[2]) * y +
+      (matrix[8] * matrix[1] - matrix[0] * matrix[9]) * z) /
+      determinant,
+    ((matrix[1] * matrix[6] - matrix[5] * matrix[2]) * x +
+      (matrix[4] * matrix[2] - matrix[0] * matrix[6]) * y +
+      (matrix[0] * matrix[5] - matrix[4] * matrix[1]) * z) /
+      determinant,
   ] as [number, number, number];
 }
 

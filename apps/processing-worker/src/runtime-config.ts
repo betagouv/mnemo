@@ -20,11 +20,8 @@ export function getPointCloudOneOffConfig() {
       accessKeyId: required("S3_ACCESS_KEY"),
       secretAccessKey: required("S3_SECRET_KEY"),
     },
-    potreeConverterPath:
-      process.env.POTREE_CONVERTER_PATH?.trim() ||
-      fileURLToPath(new URL("../bin/potree-converter", import.meta.url)),
-    pdalPath:
-      process.env.PDAL_PATH?.trim() ||
-      fileURLToPath(new URL("../bin/pdal", import.meta.url)),
+    untwinePath:
+      process.env.UNTWINE_PATH?.trim() ||
+      fileURLToPath(new URL("../bin/untwine", import.meta.url)),
   };
 }

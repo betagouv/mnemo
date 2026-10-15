@@ -42,17 +42,13 @@ export class PrismaPointCloudProcessingRepository implements PointCloudProcessin
       Array<{ assetId: string }>
     >(Prisma.sql`
       INSERT INTO point_cloud_processing_results (
-        asset_id, format, processor, processor_version, metadata_object_key,
-        hierarchy_object_key, octree_object_key, copc_object_key, point_count, spacing,
+        asset_id, format, processor, processor_version, copc_object_key, point_count, spacing,
         processed_at, created_at, updated_at
       )
       SELECT
         ${assetId}::uuid, ${result.format}, ${result.processor},
         ${result.processorVersion},
-        ${result.format === "potree-v2" ? result.metadataObjectKey : null},
-        ${result.format === "potree-v2" ? result.hierarchyObjectKey : null},
-        ${result.format === "potree-v2" ? result.octreeObjectKey : null},
-        ${result.format === "copc-v1" ? result.copcObjectKey : null},
+        ${result.copcObjectKey},
         ${result.pointCount}, ${result.spacing}, ${processedAt},
         ${processedAt}, ${processedAt}
       FROM assets
@@ -70,14 +66,16 @@ export class PrismaPointCloudProcessingRepository implements PointCloudProcessin
         format = EXCLUDED.format,
         processor = EXCLUDED.processor,
         processor_version = EXCLUDED.processor_version,
-        metadata_object_key = EXCLUDED.metadata_object_key,
-        hierarchy_object_key = EXCLUDED.hierarchy_object_key,
-        octree_object_key = EXCLUDED.octree_object_key,
         copc_object_key = EXCLUDED.copc_object_key,
+        metadata_object_key = NULL,
+        hierarchy_object_key = NULL,
+        octree_object_key = NULL,
         point_count = EXCLUDED.point_count,
         spacing = EXCLUDED.spacing,
         processed_at = EXCLUDED.processed_at,
         updated_at = EXCLUDED.updated_at
+      -- Never overwrite old object keys: asset deletion still needs them.
+      WHERE point_cloud_processing_results.format = 'copc-v1'
       RETURNING asset_id AS "assetId"
     `);
     return rows.length > 0;

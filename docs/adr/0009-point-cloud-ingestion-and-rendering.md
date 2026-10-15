@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted and implemented.
+Superseded by [ADR 0016](0016-copc-only-point-clouds.md) for LAS/LAZ conversion and LOD transport.
 
 ## Context
 

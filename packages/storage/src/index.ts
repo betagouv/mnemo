@@ -7,12 +7,6 @@ export {
   type OriginalObjectKeyInput,
 } from "./object-key";
 export {
-  buildPointCloudArtifactObjectKey,
-  pointCloudArtifactNames,
-  type PointCloudArtifactName,
-  type PointCloudArtifactObjectKeyInput,
-} from "./point-cloud-object-key";
-export {
   type CreateDownloadUrlInput,
   type CreateUploadUrlInput,
   type ObjectStorage,

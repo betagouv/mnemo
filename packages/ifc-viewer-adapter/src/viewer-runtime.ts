@@ -8,7 +8,6 @@ import {
 } from "@ifc-lite/parser";
 import { Renderer } from "@ifc-lite/renderer";
 import {
-  createPointCloudOctreeStream,
   createPointCloudCopcStream,
   createPointCloudStream,
 } from "@mnemo/point-cloud-viewer-adapter";
@@ -101,7 +100,6 @@ export function createDefaultRuntime(): IfcViewerRuntime {
     readElementDetails,
     createBimIndex: createIfcBimIndex,
     createPointCloudStream,
-    createPointCloudOctreeStream,
     createPointCloudCopcStream,
     fetch: globalThis.fetch.bind(globalThis),
     requestFrame: globalThis.requestAnimationFrame.bind(globalThis),

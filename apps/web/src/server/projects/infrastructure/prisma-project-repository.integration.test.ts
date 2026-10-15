@@ -115,10 +115,7 @@ describe("PrismaProjectRepository", () => {
     const viewpointId = randomUUID();
     const objectKey = `projects/${created.id}/assets/${assetId}/original.ifc`;
     const pointCloudOriginalKey = `projects/${created.id}/assets/${pointCloudAssetId}/original.laz`;
-    const pointCloudKeys = ["metadata.json", "hierarchy.bin", "octree.bin"].map(
-      (name) =>
-        `projects/${created.id}/assets/${pointCloudAssetId}/derived/potree-v2/${name}`,
-    );
+    const pointCloudKey = `projects/${created.id}/assets/${pointCloudAssetId}/derived/copc-v1/cloud.copc.laz`;
     const snapshotObjectKey = `projects/${created.id}/bcf/${topicId}/viewpoints/${viewpointId}/snapshot.png`;
     const sharedAsset = {
       project_id: created.id,
@@ -169,12 +166,10 @@ describe("PrismaProjectRepository", () => {
     await database.db.point_cloud_processing_results.create({
       data: {
         asset_id: pointCloudAssetId,
-        format: "potree-v2",
-        processor: "PotreeConverter",
-        processor_version: "2.1.1",
-        metadata_object_key: pointCloudKeys[0],
-        hierarchy_object_key: pointCloudKeys[1],
-        octree_object_key: pointCloudKeys[2],
+        format: "copc-v1",
+        processor: "Untwine",
+        processor_version: "1.5.1",
+        copc_object_key: pointCloudKey,
         point_count: 10_000n,
         spacing: 0.5,
         processed_at: new Date(),
@@ -223,7 +218,7 @@ describe("PrismaProjectRepository", () => {
         objectKey,
         pointCloudOriginalKey,
         snapshotObjectKey,
-        ...pointCloudKeys,
+        pointCloudKey,
       ]),
     );
   });

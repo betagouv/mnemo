@@ -22,35 +22,28 @@ COPY tsconfig.base.json ./tsconfig.base.json
 RUN pnpm --filter @mnemo/web build
 RUN pnpm --filter @mnemo/processing-worker build
 
-FROM debian:bookworm-slim AS potree-converter
-ARG POTREE_CONVERTER_COMMIT=d9387d52807bf8936fe98096b9992ea13b50ba94
+FROM node:22-bookworm-slim AS untwine-converter
+WORKDIR /app
 RUN apt-get update \
-  && apt-get install --yes --no-install-recommends build-essential ca-certificates cmake git libtbb-dev \
-  && git init /source \
-  && git -C /source remote add origin https://github.com/potree/PotreeConverter.git \
-  && git -C /source fetch --depth 1 origin "${POTREE_CONVERTER_COMMIT}" \
-  && git -C /source checkout --detach FETCH_HEAD \
-  && cmake -S /source -B /source/build \
-  && cmake --build /source/build --parallel 2
+  && apt-get install --yes --no-install-recommends ca-certificates curl bzip2 \
+  && rm -rf /var/lib/apt/lists/*
+COPY infrastructure/scalingo-copc/scripts/install-untwine.sh scripts/install-untwine.sh
+COPY infrastructure/scalingo-copc/scripts/untwine scripts/untwine
+RUN bash scripts/install-untwine.sh
 
 FROM node:22-bookworm-slim AS runtime
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 WORKDIR /app
-ENV LD_LIBRARY_PATH=/usr/local/lib
-ENV MNEMO_LOCAL_POTREE_BINARY=/app/potree-once.js
-ENV POTREE_CONVERTER_PATH=/usr/local/bin/PotreeConverter
+ENV MNEMO_LOCAL_COPC_BINARY=/app/copc-once.js
+ENV UNTWINE_PATH=/opt/pdal/bin/untwine
 
-RUN apt-get update \
-  && apt-get install --yes --no-install-recommends libtbb12 \
-  && rm -rf /var/lib/apt/lists/* \
-  && groupadd --system --gid 1001 nodejs \
+RUN groupadd --system --gid 1001 nodejs \
   && useradd --system --uid 1001 --gid nodejs nextjs
 
-COPY --from=potree-converter /source/build/PotreeConverter /usr/local/bin/PotreeConverter
-COPY --from=potree-converter /source/build/liblaszip.so /usr/local/lib/liblaszip.so
-COPY --from=build --chown=nextjs:nodejs /workspace/apps/processing-worker/dist/process-point-cloud-once.js /app/potree-once.js
+COPY --from=untwine-converter /app/bin /opt/pdal/bin
+COPY --from=build --chown=nextjs:nodejs /workspace/apps/processing-worker/dist/process-point-cloud-once.js /app/copc-once.js
 
 COPY --from=build --chown=nextjs:nodejs /workspace/apps/web/public ./apps/web/public
 COPY --from=build --chown=nextjs:nodejs /workspace/apps/web/.next/standalone ./

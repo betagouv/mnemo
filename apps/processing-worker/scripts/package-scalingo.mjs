@@ -3,7 +3,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
-const template = join(repoRoot, "infrastructure/scalingo-octree");
+const template = join(repoRoot, "infrastructure/scalingo-copc");
 const dist = join(repoRoot, "apps/processing-worker/dist");
 const output = process.argv[2] && resolve(process.argv[2]);
 

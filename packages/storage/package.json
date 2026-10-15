@@ -17,7 +17,8 @@
   "dependencies": {
     "@aws-sdk/client-s3": "3.1128.0",
     "@aws-sdk/lib-storage": "3.1128.0",
-    "@aws-sdk/s3-request-presigner": "3.1128.0"
+    "@aws-sdk/s3-request-presigner": "3.1128.0",
+    "@smithy/node-http-handler": "4.12.1"
   },
   "devDependencies": {
     "typescript": "^5.9.3",

@@ -36,6 +36,11 @@ export class PointCloudSourceService {
       this.now().getTime() + accessTtlSeconds * 1_000,
     ).toISOString();
     if (!record.result) {
+      if (/\.(?:las|laz)$/i.test(record.asset.originalFileName)) {
+        throw new PointCloudSourceAccessDeniedError(
+          "Ce nuage de points doit être retraité en COPC avant d’être visualisé.",
+        );
+      }
       return {
         mode: "preview",
         downloadUrl: await this.sign(record.asset.originalObjectKey),
@@ -43,26 +48,9 @@ export class PointCloudSourceService {
       };
     }
 
-    if (record.result.format === "copc-v1") {
-      return {
-        mode: "copc",
-        copcUrl: await this.sign(record.result.copcObjectKey),
-        pointCount: record.result.pointCount,
-        spacing: record.result.spacing,
-        expiresAt,
-      };
-    }
-
-    const [metadataUrl, hierarchyUrl, octreeUrl] = await Promise.all([
-      this.sign(record.result.metadataObjectKey),
-      this.sign(record.result.hierarchyObjectKey),
-      this.sign(record.result.octreeObjectKey),
-    ]);
     return {
-      mode: "octree",
-      metadataUrl,
-      hierarchyUrl,
-      octreeUrl,
+      mode: "copc",
+      copcUrl: await this.sign(record.result.copcObjectKey),
       pointCount: record.result.pointCount,
       spacing: record.result.spacing,
       expiresAt,

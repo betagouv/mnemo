@@ -36,7 +36,7 @@ function required(name: string) {
 
 class LocalDockerPointCloudLauncher implements RemotePointCloudLauncher {
   async launch(job: RemotePointCloudJob) {
-    const bundled = process.env.MNEMO_LOCAL_POTREE_BINARY;
+    const bundled = process.env.MNEMO_LOCAL_COPC_BINARY;
     const envFile = process.env.MNEMO_ENV_FILE ?? ".env.local";
     await new Promise<void>((resolve, reject) => {
       const child = spawn(
@@ -64,13 +64,13 @@ class LocalDockerPointCloudLauncher implements RemotePointCloudLauncher {
       child.once("exit", (code) =>
         code === 0
           ? resolve()
-          : reject(new Error(`Local Potree one-off exited with code ${code}`)),
+          : reject(new Error(`Local COPC one-off exited with code ${code}`)),
       );
     });
   }
 }
 
-/** Durable DB queues run inside mnemo-web; Potree itself runs only as a one-off. */
+/** Durable DB queues run inside mnemo-web; COPC conversion runs as a one-off. */
 export function startWebBackgroundJobs(
   database: MnemoPrismaDatabase,
   storage: ObjectStorage,

@@ -23,21 +23,14 @@ export class PrismaPointCloudSourceRepository implements PointCloudSourceReposit
         id: row.id,
         kind: "point_cloud" as const,
         status: row.status,
+        originalFileName: row.original_file_name,
         originalObjectKey: row.original_object_key,
       },
-      result: result?.format === "copc-v1" && result.copc_object_key
-        ? {
-            format: "copc-v1" as const,
-            copcObjectKey: result.copc_object_key,
-            pointCount: Number(result.point_count),
-            spacing: result.spacing,
-          }
-        : result?.format === "potree-v2" && result.metadata_object_key && result.hierarchy_object_key && result.octree_object_key
+      result:
+        result?.format === "copc-v1" && result.copc_object_key
           ? {
-              format: "potree-v2" as const,
-              metadataObjectKey: result.metadata_object_key,
-              hierarchyObjectKey: result.hierarchy_object_key,
-              octreeObjectKey: result.octree_object_key,
+              format: "copc-v1" as const,
+              copcObjectKey: result.copc_object_key,
               pointCount: Number(result.point_count),
               spacing: result.spacing,
             }

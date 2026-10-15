@@ -45,10 +45,11 @@ same change as a new record.
 | [0006](0006-persistent-processing-leases.md)        | Persistent processing leases               | Superseded by [0015](0015-s3-native-ifc-and-oneoff-processing.md) |
 | [0007](0007-ifc-lite-webpack-integration.md)        | IFC-Lite and Webpack                       | Accepted                                                          |
 | [0008](0008-ifc-lite-server-distribution.md)        | IFC-Lite Rust binary distribution          | Superseded by [0015](0015-s3-native-ifc-and-oneoff-processing.md) |
-| [0009](0009-point-cloud-ingestion-and-rendering.md) | Point-cloud ingestion and rendering        | Accepted                                                          |
+| [0009](0009-point-cloud-ingestion-and-rendering.md) | Point-cloud ingestion and rendering        | Superseded by [0016](0016-copc-only-point-clouds.md)              |
 | [0010](0010-bcf-persistence.md)                     | BCF persistence and interoperability       | Accepted                                                          |
 | [0011](0011-assistant-runtime-and-viewer-tools.md)  | Assistant runtime and viewer tools         | Accepted                                                          |
 | [0012](0012-ifc-lite-mcp-runtime.md)                | Dedicated IFC-Lite MCP runtime             | Accepted                                                          |
 | [0013](0013-persistent-assistant-threads.md)        | Persistent assistant threads               | Accepted                                                          |
 | [0014](0014-nextjs-zod-prisma.md)                   | Native Next.js boundaries and Prisma       | Accepted                                                          |
 | [0015](0015-s3-native-ifc-and-oneoff-processing.md) | S3-native IFC and on-demand Potree         | Accepted                                                          |
+| [0016](0016-copc-only-point-clouds.md)              | COPC-only tiled point clouds               | Accepted                                                          |

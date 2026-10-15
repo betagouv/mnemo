@@ -24,21 +24,12 @@ function stubRequiredEnvironment() {
 describe("point-cloud one-off configuration", () => {
   afterEach(() => vi.unstubAllEnvs());
 
-  it("uses the packaged converter when no override is configured", () => {
+  it("uses packaged Untwine for COPC unless overridden", () => {
     stubRequiredEnvironment();
-    vi.stubEnv("POTREE_CONVERTER_PATH", "");
+    vi.stubEnv("UNTWINE_PATH", "");
+    expect(getPointCloudOneOffConfig().untwinePath).toMatch(/\/bin\/untwine$/);
 
-    expect(getPointCloudOneOffConfig().potreeConverterPath).toMatch(
-      /\/bin\/potree-converter$/,
-    );
-  });
-
-  it("allows an explicit converter override", () => {
-    stubRequiredEnvironment();
-    vi.stubEnv("POTREE_CONVERTER_PATH", "/opt/potree/PotreeConverter");
-
-    expect(getPointCloudOneOffConfig().potreeConverterPath).toBe(
-      "/opt/potree/PotreeConverter",
-    );
+    vi.stubEnv("UNTWINE_PATH", "/opt/copc/untwine");
+    expect(getPointCloudOneOffConfig().untwinePath).toBe("/opt/copc/untwine");
   });
 });

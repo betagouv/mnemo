@@ -1,5 +1,5 @@
 {
-  "name": "mnemo-octree-one-off",
+  "name": "mnemo-copc-one-off",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,6 +7,6 @@
     "node": "22.x"
   },
   "scripts": {
-    "scalingo-postbuild": "bash scripts/build-potree.sh && bash scripts/install-pdal.sh"
+    "scalingo-postbuild": "bash scripts/install-untwine.sh"
   }
 }

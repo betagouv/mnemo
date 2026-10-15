@@ -11,8 +11,7 @@ import {
 import type { PointCloudChunkInput } from "@ifc-lite/renderer";
 
 import { copcLodCamera } from "./copc-camera";
-import type { PointCloudLodView } from "./octree-lod";
-import type { PointCloudOctreeSwap } from "./octree-stream";
+import type { PointCloudLodSwap, PointCloudLodView } from "./lod-types";
 
 const firstFramePoints = 25_000;
 const firstPassPoints = 150_000;
@@ -31,7 +30,7 @@ export type PointCloudCopcStreamOptions = {
   refreshAccess: () => Promise<PointCloudCopcAccess>;
   signal?: AbortSignal;
   onOpen?: (metadata: { totalPointCount: number; spacing: number }) => void;
-  onSwap: (swap: PointCloudOctreeSwap) => void;
+  onSwap: (swap: PointCloudLodSwap) => void;
   onError?: (error: Error) => void;
   runtime?: {
     fetch: typeof fetch;
@@ -55,14 +54,18 @@ function isAbort(error: unknown) {
 }
 
 /** Stream one signed COPC object: a tiny root first, then camera-selected nodes. */
-export function createPointCloudCopcStream(options: PointCloudCopcStreamOptions): PointCloudCopcStreamHandle {
+export function createPointCloudCopcStream(
+  options: PointCloudCopcStreamOptions,
+): PointCloudCopcStreamHandle {
   const runtime = options.runtime ?? {
     fetch: globalThis.fetch.bind(globalThis),
     openReader: openCopcWorkerReader,
     now: Date.now,
   };
   const lifetime = new AbortController();
-  options.signal?.addEventListener("abort", () => lifetime.abort(), { once: true });
+  options.signal?.addEventListener("abort", () => lifetime.abort(), {
+    once: true,
+  });
   if (options.signal?.aborted) lifetime.abort();
   let access = options.access;
   let reader: CopcWorkerReader | null = null;
@@ -81,11 +84,18 @@ export function createPointCloudCopcStream(options: PointCloudCopcStreamOptions)
     rejectReady = reject;
   });
 
-  function publish(add: PointCloudOctreeSwap["add"], remove: string[], complete: boolean) {
+  function publish(
+    add: PointCloudLodSwap["add"],
+    remove: string[],
+    complete: boolean,
+  ) {
     options.onSwap({
       add,
       remove,
-      pointCount: [...resident.values()].reduce((sum, chunk) => sum + chunk.pointCount, 0),
+      pointCount: [...resident.values()].reduce(
+        (sum, chunk) => sum + chunk.pointCount,
+        0,
+      ),
       nodeCount: resident.size,
       complete,
     });
@@ -133,24 +143,36 @@ export function createPointCloudCopcStream(options: PointCloudCopcStreamOptions)
         source: { kind: "http", url: access.copcUrl },
         originOffset,
         signal: lifetime.signal,
-        spawn: () => new Worker("/pointcloud/decode-worker.js", {
-          name: "mnemo-copc-decode",
-        }),
+        spawn: () =>
+          new Worker("/pointcloud/decode-worker.js", {
+            name: "mnemo-copc-decode",
+          }),
       });
       if (lifetime.signal.aborted) {
         opened.close();
         return;
       }
       reader = opened;
-      tree = createCopcLodTree(opened.hierarchy, opened.file.info, originOffset);
+      tree = createCopcLodTree(
+        opened.hierarchy,
+        opened.file.info,
+        originOffset,
+      );
       options.onOpen?.({
         totalPointCount: opened.file.header.pointCount,
         spacing: opened.file.info.spacing,
       });
       const root = tree.root;
-      if (root && root.entry.pointCount > 0 && !resident.has(`${root.id}:root`)) {
+      if (
+        root &&
+        root.entry.pointCount > 0 &&
+        !resident.has(`${root.id}:root`)
+      ) {
         const chunk = await opened.readNode(root.entry, {
-          stride: Math.max(1, Math.ceil(root.entry.pointCount / firstFramePoints)),
+          stride: Math.max(
+            1,
+            Math.ceil(root.entry.pointCount / firstFramePoints),
+          ),
           signal: lifetime.signal,
         });
         if (!lifetime.signal.aborted) {
@@ -159,11 +181,17 @@ export function createPointCloudCopcStream(options: PointCloudCopcStreamOptions)
         }
       }
       if (latestView && !lifetime.signal.aborted) schedule(latestView);
-    })().finally(() => { opening = null; });
+    })().finally(() => {
+      opening = null;
+    });
     return opening;
   }
 
-  async function selection(view: PointCloudLodView, budget: number, signal: AbortSignal) {
+  async function selection(
+    view: PointCloudLodView,
+    budget: number,
+    signal: AbortSignal,
+  ) {
     const currentTree = tree;
     if (!currentTree?.root || !reader) return [];
     const camera = copcLodCamera(view);
@@ -171,43 +199,62 @@ export function createPointCloudCopcStream(options: PointCloudCopcStreamOptions)
     for (let round = 0; round < 8; round += 1) {
       const selected = selectLod(currentTree.root, camera, {
         pointBudget: budget,
-        pixelThreshold: view.pixelThreshold ? view.pixelThreshold * 64 : undefined,
+        pixelThreshold: view.pixelThreshold
+          ? view.pixelThreshold * 64
+          : undefined,
         maxNodes,
       });
-      const pages = new Map<number, ReturnType<CopcLodTree["pendingPagesUnder"]>[number]>();
+      const pages = new Map<
+        number,
+        ReturnType<CopcLodTree["pendingPagesUnder"]>[number]
+      >();
       for (const node of selected.needsChildren) {
-        for (const page of currentTree.pendingPagesUnder(node)) pages.set(page.offset, page);
+        for (const page of currentTree.pendingPagesUnder(node))
+          pages.set(page.offset, page);
       }
       if (!pages.size || round === 7) return selected.nodes;
-      await Promise.all([...pages.values()].slice(0, 16).map((page) => reader?.loadPage(page, signal)));
+      await Promise.all(
+        [...pages.values()]
+          .slice(0, 16)
+          .map((page) => reader?.loadPage(page, signal)),
+      );
       signal.throwIfAborted();
     }
     return [];
   }
 
   async function run(view: PointCloudLodView, signal: AbortSignal) {
-    for (const budget of [Math.min(firstPassPoints, view.pointBudget), view.pointBudget]) {
+    for (const budget of [
+      Math.min(firstPassPoints, view.pointBudget),
+      view.pointBudget,
+    ]) {
       signal.throwIfAborted();
       const nodes = await selection(view, budget, signal);
       const wanted = nodes.map((item: LodSelectedNode) => ({
         ...item,
         stride: 2 ** Math.ceil(Math.log2(Math.max(1, item.stride))),
       }));
-      const target = new Set(wanted.map((item) => `${item.node.id}:${item.stride}`));
+      const target = new Set(
+        wanted.map((item) => `${item.node.id}:${item.stride}`),
+      );
       for (let start = 0; start < wanted.length; start += concurrency) {
-        await Promise.all(wanted.slice(start, start + concurrency).map(async (item) => {
-          const key = `${item.node.id}:${item.stride}`;
-          if (resident.has(key)) return;
-          const chunk = cache.get(key) ?? await reader?.readNode(
-            (item.node as NonNullable<CopcLodTree["root"]>).entry,
-            { stride: item.stride, signal },
-          );
-          signal.throwIfAborted();
-          if (!chunk) return;
-          remember(key, chunk);
-          resident.set(key, chunk);
-          publish([{ nodeId: key, chunk }], [], false);
-        }));
+        await Promise.all(
+          wanted.slice(start, start + concurrency).map(async (item) => {
+            const key = `${item.node.id}:${item.stride}`;
+            if (resident.has(key)) return;
+            const chunk =
+              cache.get(key) ??
+              (await reader?.readNode(
+                (item.node as NonNullable<CopcLodTree["root"]>).entry,
+                { stride: item.stride, signal },
+              ));
+            signal.throwIfAborted();
+            if (!chunk) return;
+            remember(key, chunk);
+            resident.set(key, chunk);
+            publish([{ nodeId: key, chunk }], [], false);
+          }),
+        );
       }
       signal.throwIfAborted();
       const remove = [...resident.keys()].filter((key) => !target.has(key));

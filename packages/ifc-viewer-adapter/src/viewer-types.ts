@@ -4,10 +4,8 @@ import type { Renderer, SectionPlaneAxis } from "@ifc-lite/renderer";
 import type { BcfViewpointPayload } from "@mnemo/contracts/bcf";
 import type {
   PointCloudFormat,
-  PointCloudOctreeAccess,
-  PointCloudOctreeStreamHandle,
-  PointCloudOctreeStreamOptions,
   PointCloudCopcAccess,
+  PointCloudCopcStreamHandle,
   PointCloudCopcStreamOptions,
   PointCloudStreamHandle,
   PointCloudStreamOptions,
@@ -76,7 +74,7 @@ export type PointCloudSnapshot = {
   pointCount: number;
   totalPointCount: number | null;
   sampleStride: number;
-  source: "preview" | "octree" | "copc";
+  source: "preview" | "copc";
   residentNodeCount: number;
   message: string | null;
 };
@@ -192,13 +190,6 @@ export type LoadPointCloudInput =
     })
   | (LoadPointCloudBase & {
       source: {
-        mode: "octree";
-        access: PointCloudOctreeAccess;
-        refreshAccess: () => Promise<PointCloudOctreeAccess>;
-      };
-    })
-  | (LoadPointCloudBase & {
-      source: {
         mode: "copc";
         access: PointCloudCopcAccess;
         refreshAccess: () => Promise<PointCloudCopcAccess>;
@@ -230,12 +221,9 @@ export type IfcViewerRuntime = {
   createPointCloudStream: (
     options: PointCloudStreamOptions,
   ) => PointCloudStreamHandle;
-  createPointCloudOctreeStream: (
-    options: PointCloudOctreeStreamOptions,
-  ) => PointCloudOctreeStreamHandle;
   createPointCloudCopcStream: (
     options: PointCloudCopcStreamOptions,
-  ) => PointCloudOctreeStreamHandle;
+  ) => PointCloudCopcStreamHandle;
   fetch: typeof fetch;
   requestFrame: FrameRequest;
   cancelFrame: FrameCancel;

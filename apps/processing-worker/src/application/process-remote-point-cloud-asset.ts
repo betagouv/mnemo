@@ -30,7 +30,7 @@ export function createProcessRemotePointCloudAssetHandler(input: {
     if (!asset)
       throw new Error(`Point-cloud asset ${lease.assetId} does not exist`);
 
-    // E57 uses the existing bounded preview path, not Potree conversion.
+    // E57 uses the existing bounded preview path, not COPC conversion.
     if (!/\.(?:las|laz)$/i.test(asset.originalFileName)) {
       const original = await input.storage.statObject(asset.originalObjectKey);
       if (!original || original.contentLength !== asset.sizeBytes)
@@ -46,7 +46,6 @@ export function createProcessRemotePointCloudAssetHandler(input: {
       originalFileName: asset.originalFileName,
       originalObjectKey: asset.originalObjectKey,
       sizeBytes: asset.sizeBytes,
-      targetFormat: "copc-v1",
     });
     const original = await input.storage.statObject(job.originalObjectKey);
     if (!original || original.contentLength !== job.sizeBytes) {
@@ -79,24 +78,12 @@ export function createProcessRemotePointCloudAssetHandler(input: {
           throw new Error(outcome.error);
         }
         const prefix = `${remotePointCloudPrefix(job)}/`;
-        const expected = outcome.result.format === "copc-v1"
-          ? ["cloud.copc.laz"]
-          : ["metadata.json", "hierarchy.bin", "octree.bin"];
-        const actual = outcome.result.format === "copc-v1"
-          ? [outcome.result.copcObjectKey]
-          : [outcome.result.metadataObjectKey, outcome.result.hierarchyObjectKey, outcome.result.octreeObjectKey];
-        if (outcome.result.format !== job.targetFormat) {
-          throw new Error("Point-cloud result format does not match its job");
-        }
-        if (
-          actual.some((key, index) => key !== `${prefix}${expected[index]}`)
-        ) {
+        const artifactKey = outcome.result.copcObjectKey;
+        if (artifactKey !== `${prefix}cloud.copc.laz`) {
           throw new Error("Point-cloud result references unexpected objects");
         }
-        for (const key of actual) {
-          if (!(await input.storage.statObject(key))) {
-            throw new Error(`Point-cloud artifact ${key} is missing`);
-          }
+        if (!(await input.storage.statObject(artifactKey))) {
+          throw new Error(`Point-cloud artifact ${artifactKey} is missing`);
         }
         const saved = await input.repository.saveResult(
           asset.id,
@@ -106,10 +93,12 @@ export function createProcessRemotePointCloudAssetHandler(input: {
         );
         if (!saved) {
           await Promise.allSettled([
-            ...actual.map((key) => input.storage.deleteObject(key)),
+            input.storage.deleteObject(artifactKey),
             input.storage.deleteObject(outcomeKey),
           ]);
-          throw new Error("Point-cloud asset was deleted during conversion");
+          throw new Error(
+            "Point-cloud asset was deleted or has an obsolete conversion result",
+          );
         }
         await input.storage.deleteObject(outcomeKey).catch(() => undefined);
         return;

@@ -8,13 +8,7 @@ export {
   composePointCloudTransform,
   type PointCloudTransform,
 } from "./transform";
-export {
-  createPointCloudOctreeStream,
-  type PointCloudOctreeAccess,
-  type PointCloudOctreeStreamHandle,
-  type PointCloudOctreeStreamOptions,
-} from "./octree-stream";
-export { type PointCloudLodView } from "./octree-lod";
+export { type PointCloudLodView } from "./lod-types";
 export {
   createPointCloudCopcStream,
   type PointCloudCopcAccess,

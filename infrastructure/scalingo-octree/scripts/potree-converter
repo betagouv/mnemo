@@ -1,6 +1,0 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
-converter_dir="$(cd "$(dirname "$0")" && pwd)"
-export LD_LIBRARY_PATH="${converter_dir}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
-exec "${converter_dir}/PotreeConverter" "$@"

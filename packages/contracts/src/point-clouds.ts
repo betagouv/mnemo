@@ -34,15 +34,6 @@ export const pointCloudSourceSchema = z.discriminatedUnion("mode", [
     expiresAt: z.iso.datetime(),
   }),
   z.object({
-    mode: z.literal("octree"),
-    metadataUrl: z.url(),
-    hierarchyUrl: z.url(),
-    octreeUrl: z.url(),
-    pointCount: z.int().nonnegative(),
-    spacing: z.number().positive().finite(),
-    expiresAt: z.iso.datetime(),
-  }),
-  z.object({
     mode: z.literal("copc"),
     copcUrl: z.url(),
     pointCount: z.int().nonnegative(),

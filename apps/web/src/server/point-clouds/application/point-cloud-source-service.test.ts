@@ -9,24 +9,19 @@ const input = {
 
 function record(
   result: null | {
-    format: "potree-v2";
-    metadataObjectKey: string;
-    hierarchyObjectKey: string;
-    octreeObjectKey: string;
-    pointCount: number;
-    spacing: number;
-  } | {
     format: "copc-v1";
     copcObjectKey: string;
     pointCount: number;
     spacing: number;
   },
+  originalFileName = "scan.laz",
 ) {
   return {
     asset: {
       id: input.assetId,
       kind: "point_cloud" as const,
       status: "ready" as const,
+      originalFileName,
       originalObjectKey: "original.laz",
     },
     result,
@@ -34,47 +29,21 @@ function record(
 }
 
 describe("PointCloudSourceService", () => {
-  it("returns independent signed URLs for a persisted octree", async () => {
+  it("signs exactly one COPC object without exposing S3 credentials", async () => {
+    const createDownloadUrl = vi.fn(
+      async ({ objectKey }) => `http://storage/${objectKey}`,
+    );
     const service = new PointCloudSourceService(
       {
         findForActor: vi.fn().mockResolvedValue(
           record({
-            format: "potree-v2",
-            metadataObjectKey: "metadata.json",
-            hierarchyObjectKey: "hierarchy.bin",
-            octreeObjectKey: "octree.bin",
-            pointCount: 2_000_000,
-            spacing: 0.12,
+            format: "copc-v1",
+            copcObjectKey: "cloud.copc.laz",
+            pointCount: 1_800,
+            spacing: 0.15,
           }),
         ),
       },
-      {
-        createDownloadUrl: async ({ objectKey }) =>
-          `http://storage/${objectKey}`,
-      },
-      () => new Date("2026-09-09T12:00:00.000Z"),
-    );
-
-    await expect(service.open("actor-id", input)).resolves.toEqual({
-      mode: "octree",
-      metadataUrl: "http://storage/metadata.json",
-      hierarchyUrl: "http://storage/hierarchy.bin",
-      octreeUrl: "http://storage/octree.bin",
-      pointCount: 2_000_000,
-      spacing: 0.12,
-      expiresAt: "2026-09-09T12:15:00.000Z",
-    });
-  });
-
-  it("signs exactly one COPC object without exposing S3 credentials", async () => {
-    const createDownloadUrl = vi.fn(async ({ objectKey }) => `http://storage/${objectKey}`);
-    const service = new PointCloudSourceService(
-      { findForActor: vi.fn().mockResolvedValue(record({
-        format: "copc-v1",
-        copcObjectKey: "cloud.copc.laz",
-        pointCount: 1_800,
-        spacing: 0.15,
-      })) },
       { createDownloadUrl },
     );
 
@@ -86,9 +55,9 @@ describe("PointCloudSourceService", () => {
     expect(createDownloadUrl).toHaveBeenCalledTimes(1);
   });
 
-  it("falls back to the bounded original preview without an octree", async () => {
+  it("falls back to the bounded E57 preview without COPC", async () => {
     const service = new PointCloudSourceService(
-      { findForActor: vi.fn().mockResolvedValue(record(null)) },
+      { findForActor: vi.fn().mockResolvedValue(record(null, "scan.e57")) },
       {
         createDownloadUrl: async ({ objectKey }) =>
           `http://storage/${objectKey}`,
@@ -99,5 +68,18 @@ describe("PointCloudSourceService", () => {
       mode: "preview",
       downloadUrl: "http://storage/original.laz",
     });
+  });
+
+  it("does not download a full LAS/LAZ when its COPC result is missing", async () => {
+    const createDownloadUrl = vi.fn();
+    const service = new PointCloudSourceService(
+      { findForActor: vi.fn().mockResolvedValue(record(null)) },
+      { createDownloadUrl },
+    );
+
+    await expect(service.open("actor-id", input)).rejects.toThrow(
+      "retraité en COPC",
+    );
+    expect(createDownloadUrl).not.toHaveBeenCalled();
   });
 });

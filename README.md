@@ -32,7 +32,7 @@ make dev
 ```
 
 `make dev` starts PostgreSQL, MinIO, IFC-Lite and IFC MCP in Docker, builds the
-Potree one-off image, then runs the Next.js web server locally with hot reload at
+COPC one-off image, then runs the Next.js web server locally with hot reload at
 <http://localhost:3200>. It stops the production `web` container if it was
 already running on that port. Press `Ctrl+C` to stop the development web server;
 `make stop` stops the supporting containers. A shared local IFC MCP cache lives
@@ -128,13 +128,13 @@ resources. UI changes do not recreate the scene or reset the camera.
 
 LAS, LAZ, PLY, and E57 point clouds can be attached to a project and overlaid in
 the IFC viewer. LAS/LAZ originals are converted asynchronously by
-PotreeConverter 2.1.1 into persistent Potree v2 octree artifacts in MinIO. Next
+Untwine into one COPC artifact in S3/MinIO. Next
 owns the durable PostgreSQL job queue and deletion retries. Conversion runs in
 an ephemeral local container (`make dev`), in a child process (`make start`), or
 in a Scalingo one-off (`POINT_CLOUD_PROCESSING_MODE=scalingo`); no separate
 permanent worker is needed. The
-browser range-loads only camera-relevant hierarchy and point nodes, decodes
-them in a worker, and uploads an additive LOD selection to the same native
+browser range-loads only camera-relevant COPC hierarchy and point nodes, decodes
+them with IFC-Lite, and uploads a LOD selection to the same native
 IFC-Lite WebGPU renderer as the IFC. The point budget and point size update the
 live renderer without recreating it or resetting the camera. PLY/E57 retain a
 bounded full-object preview path. Per-file alignment and CRS labels are stored
@@ -170,17 +170,17 @@ turn so text, model metadata, and tool traces survive a page reload.
 ```text
 apps/
   web/                 Next.js application and HTTP boundary
-  processing-worker/   Potree one-off and reusable job queue code (not a permanent app)
+  processing-worker/   COPC one-off and reusable job queue code (not a permanent app)
 packages/
   contracts/           shared domain schemas and DTOs
   bcf-adapter/         BCF 2.1/3.0 archive interoperability
   database/            Prisma schema and PostgreSQL adapter
   domain/              framework-independent business rules and ports
   ifc-viewer-adapter/  stable bridge to the IFC-Lite WebGPU runtime
-  point-cloud-viewer-adapter/ octree LOD, worker decoding and transforms
+  point-cloud-viewer-adapter/ IFC-Lite COPC LOD and transforms
   storage/             S3-compatible object-storage adapter
 apps/web/src/server/assistant/infrastructure/  IFC-Lite MCP sessions
-apps/processing-worker/src/infrastructure/     Potree converter and job persistence
+apps/processing-worker/src/infrastructure/     Untwine converter and job persistence
 docs/adr/              durable architecture decisions
 ```
 

@@ -18,18 +18,17 @@ const validInput = {
 };
 
 describe("point-cloud contracts", () => {
-  it("distinguishes bounded previews from camera-driven octrees", () => {
+  it("accepts camera-driven COPC and rejects unsupported sources", () => {
     expect(
       pointCloudSourceSchema.parse({
-        mode: "octree",
-        metadataUrl: "http://storage/metadata.json",
-        hierarchyUrl: "http://storage/hierarchy.bin",
-        octreeUrl: "http://storage/octree.bin",
+        mode: "copc",
+        copcUrl: "http://storage/cloud.copc.laz",
         pointCount: 1_000_000,
         spacing: 0.1,
         expiresAt: "2026-09-09T12:00:00.000Z",
       }).mode,
-    ).toBe("octree");
+    ).toBe("copc");
+    expect(() => pointCloudSourceSchema.parse({ mode: "octree" })).toThrow();
   });
 
   it("accepts a finite spatial transform and CRS metadata", () => {

@@ -2,9 +2,8 @@ import { S3ObjectStorage } from "@mnemo/storage";
 
 import { runRemotePointCloudJob } from "./application/run-remote-point-cloud-job";
 import { remotePointCloudPrefix } from "./application/remote-point-cloud-protocol";
-import { PotreeConverterProcessor } from "./infrastructure/potree-converter";
-import { PotreePointCloudArtifactBuilder } from "./infrastructure/potree-point-cloud-artifact-builder";
 import { CopcPointCloudArtifactBuilder } from "./infrastructure/copc-point-cloud-artifact-builder";
+import { UntwineCopcConverter } from "./infrastructure/untwine-copc-converter";
 import { getPointCloudOneOffConfig } from "./runtime-config";
 
 async function main() {
@@ -12,6 +11,9 @@ async function main() {
   const storage = new S3ObjectStorage({
     ...config.storage,
     publicEndpoint: config.storage.endpoint,
+    multipartPartSizeBytes: 128 * 1024 * 1024,
+    multipartQueueSize: 4,
+    requestTimeoutMs: 5 * 60_000,
   });
   const startedAt = Date.now();
   console.info("Point cloud one-off started", { jobId: config.job.jobId });
@@ -26,13 +28,11 @@ async function main() {
     await runRemotePointCloudJob({
       job: config.job,
       storage,
-      artifacts: config.job.targetFormat === "copc-v1"
-        ? new CopcPointCloudArtifactBuilder(storage, config.pdalPath, remotePointCloudPrefix(config.job))
-        : new PotreePointCloudArtifactBuilder(
-            storage,
-            new PotreeConverterProcessor({ executablePath: config.potreeConverterPath }),
-            remotePointCloudPrefix(config.job),
-          ),
+      artifacts: new CopcPointCloudArtifactBuilder(
+        storage,
+        new UntwineCopcConverter(config.untwinePath),
+        remotePointCloudPrefix(config.job),
+      ),
     });
     console.info("Point cloud one-off completed", { jobId: config.job.jobId });
   } finally {

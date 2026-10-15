@@ -39,7 +39,9 @@ describe("S3 streamed uploads", () => {
   });
 
   it("uses one PUT for small artifacts", async () => {
-    const send = vi.spyOn(S3Client.prototype, "send").mockResolvedValue({} as never);
+    const send = vi
+      .spyOn(S3Client.prototype, "send")
+      .mockResolvedValue({} as never);
     const storage = new S3ObjectStorage(storageOptions);
 
     await storage.writeObjectStream({
@@ -55,7 +57,9 @@ describe("S3 streamed uploads", () => {
   });
 
   it("uses bounded multipart uploads for artifacts larger than one PUT allows", async () => {
-    const send = vi.spyOn(S3Client.prototype, "send").mockResolvedValue({} as never);
+    const send = vi
+      .spyOn(S3Client.prototype, "send")
+      .mockResolvedValue({} as never);
     const storage = new S3ObjectStorage(storageOptions);
     const contentLength = 6 * 1024 * 1024 * 1024;
 
@@ -80,5 +84,29 @@ describe("S3 streamed uploads", () => {
       leavePartsOnError: false,
     });
     expect(uploadMocks.done).toHaveBeenCalledOnce();
+  });
+
+  it("allows the worker to use smaller multipart parts", async () => {
+    vi.spyOn(S3Client.prototype, "send").mockResolvedValue({} as never);
+    const storage = new S3ObjectStorage({
+      ...storageOptions,
+      multipartPartSizeBytes: 128 * 1024 * 1024,
+      multipartQueueSize: 4,
+      requestTimeoutMs: 5 * 60_000,
+    });
+
+    await storage.writeObjectStream({
+      objectKey: "artifacts/cloud.copc.laz",
+      contentType: "application/vnd.laszip",
+      contentLength: 2 * 1024 * 1024 * 1024,
+      body: bytes(),
+    });
+
+    expect(uploadMocks.options).toHaveBeenCalledWith(
+      expect.objectContaining({
+        partSize: 128 * 1024 * 1024,
+        queueSize: 4,
+      }),
+    );
   });
 });

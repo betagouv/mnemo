@@ -7,6 +7,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { NodeHttpHandler } from "@smithy/node-http-handler";
 import { Readable } from "node:stream";
 
 import type {
@@ -29,6 +30,10 @@ export type S3ObjectStorageOptions = {
   bucket: string;
   accessKeyId: string;
   secretAccessKey: string;
+  /** Bound large server-side uploads without changing browser presigned PUTs. */
+  multipartPartSizeBytes?: number;
+  multipartQueueSize?: number;
+  requestTimeoutMs?: number;
 };
 
 function createClient(endpoint: string, options: S3ObjectStorageOptions) {
@@ -40,6 +45,14 @@ function createClient(endpoint: string, options: S3ObjectStorageOptions) {
       accessKeyId: options.accessKeyId,
       secretAccessKey: options.secretAccessKey,
     },
+    ...(options.requestTimeoutMs
+      ? {
+          requestHandler: new NodeHttpHandler({
+            connectionTimeout: 10_000,
+            requestTimeout: options.requestTimeoutMs,
+          }),
+        }
+      : {}),
   });
 }
 
@@ -201,8 +214,8 @@ export class S3ObjectStorage implements ObjectStorage {
     await new Upload({
       client: this.internalClient,
       params,
-      partSize: multipartPartSizeBytes,
-      queueSize: 4,
+      partSize: this.options.multipartPartSizeBytes ?? multipartPartSizeBytes,
+      queueSize: this.options.multipartQueueSize ?? 4,
       leavePartsOnError: false,
     }).done();
   }

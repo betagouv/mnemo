@@ -92,13 +92,13 @@ export function useProjectScene({
       let input: LoadPointCloudInput;
       if (source.source.mode === "preview") {
         input = {
-              ...base,
-              source: {
-                mode: "preview",
-                downloadUrl: source.source.downloadUrl,
-              },
-            };
-      } else if (source.source.mode === "copc") {
+          ...base,
+          source: {
+            mode: "preview",
+            downloadUrl: source.source.downloadUrl,
+          },
+        };
+      } else {
         input = {
           ...base,
           source: {
@@ -110,32 +110,14 @@ export function useProjectScene({
                 pointCloudSourceSchema,
               );
               if (refreshed.mode !== "copc") {
-                throw new Error("Le COPC du nuage de points n’est plus disponible.");
+                throw new Error(
+                  "Le COPC du nuage de points n’est plus disponible.",
+                );
               }
               return refreshed;
             },
           },
         };
-      } else {
-        input = {
-              ...base,
-              source: {
-                mode: "octree",
-                access: source.source,
-                refreshAccess: async () => {
-                  const refreshed = await fetchJson(
-                    `/api/projects/${projectId}/assets/${source.assetId}/point-cloud/source`,
-                    pointCloudSourceSchema,
-                  );
-                  if (refreshed.mode !== "octree") {
-                    throw new Error(
-                      "L’octree du nuage de points n’est plus disponible.",
-                    );
-                  }
-                  return refreshed;
-                },
-              },
-            };
       }
       await controller.loadPointCloud(input);
     },
@@ -317,7 +299,7 @@ export function useProjectScene({
     await Promise.allSettled(
       pointCloudSourcesRef.current.map(async (source) => {
         if (
-          source.source.mode === "octree" ||
+          source.source.mode === "copc" ||
           hiddenPointCloudIdsRef.current.has(source.assetId)
         )
           return;

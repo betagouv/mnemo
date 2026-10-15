@@ -17,26 +17,30 @@ const job = {
 };
 
 describe("remote point cloud protocol", () => {
-  it("keeps old Potree jobs readable while addressing new COPC artifacts separately", () => {
-    expect(remotePointCloudJobSchema.parse(job).targetFormat).toBe("potree-v2");
-    expect(remotePointCloudPrefix(remotePointCloudJobSchema.parse({
-      ...job, targetFormat: "copc-v1",
-    }))).toContain("/derived/copc-v1/");
+  it("addresses each COPC conversion attempt separately", () => {
+    expect(
+      remotePointCloudPrefix(remotePointCloudJobSchema.parse(job)),
+    ).toContain("/derived/copc-v1/attempts/");
+    expect(() =>
+      remotePointCloudJobSchema.parse({ ...job, targetFormat: "unsupported" }),
+    ).toThrow();
   });
 
-  it("accepts a COPC result without Potree-only object keys", () => {
-    expect(remotePointCloudOutcomeSchema.parse({
-      jobId: job.jobId,
-      attempt: job.attempt,
-      status: "succeeded",
-      result: {
-        format: "copc-v1",
-        processor: "PDAL writers.copc",
-        processorVersion: "2.9.3",
-        copcObjectKey: "projects/scan/derived/copc-v1/cloud.copc.laz",
-        pointCount: 1_800,
-        spacing: 0.15,
-      },
-    }).status).toBe("succeeded");
+  it("accepts a COPC result with one object key", () => {
+    expect(
+      remotePointCloudOutcomeSchema.parse({
+        jobId: job.jobId,
+        attempt: job.attempt,
+        status: "succeeded",
+        result: {
+          format: "copc-v1",
+          processor: "PDAL writers.copc",
+          processorVersion: "2.9.3",
+          copcObjectKey: "projects/scan/derived/copc-v1/cloud.copc.laz",
+          pointCount: 1_800,
+          spacing: 0.15,
+        },
+      }).status,
+    ).toBe("succeeded");
   });
 });

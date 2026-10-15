@@ -13,15 +13,10 @@ type PointCloudProcessingResultBase = {
   spacing: number;
 };
 
-export type PointCloudProcessingResult = PointCloudProcessingResultBase & ({
-  format: "potree-v2";
-  metadataObjectKey: string;
-  hierarchyObjectKey: string;
-  octreeObjectKey: string;
-} | {
+export type PointCloudProcessingResult = PointCloudProcessingResultBase & {
   format: "copc-v1";
   copcObjectKey: string;
-});
+};
 
 export interface PointCloudProcessingRepository {
   findPointCloudAsset(

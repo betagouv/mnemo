@@ -67,7 +67,7 @@ app -> screens -> widgets -> features -> entities -> shared
 - React state changes must issue commands to the existing controller and must not recreate or reframe the scene.
 - Initial framing happens only for an explicit load or user action.
 - Point clouds must use LOD, octrees, streaming, and a point budget. Never load a large dataset naively into RAM/GPU.
-- Store layer transforms in PostgreSQL; store point-cloud octree artifacts in S3/MinIO.
+- Store layer transforms in PostgreSQL; store COPC point-cloud artifacts in S3/MinIO.
 
 ## Data and access
 

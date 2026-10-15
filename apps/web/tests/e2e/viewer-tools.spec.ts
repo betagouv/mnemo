@@ -16,7 +16,7 @@ async function expectSingleViewerToolbarRow(
     const triggers = Array.from(
       tools?.querySelectorAll(":scope > ul > li > button") ?? [],
     );
-    if (!header || !tools || !viewport || triggers.length !== 7) return null;
+    if (!header || !tools || !viewport || triggers.length !== 6) return null;
     const headerRect = header.getBoundingClientRect();
     const toolsRect = tools.getBoundingClientRect();
     const viewportRect = viewport.getBoundingClientRect();
@@ -84,7 +84,9 @@ test("opens viewer tools in a reusable side panel", async ({ page }) => {
       sidePanel.getByRole("heading", { name: "Plan de coupe" }),
     ).toBeVisible();
     await expect(sidePanel.locator('input[type="range"]')).toHaveCount(0);
-    await expect(sidePanel.getByText("Remplir les surfaces coupées")).toHaveCount(0);
+    await expect(
+      sidePanel.getByText("Remplir les surfaces coupées"),
+    ).toHaveCount(0);
     await sidePanel.getByRole("button", { name: "Boîte de coupe" }).click();
     await expect(
       sidePanel.getByRole("heading", { name: "Boîte de coupe" }),
@@ -103,10 +105,8 @@ test("opens viewer tools in a reusable side panel", async ({ page }) => {
     await expect(measurementPanel).not.toBeVisible();
     await expect(tools.getByRole("button", { name: "Mesures" })).toBeFocused();
 
-    await tools.getByRole("button", { name: "Données" }).click();
-    await tools.getByRole("button", { name: "Propriétés IFC" }).click();
     await expect(
-      page.getByRole("complementary", { name: "Propriétés IFC" }),
+      page.getByRole("region", { name: "Propriétés IFC" }),
     ).toBeVisible();
     await tools.getByRole("button", { name: "Annotations" }).click();
     await expect(
