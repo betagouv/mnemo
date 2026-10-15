@@ -141,10 +141,7 @@ export class IfcModelLoader {
         // The browser never downloads or parses a large IFC. Reserve a non-overlapping
         // Express ID range before the first streamed geometry batch arrives.
         const reservedIds = 200_000_000;
-        const offset = this.host.federation.registerModel(
-          input.assetId,
-          reservedIds,
-        );
+        offset = this.host.federation.registerModel(input.assetId, reservedIds);
         registered = true;
         this.host.updateModelSnapshot(input.assetId, { phase: "processing" });
         this.host.updateSnapshot({ phase: "processing" });

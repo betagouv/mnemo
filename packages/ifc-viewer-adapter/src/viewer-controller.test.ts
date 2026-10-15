@@ -12,6 +12,7 @@ import type {
 import { ServerEntityIndex } from "@ifc-lite/server-client";
 import { describe, expect, it } from "vitest";
 
+import { createIfcBimIndex } from "./bim-index";
 import {
   IfcViewerController,
   type IfcViewerRuntime,
@@ -30,6 +31,7 @@ function createHarness({
     colorOverridesCleared: 0,
     batchesAdded: 0,
     meshIds: [] as number[][],
+    bimIndexIds: [] as number[][],
     fitToView: 0,
     presetViews: [] as { view: string; bounds: object }[],
     orbit: 0,
@@ -374,6 +376,17 @@ function createHarness({
             maxExpressId: 42,
             dataModel: {
               entities: ServerEntityIndex.fromRows([
+                {
+                  entity_id: 1,
+                  type_name: "IfcProject",
+                  has_geometry: false,
+                },
+                {
+                  entity_id: 10,
+                  type_name: "IfcBuildingStorey",
+                  name: "Niveau 1",
+                  has_geometry: false,
+                },
                 { entity_id: 42, type_name: "IfcWall", has_geometry: true },
               ]),
               propertySets: new Map(),
@@ -383,9 +396,29 @@ function createHarness({
               materials: [],
               documents: [],
               spatialHierarchy: {
-                nodes: [],
-                project_id: 0,
-                element_to_storey: new Map(),
+                nodes: [
+                  {
+                    entity_id: 1,
+                    parent_id: 0,
+                    level: 0,
+                    path: "1",
+                    type_name: "IfcProject",
+                    children_ids: [10],
+                    element_ids: [],
+                  },
+                  {
+                    entity_id: 10,
+                    parent_id: 1,
+                    level: 1,
+                    path: "1/10",
+                    type_name: "IfcBuildingStorey",
+                    name: "Niveau 1",
+                    children_ids: [],
+                    element_ids: [42],
+                  },
+                ],
+                project_id: 1,
+                element_to_storey: new Map([[42, 10]]),
                 element_to_building: new Map(),
                 element_to_site: new Map(),
                 element_to_space: new Map(),
@@ -395,50 +428,55 @@ function createHarness({
         },
       };
     },
-    createBimIndex: () => ({
-      catalog: {
-        unassignedCount: 0,
-        types: [
-          { ifcClass: "IfcDoor", elementCount: 1 },
-          { ifcClass: "IfcWall", elementCount: 1 },
-        ],
-        storeys: [
+    createBimIndex: (store, renderableIds) => {
+      calls.bimIndexIds.push([...renderableIds]);
+      if (store.source?.byteLength === 0)
+        return createIfcBimIndex(store, renderableIds);
+      return {
+        catalog: {
+          unassignedCount: 0,
+          types: [
+            { ifcClass: "IfcDoor", elementCount: 1 },
+            { ifcClass: "IfcWall", elementCount: 1 },
+          ],
+          storeys: [
+            {
+              expressId: 10,
+              name: "Niveau 1",
+              elevation: 0,
+              elementCount: 2,
+            },
+          ],
+        },
+        findIds: (query) =>
+          query.ifcClass === "IfcDoor"
+            ? [84]
+            : query.ifcClass === "IfcWall"
+              ? [42]
+              : [42, 84],
+        query: () => [
           {
-            expressId: 10,
-            name: "Niveau 1",
-            elevation: 0,
-            elementCount: 2,
+            expressId: 42,
+            globalId: "3vB1mExampleGlobalId",
+            ifcClass: "IfcWall",
+            name: "Mur test",
+            storeyId: 10,
+          },
+          {
+            expressId: 84,
+            globalId: "0YvctA6Hn0pgmBdv0cPwH6",
+            ifcClass: "IfcDoor",
+            name: "Porte test",
+            storeyId: 10,
           },
         ],
-      },
-      findIds: (query) =>
-        query.ifcClass === "IfcDoor"
-          ? [84]
-          : query.ifcClass === "IfcWall"
-            ? [42]
-            : [42, 84],
-      query: () => [
-        {
-          expressId: 42,
-          globalId: "3vB1mExampleGlobalId",
-          ifcClass: "IfcWall",
-          name: "Mur test",
-          storeyId: 10,
-        },
-        {
-          expressId: 84,
-          globalId: "0YvctA6Hn0pgmBdv0cPwH6",
-          ifcClass: "IfcDoor",
-          name: "Porte test",
-          storeyId: 10,
-        },
-      ],
-      queryPage: () => [],
-      classesForStorey: () => [
-        { ifcClass: "IfcWall", elementCount: 1 },
-        { ifcClass: "IfcDoor", elementCount: 1 },
-      ],
-    }),
+        queryPage: () => [],
+        classesForStorey: () => [
+          { ifcClass: "IfcWall", elementCount: 1 },
+          { ifcClass: "IfcDoor", elementCount: 1 },
+        ],
+      };
+    },
     createPointCloudStream: (options) => {
       options.onOpen?.({
         totalPointCount: 2,
@@ -949,6 +987,28 @@ describe("IfcViewerController", () => {
     });
     expect(calls.serverClientCreated).toBe(1);
     expect(calls.batchesAdded).toBe(1);
+    expect(calls.bimIndexIds).toEqual([[42]]);
+    expect(controller.getSnapshot().catalog).toMatchObject({
+      storeys: [{ name: "Niveau 1", elementCount: 1 }],
+      unassignedCount: 0,
+    });
+    await controller.loadIfc({
+      assetId: "model-b",
+      fileName: "second-large-model.ifc",
+      downloadUrl: "http://storage.local/second-large-model.ifc",
+      processing: {
+        engine: "rust",
+        serverBaseUrl: "http://ifc-server.local",
+      },
+    });
+    expect(calls.bimIndexIds).toEqual([[42], [42]]);
+    expect(calls.meshIds[1]?.[0]).toBeGreaterThan(42);
+    expect(
+      controller.getSnapshot().models[1]?.catalog?.storeys[0],
+    ).toMatchObject({
+      name: "Niveau 1",
+      elementCount: 1,
+    });
     expect(calls.rendererCreated).toBe(1);
     controller.fitToView();
     expect(calls.fitToView).toBe(1);

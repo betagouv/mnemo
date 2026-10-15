@@ -171,8 +171,16 @@ async function handle(request, response) {
         },
       );
       if (!result.ok || !result.body) {
+        console.error("IFC-Lite Rust parse failed", {
+          status: result.status,
+        });
+        await result.body?.cancel();
+        const message =
+          result.status === 503
+            ? "Le serveur IFC est occupé. Réessayez dans un instant."
+            : "Le traitement IFC a échoué.";
         response.write(
-          `data: ${JSON.stringify({ type: "error", message: "Le traitement IFC a échoué." })}\n\n`,
+          `data: ${JSON.stringify({ type: "error", message })}\n\n`,
         );
         response.end();
         return;

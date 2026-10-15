@@ -19,6 +19,42 @@ export type IfcServerGeometryClient = {
   }>;
 };
 
+const dataModelRetryMs = 1_000;
+const dataModelTimeoutMs = 180_000;
+
+function waitForDataModel(signal?: AbortSignal) {
+  return new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", abort);
+      resolve();
+    }, dataModelRetryMs);
+    function abort() {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", abort);
+      reject(signal?.reason ?? new DOMException("Aborted", "AbortError"));
+    }
+    if (signal?.aborted) abort();
+    else signal?.addEventListener("abort", abort, { once: true });
+  });
+}
+
+async function fetchDataModel(baseUrl: string, signal?: AbortSignal) {
+  const deadline = Date.now() + dataModelTimeoutMs;
+  while (true) {
+    signal?.throwIfAborted();
+    const response = await fetch(`${baseUrl}/data-model`, { signal });
+    if (response.status !== 202) {
+      if (!response.ok)
+        throw new Error(`Les données IFC ont répondu HTTP ${response.status}.`);
+      return response.arrayBuffer();
+    }
+    await response.body?.cancel();
+    if (Date.now() >= deadline)
+      throw new Error("Le délai de préparation des données IFC est dépassé.");
+    await waitForDataModel(signal);
+  }
+}
+
 /** The IFC bytes stay in S3; the browser receives geometry and the decoded model. */
 export function createIfcServerGeometryClient(
   baseUrl: string,
@@ -111,15 +147,10 @@ export function createIfcServerGeometryClient(
         metadata,
         total_meshes: totalMeshes,
       };
-      const modelResponse = await fetch(`${baseUrl}/data-model`, { signal });
-      if (!modelResponse.ok)
-        throw new Error(
-          `Les données IFC ont répondu HTTP ${modelResponse.status}.`,
-        );
       return {
         result,
         maxExpressId,
-        dataModel: await decodeDataModel(await modelResponse.arrayBuffer()),
+        dataModel: await decodeDataModel(await fetchDataModel(baseUrl, signal)),
       };
     },
   };
