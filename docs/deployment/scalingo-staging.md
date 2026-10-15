@@ -1,92 +1,61 @@
-# Première mise en ligne de Mnemo sur Scalingo
+# Déployer le staging sur Scalingo
 
-Cette étape prépare `mnemo-web` comme **préproduction à accès partagé**. Elle ne met pas en place de comptes utilisateurs : après la saisie du mot de passe, toutes les personnes utilisent encore l'acteur de développement. Ne pas y déposer de données sensibles avant une vraie authentification et une revue des droits.
+Un seul dépôt, trois applications dans la région `osc-secnum-fr1` : `mnemo-web` (Next.js et orchestration), `mnemo-ifc-rust` (lecture des IFC) et `mnemo-potree` (nom historique, conversion **COPC** à la demande). Le développement local reste disponible avec `make dev`.
 
-## Accès à la webapp
+> Ce staging utilise un accès Basic Auth partagé et un utilisateur applicatif de développement. Ne pas y déposer de données sensibles avant la mise en place d'une véritable authentification.
 
-Un fichier `.htaccess` n'a aucun effet sur Next.js. La protection temporaire est un HTTP Basic Auth dans le `proxy.ts` de l'application. Sur Scalingo, l'application répond `503` tant que `MNEMO_DEPLOYMENT_ENV=staging` et les deux identifiants ne sont pas définis. Avec ces variables, les requêtes non authentifiées reçoivent `401` sur les pages, l'API et les ressources statiques. Le mode `production` reste bloqué tant qu'une véritable authentification n'existe pas.
+## 1. Configurer les applications
 
-Dans les variables d'environnement de **`mnemo-web` uniquement** :
+Renseigner les secrets dans **Environment** sur Scalingo, jamais dans Git. Les trois apps utilisent le même dépôt, mais pas les mêmes variables.
 
-| Variable                                                                                        | Valeur attendue                                |
-| ----------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| `MNEMO_DEPLOYMENT_ENV`                                                                          | `staging`                                      |
-| `MNEMO_AUTH_MODE`                                                                               | `development` (temporaire)                     |
-| `MNEMO_STAGING_USER`                                                                            | Identifiant choisi pour les testeurs           |
-| `MNEMO_STAGING_PASSWORD`                                                                        | Mot de passe long, distinct des autres secrets |
-| `DATABASE_URL`                                                                                  | URL de l'addon PostgreSQL déjà rattaché        |
-| `S3_ENDPOINT`, `S3_PUBLIC_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` | Configuration OVH S3 existante                 |
-| `IFC_SERVER_URL`, `IFC_SERVER_API_TOKEN`                                                        | URL Rust et jeton privé partagé avec Rust      |
-| `MNEMO_BACKGROUND_JOBS`                                                                         | `1` : tâches durables orchestrées dans Next    |
-| `POINT_CLOUD_PROCESSING_MODE`                                                                   | `scalingo`                                     |
-| `SCALINGO_API_TOKEN`, `SCALINGO_APP`, `SCALINGO_REGION`                                         | Jeton API, `mnemo-potree`, `osc-secnum-fr1`    |
+| App              | Configuration Scalingo                                             | Variables à renseigner                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ---------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mnemo-web`      | Build depuis la racine ; `web` ≥ 1                                 | `MNEMO_DEPLOYMENT_ENV=staging`, `MNEMO_AUTH_MODE=development`, `MNEMO_STAGING_USER`, `MNEMO_STAGING_PASSWORD`, `DATABASE_URL`, `S3_ENDPOINT`, `S3_PUBLIC_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `IFC_SERVER_URL`, `IFC_SERVER_API_TOKEN`, `MNEMO_BACKGROUND_JOBS=1`, `POINT_CLOUD_PROCESSING_MODE=scalingo`, `SCALINGO_API_TOKEN`, `SCALINGO_APP=mnemo-potree`, `SCALINGO_REGION=osc-secnum-fr1` |
+| `mnemo-ifc-rust` | `PROJECT_DIR=infrastructure/scalingo-ifc-rust` ; **un seul** `web` | `IFC_SERVER_API_TOKEN` (identique à celui de `mnemo-web`), `S3_ENDPOINT`, `S3_BUCKET`. Dimensionner `MAX_FILE_SIZE_MB` et le conteneur selon les IFC visés.                                                                                                                                                                                                                                                                      |
+| `mnemo-potree`   | `web=0` ; un one-off par conversion                                | `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`. Aucun accès PostgreSQL.                                                                                                                                                                                                                                                                                                                               |
 
-Saisir les secrets dans le tableau de bord Scalingo ; ne jamais les committer, les transmettre dans le chat ni les placer dans une ligne de commande conservée par l'historique shell. `S3_DOCKER_ENDPOINT` et `S3_PROCESSING_ENDPOINT` servent uniquement au développement local avec MinIO, pas à cette application Scalingo. Vérifier que l'accès HTTPS forcé est activé.
+`mnemo-web` utilise son addon PostgreSQL. `IFC_SERVER_URL` pointe vers `mnemo-ifc-rust`. Le jeton `SCALINGO_API_TOKEN` doit pouvoir lancer des one-offs sur `mnemo-potree` ; régler au besoin `SCALINGO_ONE_OFF_SIZE` sur `mnemo-web` (un LAZ d'environ 2 Go a été testé en `3XL`). Rust reçoit une URL S3 présignée : il n'a besoin ni de clés S3 ni de `DATABASE_URL`.
 
-### CORS du bucket S3
+Le bucket S3 doit rester privé. Configurer son **CORS** pour l'origine HTTPS de `mnemo-web` : méthodes `GET`, `HEAD`, `PUT`, en-têtes `content-type`, `range`, `x-amz-*`, et en-têtes exposés `ETag`, `Accept-Ranges`, `Content-Range`, `Content-Length`. Ajouter les origines `localhost` uniquement pour les tests locaux sur ce bucket. L'upload du navigateur et la lecture du COPC utilisent des URL présignées.
 
-Le navigateur envoie les originaux directement à `S3_PUBLIC_ENDPOINT` avec une URL `PUT` présignée, puis lit les fichiers et les COPC par URL `GET` présignée. Le bucket doit donc autoriser l'origine de la webapp, y compris pour les préflights `OPTIONS`. En préproduction, le bucket OVH `mnemo` utilise la règle suivante (les origines locales servent à `make dev-s3`) :
+## 2. Déployer une révision
 
-```json
-{
-  "ID": "mnemo-web-browser-access",
-  "AllowedOrigins": [
-    "https://mnemo-web.osc-secnum-fr1.scalingo.io",
-    "http://localhost:3200",
-    "http://127.0.0.1:3200"
-  ],
-  "AllowedMethods": ["GET", "HEAD", "PUT"],
-  "AllowedHeaders": ["content-type", "range", "x-amz-*"],
-  "ExposeHeaders": ["ETag", "Accept-Ranges", "Content-Range", "Content-Length"],
-  "MaxAgeSeconds": 3000
-}
+Depuis la racine du dépôt, après avoir committé les changements à livrer. L'archive ci-dessous contient **uniquement `HEAD`** ; elle exclut les modifications non committées. Le dossier `master/` à sa racine est requis par le déploiement depuis une archive.
+
+```bash
+deploy_dir=$(mktemp -d)
+revision=$(git rev-parse --short HEAD)
+git archive --format=tar --prefix=master/ HEAD | gzip > "$deploy_dir/mnemo.tar.gz"
+
+scalingo --region osc-secnum-fr1 --app mnemo-ifc-rust deploy "$deploy_dir/mnemo.tar.gz" "$revision"
+scalingo --region osc-secnum-fr1 --app mnemo-web deploy "$deploy_dir/mnemo.tar.gz" "$revision"
 ```
 
-Cette règle doit être appliquée dans la configuration CORS **du bucket**, pas dans l'environnement Scalingo ni dans Next.js. La permission CORS seule ne donne pas accès aux objets : les requêtes utilisent toujours une URL présignée. Lors d'un changement de domaine, mettre à jour `AllowedOrigins` sans utiliser `*`, puis vérifier un préflight `PUT` avec `Origin` et `Access-Control-Request-Method`, ainsi qu'un petit upload signé. Un IFC confirmé par `HeadObject` passe directement à « Prêt » ; son calcul géométrique démarre à l'ouverture du viewer. Un nuage de points entre dans la file durable de conversion.
-
-## Build et lancement
-
-`mnemo-web` doit être construit depuis **la racine du monorepo** : ne pas définir `PROJECT_DIR=apps/web`, car les packages `@mnemo/*` frères ne seraient pas présents. Le buildpack Node.js détecte `pnpm-lock.yaml`. Son hook `scalingo-postbuild` ne construit que `@mnemo/web`, puis copie les ressources statiques dans la sortie Next standalone. Le `Procfile` racine lance `web` sur le port fourni par Scalingo. Le workflow local `make dev` reste indépendant.
-
-Après avoir committé et validé la branche, déployer le même dépôt Git vers l'application `mnemo-web` (ou la relier au dépôt GitHub). Un dépôt séparé n'est pas nécessaire. Vérifier les logs de build et le statut du conteneur avant d'ouvrir l'URL publique.
-
-La base doit recevoir les migrations Prisma et l'acteur de développement doit être initialisé avant de créer des projets : `pnpm db:migrate` puis `pnpm db:seed` dans un one-off `mnemo-web`, après le premier build. Le CLI Prisma et `tsx` sont des dépendances d'exécution de `@mnemo/database` pour rester disponibles dans ce conteneur. Ne pas afficher `DATABASE_URL` dans les logs. Ce guide ne déclenche pas de migration automatique : elle sera validée lors du premier déploiement réel.
+Après le premier déploiement de `mnemo-web`, initialiser sa base. Relancer les migrations lors des évolutions du schéma ; le seed n'est nécessaire qu'à l'initialisation.
 
 ```bash
 scalingo --region osc-secnum-fr1 --app mnemo-web run 'pnpm db:migrate'
 scalingo --region osc-secnum-fr1 --app mnemo-web run 'pnpm db:seed'
 ```
 
-## Vérification d'accès
+Si le code de conversion COPC a changé, construire et déployer séparément son paquet. L'app n'a aucun conteneur permanent : conserver `web=0`.
 
-1. Sans identifiants : `/`, `/projets` et `/api/health` doivent répondre `401` avec `WWW-Authenticate`.
-2. Avec les identifiants : l'accueil et `/api/health` doivent répondre `200`.
-3. Sans `MNEMO_STAGING_PASSWORD` ou sans `MNEMO_DEPLOYMENT_ENV=staging` : la webapp doit répondre `503` (échec fermé).
-4. Vérifier ensuite les accès S3 depuis le navigateur, la base, puis les services IFC/point cloud séparément.
+```bash
+deploy_dir=$(mktemp -d)
+revision=$(git rev-parse --short HEAD)
+pnpm --filter @mnemo/processing-worker build
+pnpm --filter @mnemo/processing-worker package:scalingo "$deploy_dir/copc/master"
+tar -C "$deploy_dir/copc" -czf "$deploy_dir/copc.tar.gz" master
 
-Le mot de passe partagé ne protège **pas** directement les URL S3 présignées déjà émises ni les autres applications Scalingo (`mnemo-ifc-rust`, `mnemo-potree`). Garder le bucket privé, limiter la durée des URL et protéger les endpoints des services avant de les rendre publics.
+scalingo --region osc-secnum-fr1 --app mnemo-potree scale web:0:M
+scalingo --region osc-secnum-fr1 --app mnemo-potree deploy "$deploy_dir/copc.tar.gz" "$revision"
+```
 
-## Serveur IFC-Lite Rust
+## 3. Vérifier
 
-`mnemo-ifc-rust` est une application Scalingo distincte, construite depuis `PROJECT_DIR=infrastructure/scalingo-ifc-rust`. Elle lance une passerelle Node légère avec le binaire IFC-Lite Rust dans le **même conteneur** : ce n'est pas une quatrième application ni un worker permanent. Configurer `IFC_SERVER_API_TOKEN`, `S3_ENDPOINT`, `S3_BUCKET`, `MAX_FILE_SIZE_MB` et `WORKER_THREADS`. La passerelle ne possède ni clé S3 ni accès PostgreSQL : elle reçoit de `mnemo-web` une URL GET présignée pour un seul objet, vérifie son origine et son préfixe, puis diffuse l'original vers le parseur Rust via le réseau interne du conteneur. `MAX_FILE_SIZE_MB` et la taille du conteneur doivent couvrir les modèles visés. `INITIAL_BATCH_SIZE=10` et `MAX_BATCH_SIZE=10` sont les valeurs par défaut pour limiter les pics mémoire côté navigateur, même si quelques maillages individuels sont très volumineux. Le cache Rust est éphémère ; S3 conserve les originaux.
+- Dans **Deploy** et **Logs**, confirmer que les builds ont réussi ; dans **Resources**, vérifier `web ≥ 1` pour `mnemo-web`, `web = 1` pour Rust et `web = 0` pour COPC.
+- Ouvrir la webapp : `401` sans identifiants, accès avec le Basic Auth. Un staging sans identifiants configurés doit répondre `503`.
+- Envoyer un IFC et un LAZ depuis l'interface. L'IFC doit devenir visualisable ; le LAZ doit déclencher un one-off `mnemo-potree`, produire un `cloud.copc.laz` sur S3, puis s'afficher dans le viewer.
+- En cas d'échec, consulter les logs de l'app concernée et `scalingo --region osc-secnum-fr1 --app mnemo-potree ps` pendant la conversion.
 
-Garder **un seul conteneur web** pour cette application tant que son cache IFC-Lite reste local au conteneur : le flux de géométrie et la requête suivante du modèle de données doivent atteindre le même cache. Une réplication future nécessite un cache partagé ou un protocole de réponse qui n'en dépend plus.
-
-Après le déploiement, vérifier que `/api/v1/health` répond `200` et qu'une route de calcul ou de cache répond `401` sans jeton. Ne pas placer `IFC_SERVER_API_TOKEN` dans `NEXT_PUBLIC_*`, dans les props React, ni dans l'URL du viewer. Un navigateur ne doit pas appeler directement ce service protégé avec un jeton global.
-
-Le navigateur dépose l'IFC **directement dans S3** avec un PUT signé ; il ne fait pas transiter l'original par Next.js, ce qui évite [la limite d'ingress Scalingo de 75 Mo par requête](https://doc.scalingo.com/platform/networking/public/ingress). À l'ouverture, `mnemo-web` vérifie les droits et remet l'URL GET courte à Rust. Le viewer consomme les lots Parquet et le modèle de données via les routes Next.js authentifiées, sans télécharger l'original pour les IFC au-dessus du seuil `IFC_BROWSER_PROCESSING_MAX_BYTES` (25 MiB par défaut ; `0` pour forcer Rust). Les lots de réponse et la mémoire du parseur restent à dimensionner et à éprouver avec les plus grands IFC réels.
-La passerelle envoie des signaux SSE de maintien pendant la préparation et entre les lots complets ; [Scalingo impose un premier octet sous 30 s puis des données au moins toutes les 60 s](https://doc.scalingo.com/platform/networking/public/routing). Vérifier néanmoins ces délais de bout en bout avec de vrais fichiers stockés chez OVH.
-
-## Conversion des nuages à la demande
-
-`mnemo-web` possède la file PostgreSQL durable, le contrôle d'accès et les reprises. Avec `MNEMO_BACKGROUND_JOBS=1`, sa boucle de fond orchestre les tâches de suppression et lance un one-off sur `mnemo-potree` (nom historique de l'application Scalingo) pour chaque nuage LAS/LAZ. Le conteneur `web` de cette app est dimensionné à zéro hors one-off. Le job reçoit uniquement un message contenant la clé de l'original, puis lit/écrit dans S3 avec ses propres variables `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`. Il n'a ni `DATABASE_URL` ni accès à Rust. Le résultat est communiqué par un objet S3 ; Next met à jour PostgreSQL.
-
-Les nuages LAS/LAZ sont convertis en un objet COPC (`cloud.copc.laz`) par Untwine 1.5.1, avec un espace temporaire sur le disque éphémère du one-off. Untwine utilise des files de travail bornées, mais cette version n'expose pas d'option `--threads` ; surveiller sa consommation réelle sur un gros LAZ. Une ancienne conversion par PDAL épuisait les 8 Go d'un conteneur 3XL sur un gros LAZ. Les anciens résultats de conversion ne sont plus lisibles par le viewer : supprimer l'actif concerné puis réenvoyer son original pour le reconvertir, sans écraser les anciennes références S3 avant leur suppression normale. Le viewer demande des plages HTTP du COPC par niveaux de détail. Le bucket doit autoriser les requêtes `GET` avec en-tête `Range` et exposer `Content-Range` dans sa configuration CORS au domaine de `mnemo-web`. Le fichier reste privé ; le serveur signe une URL courte pour l'objet, jamais les clés S3 côté navigateur.
-
-L'application de conversion **ne peut pas** être déployée directement depuis `PROJECT_DIR=infrastructure/scalingo-copc` : ce dossier est un modèle de build et ne contient pas le bundle JavaScript. Depuis la racine du monorepo, construire `@mnemo/processing-worker`, puis exécuter `pnpm --filter @mnemo/processing-worker package:scalingo <répertoire-vide>`. Mettre le contenu produit dans un sous-dossier `master/` d'une archive `.tar.gz`, puis déployer cette archive avec `scalingo --region osc-secnum-fr1 --app mnemo-potree deploy <archive.tar.gz>`. [Scalingo documente ce format d'archive](https://doc.scalingo.com/platform/deployment/deploy-from-archive). Mettre `web` à zéro **avant** le déploiement ; le `Procfile` n'est qu'un point d'entrée pour les one-offs et ne doit pas démarrer comme serveur HTTP. Vérifier les droits S3 minimaux et tester un nuage avant d'ouvrir la plateforme aux utilisateurs.
-
-Le paquet embarque uniquement Untwine (avec ses dépendances). `UNTWINE_PATH` n'est nécessaire que pour utiliser un autre binaire. En local, l'image `processing-worker` de `make dev` contient aussi Untwine. Après le déploiement, lancer un vrai job de test : `bin/untwine --help` vérifie seulement le binaire, pas la configuration du point d'entrée ni l'écriture S3. Surveiller la mémoire **et l'espace disque temporaire** pendant un gros nuage : un LAZ de 2,14 Go contenant 437 millions de points a demandé environ 18 Go de fichiers de travail et produit un COPC de 2,76 Go en test local. La métrique mémoire du conteneur peut inclure un important cache de ces fichiers ; une valeur proche de 8 Go ne prouve pas à elle seule une fuite de RAM. Untwine est distribué sous GPLv3 ; vérifier les obligations de distribution avant de publier une image contenant le binaire.
-
-La publication d'un gros COPC utilise des PUT multipart de 128 MiB (quatre en parallèle) avec un délai réseau de cinq minutes par requête, propre au one-off. L'upload direct des originaux depuis le navigateur reste inchangé. Sur le LAZ de 2,14 Go, la conversion Untwine a pris 32 min 24 s sur Scalingo 3XL ; la publication S3 avec l'ancien réglage de 512 MiB par partie a ajouté environ 13 minutes.
-
-Références : [Proxy Next.js](https://nextjs.org/docs/app/api-reference/file-conventions/proxy), [sortie standalone Next.js](https://nextjs.org/docs/app/api-reference/config/next-config-js/output), [buildpack Node.js Scalingo](https://github.com/Scalingo/nodejs-buildpack), [pare-feu applicatif Scalingo](https://doc.scalingo.com/platform/networking/public/application-firewall).
+Les responsabilités et les choix techniques sont détaillés dans [l'ADR S3/traitement à la demande](../adr/0015-s3-native-ifc-and-oneoff-processing.md).
