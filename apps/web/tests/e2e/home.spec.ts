@@ -242,6 +242,16 @@ test("creates, reloads, opens and deletes a project asset", async ({
     );
 
     await page.getByRole("link", { name: "Visualiser le projet" }).click();
+    await expect(page).toHaveURL(/\/projets\/[0-9a-f-]+\/viewer$/);
+    await expect(
+      page.locator('[aria-label="Visionneuse 3D du projet"]'),
+    ).toBeVisible();
+
+    // Hosted CI has no reliable WebGPU device. The same versioned fixture is
+    // parsed and counted without GPU in sample-house-fixture.test.ts; the
+    // headed local E2E additionally checks the rendered viewer counters.
+    if (process.env.CI) return;
+
     const stats = page
       .locator('[aria-label="Visionneuse 3D du projet"] [role="status"]')
       .filter({ hasText: "entités IFC" });

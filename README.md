@@ -197,7 +197,10 @@ docker compose config
 With `make dev` running in another terminal, use `make test-e2e` to run the
 browser suite in a visible Chrome window, one test at a time, without starting
 another Next.js process. Override `PLAYWRIGHT_BASE_URL` if the local port differs.
-The suite uploads the bundled `Ifc4_SampleHouse.ifc` fixture and checks that
-the viewer loads 47,309 IFC entities and 223 meshes. It runs in GitHub Actions
-too. Tests create and delete projects, so use local MinIO rather than a shared
-S3 profile when running them locally.
+The suite uploads the bundled `Ifc4_SampleHouse.ifc` fixture. In the headed
+local run it also checks the viewer counters: 47,309 IFC entities and 223
+meshes. GitHub Actions checks those counts through IFC-Lite's parser and
+geometry processor without relying on the runner's unstable software WebGPU;
+its browser test still covers upload, persistence and opening the project.
+Tests create and delete projects, so use local MinIO rather than a shared S3
+profile when running them locally.
