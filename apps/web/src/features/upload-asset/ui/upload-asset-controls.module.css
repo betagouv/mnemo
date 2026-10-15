@@ -1,87 +1,84 @@
 .controls {
+  width: 100%;
+}
+
+.dropzone {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+  padding: 2rem 1rem;
+  border: 2px dashed var(--border-default-grey);
+  border-radius: 0.5rem;
+  text-align: center;
+  background: var(--background-alt-grey);
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease;
+}
+
+.dragging {
+  border-color: var(--border-action-high-blue-france);
+  background: var(--background-alt-blue-france);
+}
+
+.dropInput {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.dragging .dropInput {
+  pointer-events: auto;
+}
+
+.dropTitle {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.dropHint {
+  margin: -0.6rem 0 0;
+  color: var(--text-mention-grey);
+  font-size: 0.9rem;
+}
+
+.formats {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.65rem;
-  align-items: center;
-  justify-content: flex-end;
-}
-
-.button,
-.secondaryButton {
-  display: inline-flex;
-  gap: 0.45rem;
-  align-items: center;
-  min-height: 2.5rem;
-  padding: 0.5rem 0.85rem;
-  color: #fff;
-  font-size: 0.85rem;
-  font-weight: 700;
-  cursor: pointer;
-  background: var(--mnemo-blue);
-}
-
-.secondaryButton {
-  color: var(--mnemo-blue);
-  outline: 1px solid var(--mnemo-blue);
-  outline-offset: -1px;
-  background: #fff;
-}
-
-.button[aria-disabled="true"],
-.secondaryButton[aria-disabled="true"] {
-  cursor: wait;
-  opacity: 0.55;
-}
-
-.button input,
-.secondaryButton input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-  clip-path: inset(50%);
-}
-
-.button:focus-within,
-.secondaryButton:focus-within {
-  outline: 2px solid #0a76f6;
-  outline-offset: 2px;
+  gap: 0.4rem;
+  justify-content: center;
+  margin: 0.25rem 0;
 }
 
 .progress {
-  flex-basis: 100%;
-  padding-top: 0.5rem;
+  margin-top: 1rem;
 }
 
 .progress > div {
   display: flex;
   justify-content: space-between;
   margin-bottom: 0.25rem;
-  font-size: 0.78rem;
+  font-size: 0.85rem;
 }
 
 .progress progress {
   width: 100%;
-  accent-color: var(--mnemo-blue);
+  accent-color: var(--background-action-high-blue-france);
 }
 
 .error {
-  flex-basis: 100%;
-  margin: 0.25rem 0 0;
+  margin: 0.75rem 0 0;
   color: var(--text-default-error);
-  font-size: 0.82rem;
+  font-size: 0.85rem;
 }
 
-@media (width <= 42rem) {
-  .controls {
-    justify-content: stretch;
-  }
-
-  .button,
-  .secondaryButton {
-    flex: 1;
-    justify-content: center;
+@media (width <= 40rem) {
+  .dropzone {
+    padding: 1.5rem 1rem;
   }
 }

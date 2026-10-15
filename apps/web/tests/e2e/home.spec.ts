@@ -147,9 +147,20 @@ test("creates and edits dossier metadata in DSFR modals", async ({ page }) => {
     await expect(
       page.getByRole("heading", { name: updatedTitle, level: 1 }),
     ).toBeVisible();
+    await expect(page.getByText("2 place de la Concorde, Paris")).toBeVisible();
     await expect(
-      page.getByText("2 place de la Concorde, Paris · Description enregistrée"),
+      page.locator("p").filter({ hasText: "Description enregistrée" }),
     ).toBeVisible();
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(
+      page.getByRole("heading", { name: "Fichiers", exact: true }),
+    ).toBeVisible();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
 
     await page.reload();
     await waitForHydration(page);
@@ -220,13 +231,113 @@ test("creates, reloads, opens and deletes a project asset", async ({
       page.getByRole("heading", { name: projectName, level: 1 }),
     ).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "Fichiers du projet" }),
+      page.getByRole("heading", { name: "Fichiers", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Sélectionner un fichier" }),
+    ).toBeVisible();
+
+    await page
+      .getByRole("group", { name: "Ajouter un fichier au projet" })
+      .evaluate((dropzone) => {
+        dropzone.dispatchEvent(
+          new DragEvent("drop", {
+            bubbles: true,
+            cancelable: true,
+            dataTransfer: new DataTransfer(),
+          }),
+        );
+      });
+    await expect(
+      page
+        .getByRole("alert")
+        .filter({ hasText: "Le navigateur n’a transmis aucun fichier" }),
+    ).toBeVisible();
+
+    await page
+      .getByRole("group", { name: "Ajouter un fichier au projet" })
+      .evaluate((dropzone) => {
+        const transfer = new DataTransfer();
+        transfer.items.add(new File(["incorrect"], "plan.pdf"));
+        Object.defineProperty(transfer, "files", { value: { length: 0 } });
+        dropzone.dispatchEvent(
+          new DragEvent("drop", {
+            bubbles: true,
+            cancelable: true,
+            dataTransfer: transfer,
+          }),
+        );
+      });
+    await expect(
+      page.getByRole("alert").filter({ hasText: "Format non pris en charge" }),
+    ).toBeVisible();
+
+    await page
+      .getByRole("group", { name: "Ajouter un fichier au projet" })
+      .evaluate((dropzone) => {
+        dropzone.dispatchEvent(
+          new DragEvent("drop", {
+            bubbles: true,
+            cancelable: true,
+            dataTransfer: new DataTransfer(),
+          }),
+        );
+      });
+    await expect(
+      page
+        .getByRole("alert")
+        .filter({ hasText: "Le navigateur n’a transmis aucun fichier" }),
+    ).toBeVisible();
+
+    await page
+      .getByRole("group", { name: "Ajouter un fichier au projet" })
+      .evaluate((dropzone) => {
+        const transfer = new DataTransfer();
+        const file = new File(["incorrect"], "plan.pdf");
+        transfer.items.add(file);
+        Object.defineProperty(transfer, "files", { value: { length: 0 } });
+        Object.defineProperty(transfer.items[0], "getAsFile", {
+          value: () => null,
+        });
+        Object.defineProperty(transfer.items[0], "getAsFileSystemHandle", {
+          value: async () => ({ kind: "file", getFile: async () => file }),
+        });
+        dropzone.dispatchEvent(
+          new DragEvent("drop", {
+            bubbles: true,
+            cancelable: true,
+            dataTransfer: transfer,
+          }),
+        );
+      });
+    await expect(
+      page.getByRole("alert").filter({ hasText: "Format non pris en charge" }),
+    ).toBeVisible();
+
+    await page
+      .getByRole("group", { name: "Ajouter un fichier au projet" })
+      .evaluate((dropzone) => {
+        const transfer = new DataTransfer();
+        transfer.items.add(new File(["first"], "first.ifc"));
+        transfer.items.add(new File(["second"], "second.ifc"));
+        dropzone.dispatchEvent(
+          new DragEvent("drop", {
+            bubbles: true,
+            cancelable: true,
+            dataTransfer: transfer,
+          }),
+        );
+      });
+    await expect(
+      page.getByRole("alert").filter({ hasText: "2 fichiers détectés" }),
     ).toBeVisible();
 
     const fileName = "Ifc4_SampleHouse.ifc";
-    await page
-      .locator('input[type="file"][accept*=".ifc"]')
-      .setInputFiles(sampleIfcPath);
+    const [fileChooser] = await Promise.all([
+      page.waitForEvent("filechooser"),
+      page.getByRole("button", { name: "Sélectionner un fichier" }).click(),
+    ]);
+    await fileChooser.setFiles(sampleIfcPath);
 
     await expect(page.getByRole("heading", { name: fileName })).toBeVisible();
     await page.reload();
@@ -240,7 +351,9 @@ test("creates, reloads, opens and deletes a project asset", async ({
       .getAttribute("data-asset-id");
     expect(projectId).toMatch(/^[0-9a-f-]{36}$/);
     expect(assetId).toMatch(/^[0-9a-f-]{36}$/);
-    await expect(page.getByRole("link", { name: "Ouvrir" })).toHaveCount(0);
+    await expect(
+      page.getByRole("link", { name: "Ouvrir", exact: true }),
+    ).toHaveCount(0);
     const response = await request.get(
       `/api/projects/${projectId}/assets/${assetId}/access`,
     );
@@ -249,7 +362,7 @@ test("creates, reloads, opens and deletes a project asset", async ({
       assetId,
     );
 
-    await page.getByRole("link", { name: "Visualiser le projet" }).click();
+    await page.getByRole("link", { name: "Ouvrir la vue 3D" }).click();
     await expect(page).toHaveURL(/\/projets\/[0-9a-f-]+\/viewer$/);
     await expect(
       page.locator('[aria-label="Visionneuse 3D du projet"]'),

@@ -1,5 +1,6 @@
 "use client";
 
+import Button from "@codegouvfr/react-dsfr/Button";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -37,14 +38,14 @@ export function DeleteProjectButton({
   }
 
   return (
-    <button
+    <Button
       className={styles.button}
       disabled={pending}
+      iconId="fr-icon-delete-line"
       onClick={() => void deleteProject()}
-      type="button"
+      priority="tertiary"
     >
-      <span className="fr-icon-delete-line" aria-hidden="true" />
       {pending ? "Suppression…" : "Supprimer le projet"}
-    </button>
+    </Button>
   );
 }

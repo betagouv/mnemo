@@ -1,3 +1,4 @@
+import Badge from "@codegouvfr/react-dsfr/Badge";
 import type { AssetSummary } from "@mnemo/contracts/assets";
 import type { ReactNode } from "react";
 
@@ -15,6 +16,15 @@ const statusLabels = {
   ready: "Prêt",
   failed: "Échec",
   deleting: "Suppression",
+} as const;
+
+const statusSeverities = {
+  upload_pending: "info",
+  uploaded: "info",
+  processing: "info",
+  ready: "success",
+  failed: "error",
+  deleting: "warning",
 } as const;
 
 function formatBytes(bytes: number) {
@@ -48,10 +58,9 @@ export function AssetCard({
         <span>{formatBytes(asset.sizeBytes)}</span>
       </div>
       <div className={styles.side}>
-        <div className={`${styles.status} ${styles[asset.status]}`}>
-          <span aria-hidden="true" />
+        <Badge as="span" severity={statusSeverities[asset.status]}>
           {statusLabels[asset.status]}
-        </div>
+        </Badge>
         {action}
       </div>
     </article>

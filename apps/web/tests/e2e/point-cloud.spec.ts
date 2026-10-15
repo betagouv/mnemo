@@ -41,20 +41,20 @@ test("uploads, processes and range-loads the versioned COPC fixture", async ({
     expect(projectId).toMatch(/^[0-9a-f-]{36}$/);
     expect(assetId).toMatch(/^[0-9a-f-]{36}$/);
 
+    const sourceUrl = `/api/projects/${projectId}/assets/${assetId}/point-cloud/source`;
     await expect
       .poll(
-        async () => {
-          await page.reload();
-          await waitForHydration(page);
-          return card.innerText();
-        },
+        async () =>
+          (await request.get(sourceUrl, { timeout: 10_000 })).status(),
         { timeout: 120_000, intervals: [1_000, 2_000, 3_000] },
       )
-      .toContain("Prêt");
+      .toBe(200);
 
-    const sourceResponse = await request.get(
-      `/api/projects/${projectId}/assets/${assetId}/point-cloud/source`,
-    );
+    await page.reload();
+    await waitForHydration(page);
+    await expect(card).toContainText(/prêt/i);
+
+    const sourceResponse = await request.get(sourceUrl);
     expect(sourceResponse.ok()).toBe(true);
     const source = pointCloudSourceSchema.parse(await sourceResponse.json());
     expect(source).toMatchObject({ mode: "copc", pointCount: 1_800 });
@@ -74,7 +74,7 @@ test("uploads, processes and range-loads the versioned COPC fixture", async ({
     }, source.copcUrl);
     expect(probe).toEqual({ status: 206, length: 375, signature: "LASF" });
 
-    await page.getByRole("link", { name: "Visualiser le projet" }).click();
+    await page.getByRole("link", { name: "Ouvrir la vue 3D" }).click();
     await expect(page).toHaveURL(/\/projets\/[0-9a-f-]+\/viewer$/);
     await expect(
       page.locator('[aria-label="Visionneuse 3D du projet"]'),

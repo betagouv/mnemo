@@ -1,5 +1,6 @@
 "use client";
 
+import Button from "@codegouvfr/react-dsfr/Button";
 import { useState } from "react";
 
 import { deleteAsset as deleteAssetAction } from "@/server/assets/actions";
@@ -34,15 +35,14 @@ export function DeleteAssetButton({
   }
 
   return (
-    <button
-      aria-label={`Supprimer ${assetName}`}
+    <Button
       className={styles.button}
       disabled={pending}
+      iconId="fr-icon-delete-line"
       onClick={() => void deleteAsset()}
-      title="Supprimer le fichier"
-      type="button"
-    >
-      <span className="fr-icon-delete-line" aria-hidden="true" />
-    </button>
+      priority="tertiary"
+      size="small"
+      title={`Supprimer ${assetName}`}
+    />
   );
 }
