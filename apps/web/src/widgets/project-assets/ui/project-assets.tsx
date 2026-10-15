@@ -27,7 +27,6 @@ export function ProjectAssets({
 
   return (
     <section className={styles.files} aria-labelledby="project-files-title">
-
       <UploadAssetControls onUploaded={updateAsset} projectId={projectId} />
 
       <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
