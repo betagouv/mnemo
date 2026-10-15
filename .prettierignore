@@ -8,3 +8,5 @@ test-results/
 pnpm-lock.yaml
 apps/web/src/app/favicon.ico
 
+# Keep vendored agent skills identical to their upstream revision.
+.agents/skills/
