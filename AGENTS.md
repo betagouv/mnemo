@@ -44,6 +44,7 @@ app -> screens -> widgets -> features -> entities -> shared
 ## Frontend styling
 
 - Use DSFR components for controls and established design patterns.
+- For DSFR component work, consult the repository skill at `.agents/skills/react-dsfr/SKILL.md`; adapt its examples to Mnemo's installed package version and the styling rules below.
 - Use Tailwind utilities for application layout: grid/flex composition, sizing, spacing, positioning, and responsive behavior. Keep component-specific rendering, DSFR overrides, and 3D controls in scoped CSS when clearer.
 - Tailwind Preflight is disabled to avoid resetting DSFR. Do not add a second global reset or duplicate layout rules in utilities and CSS modules.
 
@@ -85,6 +86,7 @@ app -> screens -> widgets -> features -> entities -> shared
 - Prefer named domain types and discriminated unions for lifecycle states.
 - Keep modules focused. Do not recreate an application-wide `App.tsx` orchestration component.
 - Keep secrets server-only. Public environment variables must use the `NEXT_PUBLIC_` prefix deliberately.
+- For security-sensitive development, consult `.agents/skills/securite-developpement/SKILL.md` and its relevant references.
 - Do not commit `.env` files, credentials, generated uploads, database volumes, or model files.
 - Add an ADR when changing a durable architecture boundary or selecting a foundational vendor. Follow the [ADR guide](docs/adr/README.md) and its template.
 
