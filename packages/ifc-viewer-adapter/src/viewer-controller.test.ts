@@ -461,7 +461,7 @@ function createHarness({
     },
     createPointCloudCopcStream: (options) => {
       let updateCount = 0;
-      options.onOpen?.({ totalPointCount: 10_000_000, spacing: 0.1 });
+      options.onOpen?.({ totalPointCount: 10_000_000 });
       return {
         ready: Promise.resolve(),
         update: () => {

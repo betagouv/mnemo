@@ -8,7 +8,6 @@ export type PointCloudLodView = {
   orthographicHeight?: number;
   viewportHeight: number;
   pointBudget: number;
-  pixelThreshold?: number;
 };
 
 export type PointCloudLodSwap = {

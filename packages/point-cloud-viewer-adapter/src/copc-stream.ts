@@ -30,7 +30,7 @@ export type PointCloudCopcStreamOptions = {
   access: PointCloudCopcAccess;
   refreshAccess: () => Promise<PointCloudCopcAccess>;
   signal?: AbortSignal;
-  onOpen?: (metadata: { totalPointCount: number; spacing: number }) => void;
+  onOpen?: (metadata: { totalPointCount: number }) => void;
   onSwap: (swap: PointCloudLodSwap) => void;
   onError?: (error: Error) => void;
   runtime?: {
@@ -170,7 +170,6 @@ export function createPointCloudCopcStream(
       );
       options.onOpen?.({
         totalPointCount: opened.file.header.pointCount,
-        spacing: opened.file.info.spacing,
       });
       const root = tree.root;
       if (
@@ -205,9 +204,6 @@ export function createPointCloudCopcStream(
     for (let round = 0; round < 8; round += 1) {
       const selected = selectLod(currentTree.root, camera, {
         pointBudget: view.pointBudget,
-        pixelThreshold: view.pixelThreshold
-          ? view.pixelThreshold * 64
-          : undefined,
         maxNodes,
       });
       const pages = new Map<
