@@ -1,4 +1,4 @@
-import { access, writeFile } from "node:fs/promises";
+import { access, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 import type { ObjectStorage } from "@mnemo/storage";
@@ -57,6 +57,29 @@ function createStorage(source = new Uint8Array([1, 2, 3])) {
 }
 
 describe("COPC point-cloud artifact builder", () => {
+  it("publishes the real 1,800-point COPC fixture without conversion", async () => {
+    const source = await readFile(
+      new URL("../../../web/tests/fixtures/tiny.copc.laz", import.meta.url),
+    );
+    const { objects, storage } = createStorage(source);
+    const converter: CopcConverter = { convert: vi.fn() };
+    const objectKey = "derived/copc-v1/cloud.copc.laz";
+
+    const result = await new CopcPointCloudArtifactBuilder(
+      storage,
+      converter,
+      "derived/copc-v1",
+    ).build({ ...asset, sizeBytes: source.byteLength });
+
+    expect(result).toMatchObject({
+      format: "copc-v1",
+      processor: "COPC passthrough",
+      pointCount: 1_800,
+    });
+    expect(objects.get(objectKey)).toEqual(source);
+    expect(converter.convert).not.toHaveBeenCalled();
+  });
+
   it("converts to one COPC object and cleans the temporary workspace", async () => {
     const { objects, storage } = createStorage();
     let workspace = "";

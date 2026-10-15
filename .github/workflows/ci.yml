@@ -74,6 +74,8 @@ jobs:
       S3_BUCKET: mnemo-files
       S3_ACCESS_KEY: mnemo
       S3_SECRET_KEY: mnemo-local-password
+      MNEMO_BACKGROUND_JOBS: "1"
+      MNEMO_LOCAL_COPC_BINARY: ${{ github.workspace }}/apps/processing-worker/dist/process-point-cloud-once.js
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
