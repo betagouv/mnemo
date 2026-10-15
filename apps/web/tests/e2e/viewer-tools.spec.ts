@@ -110,7 +110,13 @@ test("opens viewer tools in a reusable side panel", async ({ page }) => {
     await expect(
       sidePanel.getByText("Remplir les surfaces coupées"),
     ).toHaveCount(0);
-    await sidePanel.getByRole("button", { name: "Boîte de coupe" }).click();
+    await sidePanel
+      .getByRole("group", { name: "Type de coupe" })
+      .getByText("Boîte de coupe")
+      .click();
+    await expect(
+      sidePanel.getByRole("radio", { name: "Boîte de coupe" }),
+    ).toBeChecked();
     await expect(
       sidePanel.getByRole("heading", { name: "Boîte de coupe" }),
     ).toBeVisible();

@@ -1,6 +1,7 @@
 "use client";
 
 import Button from "@codegouvfr/react-dsfr/Button";
+import { SegmentedControl } from "@codegouvfr/react-dsfr/SegmentedControl";
 import type {
   IfcSectionSnapshot,
   IfcViewerController,
@@ -10,11 +11,6 @@ import { useEffect } from "react";
 import styles from "./section-panel.module.css";
 
 type SectionMode = "plane" | "box";
-const axes = [
-  { axis: "down", label: "Horizontal" },
-  { axis: "front", label: "Frontal" },
-  { axis: "side", label: "Latéral" },
-] as const;
 
 export function SectionPanel({
   getViewer,
@@ -39,23 +35,29 @@ export function SectionPanel({
 
   return (
     <div className="flex flex-col gap-4 p-4">
-      <div
-        aria-label="Type de coupe"
-        className="grid grid-cols-2 gap-1 rounded bg-[var(--background-alt-grey)] p-1"
-        role="group"
-      >
-        {(["plane", "box"] as const).map((choice) => (
-          <button
-            aria-pressed={mode === choice}
-            className={`${styles.modeButton} min-h-10 px-2 py-1`}
-            key={choice}
-            onClick={() => onModeChange(choice)}
-            type="button"
-          >
-            {choice === "plane" ? "Plan de coupe" : "Boîte de coupe"}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        className={styles.modeControl}
+        hideLegend
+        legend="Type de coupe"
+        segments={[
+          {
+            label: "Plan de coupe",
+            nativeInputProps: {
+              checked: mode === "plane",
+              onChange: () => onModeChange("plane"),
+              value: "plane",
+            },
+          },
+          {
+            label: "Boîte de coupe",
+            nativeInputProps: {
+              checked: mode === "box",
+              onChange: () => onModeChange("box"),
+              value: "box",
+            },
+          },
+        ]}
+      />
 
       <div
         className="flex items-center justify-between gap-3 text-sm"
@@ -98,28 +100,50 @@ export function SectionPanel({
               Choisissez une orientation. Dans la scène, faites glisser la
               poignée bleue pour déplacer le plan.
             </p>
-            <div
-              aria-label="Orientation du plan"
-              className="grid grid-cols-3 gap-1.5"
-              role="group"
-            >
-              {axes.map(({ axis, label }) => (
-                <button
-                  aria-pressed={
-                    section.active === "plane" &&
-                    section.plane.source === "axis" &&
-                    section.plane.axis === axis
-                  }
-                  className={`${styles.axisButton} min-h-10 px-1 py-2`}
-                  disabled={!canCut}
-                  key={axis}
-                  onClick={() => controller?.setSectionAxis(axis)}
-                  type="button"
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            <SegmentedControl
+              className={styles.axisControl}
+              hideLegend
+              legend="Orientation du plan"
+              segments={[
+                {
+                  label: "Horizontal",
+                  nativeInputProps: {
+                    checked:
+                      section.active === "plane" &&
+                      section.plane.source === "axis" &&
+                      section.plane.axis === "down",
+                    disabled: !canCut,
+                    onChange: () => controller?.setSectionAxis("down"),
+                    value: "down",
+                  },
+                },
+                {
+                  label: "Frontal",
+                  nativeInputProps: {
+                    checked:
+                      section.active === "plane" &&
+                      section.plane.source === "axis" &&
+                      section.plane.axis === "front",
+                    disabled: !canCut,
+                    onChange: () => controller?.setSectionAxis("front"),
+                    value: "front",
+                  },
+                },
+                {
+                  label: "Latéral",
+                  nativeInputProps: {
+                    checked:
+                      section.active === "plane" &&
+                      section.plane.source === "axis" &&
+                      section.plane.axis === "side",
+                    disabled: !canCut,
+                    onChange: () => controller?.setSectionAxis("side"),
+                    value: "side",
+                  },
+                },
+              ]}
+              small
+            />
             {section.plane.source !== "axis" ? (
               <p className={`${styles.muted} mb-0 mt-3 text-sm`}>
                 {section.plane.source === "face"
