@@ -22,13 +22,26 @@ const operatorLogo = {
   alt: "Mnemo — Mémoire numérique pour l’exploitation et la maintenance des ouvrages",
 };
 
-export function SiteHeader({ compact = false }: { compact?: boolean }) {
+export function SiteHeader({
+  compact = false,
+  projectTitle,
+  projectHref,
+}: {
+  compact?: boolean;
+  projectTitle?: string;
+  projectHref?: string;
+}) {
   return (
     <Header
       brandTop={brand}
       operatorLogo={operatorLogo}
       className={compact ? styles.compactHeader : undefined}
-      homeLinkProps={homeLinkProps}
+      homeLinkProps={
+        projectTitle && projectHref
+          ? { href: projectHref, title: `Dossier ${projectTitle}` }
+          : homeLinkProps
+      }
+      serviceTitle={projectTitle}
       quickAccessItems={[
         {
           iconId: "fr-icon-folder-2-line",

@@ -12,6 +12,7 @@ import { isAssistantConfigured } from "@/shared/config/assistant/server-only";
 import { selectIfcProcessing } from "@/shared/config/ifc-processing/server-only";
 import { isIfcMcpConfigured } from "@/shared/config/ifc-mcp/server-only";
 import { ProjectViewer } from "@/widgets/ifc-viewer";
+import { SiteHeader } from "@/widgets/site-shell";
 
 export async function ProjectViewerScreen({
   projectId,
@@ -122,17 +123,29 @@ export async function ProjectViewerScreen({
   );
 
   return (
-    <ProjectViewer
-      assistantConfigured={isAssistantConfigured()}
-      assistantMcpConfigured={isIfcMcpConfigured()}
-      ifcSources={ifcSources}
-      assistantSessions={assistantSessions}
-      initialBcfTopics={bcfTopics}
-      key={project.id}
-      pointCloudFailures={pointCloudFailures}
-      pointCloudSources={pointCloudSources}
-      projectId={project.id}
-      projectName={project.title}
-    />
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex-none">
+        <SiteHeader
+          compact
+          projectHref={`/projets/${project.id}`}
+          projectTitle={project.title}
+        />
+      </div>
+      <div className="min-h-0 flex-1">
+        <h1 className="sr-only">Scène du projet {project.title}</h1>
+        <ProjectViewer
+          assistantConfigured={isAssistantConfigured()}
+          assistantMcpConfigured={isIfcMcpConfigured()}
+          ifcSources={ifcSources}
+          assistantSessions={assistantSessions}
+          initialBcfTopics={bcfTopics}
+          key={project.id}
+          pointCloudFailures={pointCloudFailures}
+          pointCloudSources={pointCloudSources}
+          projectId={project.id}
+          projectName={project.title}
+        />
+      </div>
+    </div>
   );
 }

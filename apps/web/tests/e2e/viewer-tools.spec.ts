@@ -2,11 +2,11 @@ import { expect, test } from "@playwright/test";
 
 import { gotoHydrated } from "./hydration";
 
-async function expectSingleViewerToolbarRow(
+async function expectFloatingViewerTools(
   page: import("@playwright/test").Page,
 ) {
   const layout = await page.evaluate(() => {
-    const header = document.querySelector("main > header");
+    const viewer = document.querySelector("main");
     const tools = document.querySelector(
       '[role="group"][aria-label="Outils de la visionneuse"]',
     );
@@ -16,31 +16,33 @@ async function expectSingleViewerToolbarRow(
     const triggers = Array.from(
       tools?.querySelectorAll(":scope > ul > li > button") ?? [],
     );
-    if (!header || !tools || !viewport || triggers.length !== 6) return null;
-    const headerRect = header.getBoundingClientRect();
+    if (!viewer || !tools || !viewport || triggers.length !== 5) return null;
+    const viewerRect = viewer.getBoundingClientRect();
     const toolsRect = tools.getBoundingClientRect();
     const viewportRect = viewport.getBoundingClientRect();
     const triggerRects = triggers.map((trigger) =>
       trigger.getBoundingClientRect(),
     );
     return {
-      aligned:
-        Math.abs(headerRect.top - toolsRect.top) <= 1 &&
-        Math.abs(headerRect.bottom - toolsRect.bottom) <= 1,
-      sceneStartsBelowBar: Math.abs(viewportRect.top - toolsRect.bottom) <= 1,
-      triggersShareRow: triggerRects.every(
-        (rect) => Math.abs(rect.top - triggerRects[0].top) <= 1,
-      ),
-      triggersStayInBar: triggerRects.every(
-        (rect) => rect.right <= toolsRect.right + 1,
+      sceneUsesFullHeight: Math.abs(viewportRect.top - viewerRect.top) <= 1,
+      toolsInsideScene:
+        toolsRect.top >= viewportRect.top &&
+        toolsRect.left >= viewportRect.left &&
+        toolsRect.right <= viewportRect.right &&
+        toolsRect.bottom < viewportRect.bottom,
+      toolsAtLeft: toolsRect.left - viewportRect.left <= 20,
+      triggersStackVertically: triggerRects.every(
+        (rect, index) =>
+          Math.abs(rect.left - triggerRects[0].left) <= 1 &&
+          (index === 0 || rect.top >= triggerRects[index - 1].bottom),
       ),
     };
   });
   expect(layout).toEqual({
-    aligned: true,
-    sceneStartsBelowBar: true,
-    triggersShareRow: true,
-    triggersStayInBar: true,
+    sceneUsesFullHeight: true,
+    toolsInsideScene: true,
+    toolsAtLeft: true,
+    triggersStackVertically: true,
   });
 }
 
@@ -62,6 +64,19 @@ test("opens viewer tools in a reusable side panel", async ({ page }) => {
     await expect(
       page.getByRole("banner").getByRole("img", { name: /^Mnemo/ }),
     ).toBeVisible();
+    await expect(
+      page.getByRole("banner").getByText(projectName, { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", {
+        name: `Scène du projet ${projectName}`,
+        level: 1,
+        includeHidden: true,
+      }),
+    ).toBeAttached();
+    await expect(
+      page.getByRole("link", { name: `Retour au projet ${projectName}` }),
+    ).toHaveCount(0);
     await expect(page.getByRole("contentinfo")).toBeVisible();
     const footerToggle = page.getByRole("button", {
       name: "Plus d’informations",
@@ -88,8 +103,22 @@ test("opens viewer tools in a reusable side panel", async ({ page }) => {
     });
 
     await expect(tools.getByRole("button", { name: "Coupes" })).toBeVisible();
+    await expect(tools.getByRole("button", { name: "Mesures" })).toBeVisible();
+    await expect(
+      tools.locator(":scope > ul > li").first().getByRole("button", {
+        name: "Tout cadrer",
+      }),
+    ).toBeVisible();
     await expect(sidePanel).not.toBeVisible();
-    await expectSingleViewerToolbarRow(page);
+    await expectFloatingViewerTools(page);
+
+    const measurements = tools.getByRole("button", { name: "Mesures" });
+    await measurements.hover();
+    await expect(measurements.getByText("Mesures")).toBeVisible();
+    await page.mouse.move(0, 0);
+    await expect(measurements.getByText("Mesures")).not.toBeVisible();
+    await measurements.focus();
+    await expect(measurements.getByText("Mesures")).toBeVisible();
 
     await tools.getByRole("button", { name: "Coupes" }).click();
     await expect(
@@ -145,11 +174,11 @@ test("opens viewer tools in a reusable side panel", async ({ page }) => {
       tools.getByRole("button", { name: "Annotations" }),
     ).toHaveAttribute("data-active", "true");
     await expect(
-      tools.getByRole("button", { name: "Exporter" }),
+      tools.getByRole("button", { name: "Autres outils" }),
     ).not.toHaveAttribute("data-active", "true");
 
     await page.setViewportSize({ width: 1024, height: 800 });
-    await expectSingleViewerToolbarRow(page);
+    await expectFloatingViewerTools(page);
     await expect(
       page.getByRole("complementary", { name: "Remarques BCF" }),
     ).toBeVisible();
@@ -168,7 +197,10 @@ test("opens viewer tools in a reusable side panel", async ({ page }) => {
     ).toBeVisible();
 
     await page.setViewportSize({ width: 390, height: 844 });
-    await expectSingleViewerToolbarRow(page);
+    await expectFloatingViewerTools(page);
+    await expect(
+      page.getByRole("banner").getByText(projectName, { exact: true }),
+    ).toBeVisible();
     const mobilePanel = page.getByRole("complementary", {
       name: "Remarques BCF",
     });
