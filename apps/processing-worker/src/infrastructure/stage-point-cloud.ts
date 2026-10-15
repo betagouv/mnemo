@@ -27,7 +27,9 @@ export async function stageOriginal(
           null,
         );
         if (written.bytesWritten <= 0) {
-          throw new Error("Point-cloud staging stopped before the original ended");
+          throw new Error(
+            "Point-cloud staging stopped before the original ended",
+          );
         }
         offset += written.bytesWritten;
       }

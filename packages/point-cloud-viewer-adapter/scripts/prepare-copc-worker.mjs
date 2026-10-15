@@ -10,11 +10,18 @@ if (!outputDirectory) {
 
 const packageEntry = fileURLToPath(import.meta.resolve("@ifc-lite/pointcloud"));
 const packageRequire = createRequire(packageEntry);
-const inlineWorkerPath = join(dirname(packageEntry), "streaming/inline-worker.js");
-const { INLINE_WORKER_CODE } = await import(pathToFileURL(inlineWorkerPath).href);
+const inlineWorkerPath = join(
+  dirname(packageEntry),
+  "streaming/inline-worker.js",
+);
+const { INLINE_WORKER_CODE } = await import(
+  pathToFileURL(inlineWorkerPath).href
+);
 const unresolvedWasmImport = 'import("laz-perf/lib/web/laz-perf.wasm?url")';
 if (!INLINE_WORKER_CODE || !INLINE_WORKER_CODE.includes(unresolvedWasmImport)) {
-  throw new Error("The IFC-Lite decode worker changed; review its WASM asset integration");
+  throw new Error(
+    "The IFC-Lite decode worker changed; review its WASM asset integration",
+  );
 }
 
 // IFC-Lite's published inline worker retains a Vite-only `?url` import. A
