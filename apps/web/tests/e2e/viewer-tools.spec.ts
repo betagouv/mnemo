@@ -59,6 +59,29 @@ test("opens viewer tools in a reusable side panel", async ({ page }) => {
 
   try {
     await gotoHydrated(page, `${projectHref}/viewer`);
+    await expect(
+      page.getByRole("banner").getByRole("img", { name: /^Mnemo/ }),
+    ).toBeVisible();
+    await expect(page.getByRole("contentinfo")).toBeVisible();
+    const footerToggle = page.getByRole("button", {
+      name: "Plus d’informations",
+    });
+    const sceneHeight = await page
+      .getByRole("region", { name: "Visionneuse 3D du projet" })
+      .evaluate((element) => element.getBoundingClientRect().height);
+    await footerToggle.click();
+    await expect(
+      page.getByRole("button", { name: "Fermer", exact: true }),
+    ).toHaveAttribute("aria-expanded", "true");
+    await expect(page.getByRole("contentinfo")).toContainText("RÉPUBLIQUE");
+    expect(
+      await page
+        .getByRole("region", { name: "Visionneuse 3D du projet" })
+        .evaluate((element) => element.getBoundingClientRect().height),
+    ).toBe(sceneHeight);
+    await page.keyboard.press("Escape");
+    await expect(footerToggle).toBeFocused();
+    await expect(footerToggle).toHaveAttribute("aria-expanded", "false");
     const tools = page.getByRole("group", { name: "Outils de la visionneuse" });
     const sidePanel = page.getByRole("complementary", {
       name: "Coupes",
@@ -157,6 +180,14 @@ test("opens viewer tools in a reusable side panel", async ({ page }) => {
     await expect(
       tools.getByRole("button", { name: "Coupe par plan" }),
     ).toBeVisible();
+    await page.keyboard.press("Escape");
+    await footerToggle.click();
+    await expect(
+      page.getByRole("button", { name: "Fermer", exact: true }),
+    ).toHaveAttribute("aria-expanded", "true");
+    await expect(page.getByRole("contentinfo")).toContainText("RÉPUBLIQUE");
+    await page.keyboard.press("Escape");
+    await expect(footerToggle).toHaveAttribute("aria-expanded", "false");
   } finally {
     await gotoHydrated(page, projectHref);
     page.once("dialog", (dialog) => void dialog.accept());

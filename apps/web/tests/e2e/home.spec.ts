@@ -20,7 +20,9 @@ test("renders the application foundation", async ({ page }) => {
   await expect(
     page.getByRole("link", { name: "Explorer mes dossiers" }),
   ).toHaveAttribute("href", "/projets");
-  await expect(page.getByRole("banner")).toContainText("Mnemo");
+  await expect(
+    page.getByRole("banner").getByRole("img", { name: /^Mnemo/ }),
+  ).toBeVisible();
   await expect(page.getByRole("contentinfo")).toBeVisible();
 });
 
@@ -48,6 +50,10 @@ test("keeps the dossier dashboard usable on mobile", async ({ page }) => {
   await gotoHydrated(page, "/projets");
 
   await expect(
+    page.getByRole("banner").getByRole("img", { name: /^Mnemo/ }),
+  ).toBeVisible();
+  await expect(page.getByRole("contentinfo")).toBeVisible();
+  await expect(
     page.getByRole("heading", { name: "Mes dossiers" }),
   ).toBeVisible();
   await expect(
@@ -74,7 +80,9 @@ test("fits the project modal in a desktop viewport", async ({ page }) => {
   ).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
 
-  const modalBody = page.locator(".fr-modal__body");
+  const modalBody = page
+    .getByRole("dialog", { name: "Créer un dossier" })
+    .locator(".fr-modal__body");
   expect(
     await modalBody.evaluate(
       (element) => element.scrollHeight <= element.clientHeight,

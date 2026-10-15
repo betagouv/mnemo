@@ -55,7 +55,7 @@ const phaseLabels = {
 } as const;
 
 const shellLayout =
-  "grid h-dvh w-screen overflow-hidden grid-cols-[7.5rem_minmax(0,1fr)] grid-rows-[3.5rem_minmax(0,1fr)] min-[769px]:grid-cols-[15.5rem_minmax(0,1fr)] min-[769px]:grid-rows-[3.75rem_minmax(0,1fr)] min-[1201px]:grid-cols-[17.5rem_minmax(0,1fr)]";
+  "grid h-full w-full overflow-hidden grid-cols-[7.5rem_minmax(0,1fr)] grid-rows-[3.5rem_minmax(0,1fr)] min-[769px]:grid-cols-[15.5rem_minmax(0,1fr)] min-[769px]:grid-rows-[3.75rem_minmax(0,1fr)] min-[1201px]:grid-cols-[17.5rem_minmax(0,1fr)]";
 const workspaceLayout =
   "relative col-span-full grid min-h-0 min-w-0 grid-cols-[minmax(0,1fr)] min-[769px]:grid-cols-[15.5rem_minmax(0,1fr)] min-[1201px]:grid-cols-[17.5rem_minmax(0,1fr)]";
 const openPanelLayout =

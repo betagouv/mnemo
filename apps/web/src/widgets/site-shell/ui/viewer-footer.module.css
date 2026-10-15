@@ -1,0 +1,73 @@
+.root {
+  isolation: isolate;
+}
+
+.toggle {
+  position: absolute;
+  z-index: 1;
+  top: 0.75rem;
+  right: 0.75rem;
+}
+
+.arrow {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin: 0.25rem 0.125rem 0 0.5rem;
+  transform: rotate(45deg);
+  border-top: 2px solid currentColor;
+  border-left: 2px solid currentColor;
+}
+
+.panel :global(.fr-footer) {
+  max-height: min(70dvh, 36rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.compacted {
+  height: 3.5rem;
+  padding-top: 0;
+  padding-right: 11rem;
+}
+
+.compacted :global(.fr-footer__body),
+.compacted :global(.fr-footer__partners),
+.compacted :global(.fr-footer__bottom-copy) {
+  display: none;
+}
+
+.compacted :global(.fr-footer__bottom) {
+  height: 100%;
+  margin-top: 0;
+  box-shadow: none;
+}
+
+.compacted :global(.fr-container),
+.compacted :global(.fr-footer__bottom-list) {
+  height: 100%;
+}
+
+.compacted :global(.fr-footer__bottom-list) {
+  display: flex;
+  align-items: center;
+  padding: 0;
+}
+
+.compacted :global(.fr-footer__bottom-item) {
+  margin: 0;
+}
+
+.expanded {
+  padding-top: 3.5rem;
+}
+
+@media (width <= 48rem) {
+  .compacted {
+    padding-right: 3.5rem;
+  }
+
+  .toggleLabel {
+    display: none;
+  }
+}
