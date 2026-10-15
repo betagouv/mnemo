@@ -1,3 +1,4 @@
+import Button from "@codegouvfr/react-dsfr/Button";
 import { projectIdSchema } from "@mnemo/contracts/projects";
 import { hasProjectPermission } from "@mnemo/domain/project";
 import Link from "next/link";
@@ -11,12 +12,6 @@ import { resolveActor } from "@/server/auth/resolve-actor";
 import { getProjectService } from "@/server/projects/project-service-factory";
 
 import styles from "./project-detail-screen.module.css";
-
-const roleLabels = {
-  owner: "Propriétaire",
-  editor: "Éditeur",
-  viewer: "Lecture",
-} as const;
 
 export async function ProjectDetailScreen({
   projectId,
@@ -37,11 +32,12 @@ export async function ProjectDetailScreen({
   }
 
   const assets = await getAssetService().list(actorId, project.id);
+  const canOpenViewer = assets.some((asset) => asset.status === "ready");
 
   return (
-    <div className="fr-container pb-20 pt-8">
+    <div className="fr-container pb-20 pt-6">
       <Link
-        className={`${styles.back} mb-10 inline-flex items-center gap-[0.4rem]`}
+        className={`${styles.back} mb-5 inline-flex items-center gap-[0.4rem]`}
         href="/projets"
       >
         <span className="fr-icon-arrow-left-line" aria-hidden="true" />
@@ -49,38 +45,54 @@ export async function ProjectDetailScreen({
       </Link>
 
       <header
-        className={`${styles.heading} mb-12 flex items-end justify-between gap-8 max-[577px]:items-start`}
+        className={`${styles.heading} mb-6 flex flex-col justify-between gap-4 min-[769px]:flex-row min-[769px]:items-start`}
       >
-        <div>
-          <p className={styles.eyebrow}>PROJET · {roleLabels[project.role]}</p>
+        <div className="min-w-0">
           <h1>{project.title}</h1>
-          <p>
-            {[project.address, project.description]
-              .filter(Boolean)
-              .join(" · ") ||
-              "Cet espace est prêt à recevoir ses premières données."}
-          </p>
+          {project.address || project.description ? (
+            <p className={styles.metadata}>
+              {project.address ? <span>{project.address}</span> : null}
+              {project.address && project.description ? (
+                <span aria-hidden="true"> · </span>
+              ) : null}
+              {project.description ? <span>{project.description}</span> : null}
+            </p>
+          ) : null}
         </div>
-        <div className="flex flex-none items-center gap-3">
-          <div
-            className={`${styles.status} flex flex-none items-center gap-[0.55rem] px-3 py-2 max-[577px]:hidden`}
-          >
-            <span aria-hidden="true" />
-            Espace actif
-          </div>
+        <div className="flex flex-wrap items-center gap-3">
+          {canOpenViewer ? (
+            <Button
+              iconId="fr-icon-eye-line"
+              linkProps={{ href: `/projets/${project.id}/viewer` }}
+            >
+              Ouvrir la vue 3D
+            </Button>
+          ) : null}
           {hasProjectPermission(project.role, "project:update") ? (
             <ProjectMetadataModal project={project} />
-          ) : null}
-          {project.role === "owner" ? (
-            <DeleteProjectButton
-              projectId={project.id}
-              projectName={project.title}
-            />
           ) : null}
         </div>
       </header>
 
       <ProjectAssets initialAssets={assets} projectId={project.id} />
+
+      {project.role === "owner" ? (
+        <section
+          className={styles.management}
+          aria-labelledby="management-title"
+        >
+          <div>
+            <h2 id="management-title">Gestion du dossier</h2>
+            <p>
+              Supprimez ce dossier uniquement si vous n’en avez plus besoin.
+            </p>
+          </div>
+          <DeleteProjectButton
+            projectId={project.id}
+            projectName={project.title}
+          />
+        </section>
+      ) : null}
     </div>
   );
 }
