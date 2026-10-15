@@ -14,10 +14,11 @@ import { copcLodCamera } from "./copc-camera";
 import type { PointCloudLodSwap, PointCloudLodView } from "./lod-types";
 
 const firstFramePoints = 25_000;
-const firstPassPoints = 150_000;
 const maxNodes = 96;
 const concurrency = 8;
-const maxCachedPoints = 500_000;
+const minCachedPoints = 1_000_000;
+const maxCachedPoints = 6_000_000;
+const cameraSettleMs = 160;
 const refreshMarginMs = 30_000;
 
 export type PointCloudCopcAccess = {
@@ -72,8 +73,10 @@ export function createPointCloudCopcStream(
   let tree: CopcLodTree | null = null;
   let latestView: PointCloudLodView | null = null;
   let updateAbort: AbortController | null = null;
+  let updateTimer: ReturnType<typeof setTimeout> | null = null;
   let opening: Promise<void> | null = null;
   let settled = false;
+  let hasRenderedFullLod = false;
   const resident = new Map<string, PointCloudChunkInput>();
   const cache = new Map<string, PointCloudChunkInput>();
   let cachedPoints = 0;
@@ -111,20 +114,27 @@ export function createPointCloudCopcStream(
     }
   }
 
+  function trimCache() {
+    const limit = Math.min(
+      maxCachedPoints,
+      Math.max(minCachedPoints, (latestView?.pointBudget ?? 0) * 2),
+    );
+    for (const [key, chunk] of cache) {
+      if (cachedPoints <= limit) break;
+      // A visible node must remain reusable even if the cache is full.
+      if (resident.has(key)) continue;
+      cache.delete(key);
+      cachedPoints -= chunk.pointCount;
+    }
+  }
+
   function remember(key: string, chunk: PointCloudChunkInput) {
-    if (chunk.pointCount > maxCachedPoints) return;
     const previous = cache.get(key);
     if (previous) cachedPoints -= previous.pointCount;
     cache.delete(key);
     cache.set(key, chunk);
     cachedPoints += chunk.pointCount;
-    while (cachedPoints > maxCachedPoints) {
-      const oldest = cache.keys().next().value;
-      if (!oldest) break;
-      const evicted = cache.get(oldest);
-      cache.delete(oldest);
-      cachedPoints -= evicted?.pointCount ?? 0;
-    }
+    trimCache();
   }
 
   async function open() {
@@ -187,18 +197,14 @@ export function createPointCloudCopcStream(
     return opening;
   }
 
-  async function selection(
-    view: PointCloudLodView,
-    budget: number,
-    signal: AbortSignal,
-  ) {
+  async function selection(view: PointCloudLodView, signal: AbortSignal) {
     const currentTree = tree;
     if (!currentTree?.root || !reader) return [];
     const camera = copcLodCamera(view);
     if (!camera) return [];
     for (let round = 0; round < 8; round += 1) {
       const selected = selectLod(currentTree.root, camera, {
-        pointBudget: budget,
+        pointBudget: view.pointBudget,
         pixelThreshold: view.pixelThreshold
           ? view.pixelThreshold * 64
           : undefined,
@@ -224,43 +230,40 @@ export function createPointCloudCopcStream(
   }
 
   async function run(view: PointCloudLodView, signal: AbortSignal) {
-    for (const budget of [
-      Math.min(firstPassPoints, view.pointBudget),
-      view.pointBudget,
-    ]) {
-      signal.throwIfAborted();
-      const nodes = await selection(view, budget, signal);
-      const wanted = nodes.map((item: LodSelectedNode) => ({
-        ...item,
-        stride: 2 ** Math.ceil(Math.log2(Math.max(1, item.stride))),
-      }));
-      const target = new Set(
-        wanted.map((item) => `${item.node.id}:${item.stride}`),
+    signal.throwIfAborted();
+    const nodes = await selection(view, signal);
+    const wanted = nodes.map((item: LodSelectedNode) => ({
+      ...item,
+      stride: 2 ** Math.ceil(Math.log2(Math.max(1, item.stride))),
+    }));
+    const target = new Set(
+      wanted.map((item) => `${item.node.id}:${item.stride}`),
+    );
+    for (let start = 0; start < wanted.length; start += concurrency) {
+      await Promise.all(
+        wanted.slice(start, start + concurrency).map(async (item) => {
+          const key = `${item.node.id}:${item.stride}`;
+          if (resident.has(key)) return;
+          const chunk =
+            cache.get(key) ??
+            (await reader?.readNode(
+              (item.node as NonNullable<CopcLodTree["root"]>).entry,
+              { stride: item.stride, signal },
+            ));
+          signal.throwIfAborted();
+          if (!chunk) return;
+          resident.set(key, chunk);
+          remember(key, chunk);
+          publish([{ nodeId: key, chunk }], [], false);
+        }),
       );
-      for (let start = 0; start < wanted.length; start += concurrency) {
-        await Promise.all(
-          wanted.slice(start, start + concurrency).map(async (item) => {
-            const key = `${item.node.id}:${item.stride}`;
-            if (resident.has(key)) return;
-            const chunk =
-              cache.get(key) ??
-              (await reader?.readNode(
-                (item.node as NonNullable<CopcLodTree["root"]>).entry,
-                { stride: item.stride, signal },
-              ));
-            signal.throwIfAborted();
-            if (!chunk) return;
-            remember(key, chunk);
-            resident.set(key, chunk);
-            publish([{ nodeId: key, chunk }], [], false);
-          }),
-        );
-      }
-      signal.throwIfAborted();
-      const remove = [...resident.keys()].filter((key) => !target.has(key));
-      for (const key of remove) resident.delete(key);
-      publish([], remove, budget === view.pointBudget);
     }
+    signal.throwIfAborted();
+    const remove = [...resident.keys()].filter((key) => !target.has(key));
+    for (const key of remove) resident.delete(key);
+    trimCache();
+    publish([], remove, true);
+    hasRenderedFullLod = true;
     if (!settled) {
       settled = true;
       resolveReady();
@@ -268,6 +271,10 @@ export function createPointCloudCopcStream(
   }
 
   function schedule(view: PointCloudLodView) {
+    if (updateTimer) {
+      clearTimeout(updateTimer);
+      updateTimer = null;
+    }
     updateAbort?.abort();
     const controller = new AbortController();
     updateAbort = controller;
@@ -284,16 +291,29 @@ export function createPointCloudCopcStream(
       latestView = view;
       if (reader) {
         if (runtime.now() >= Date.parse(access.expiresAt) - refreshMarginMs) {
+          if (updateTimer) clearTimeout(updateTimer);
           updateAbort?.abort();
           reader.close();
           reader = null;
           tree = null;
           void open().catch(report);
-        } else schedule(view);
+        } else if (!hasRenderedFullLod) {
+          schedule(view);
+        } else {
+          // Keep the current view visible while the camera is moving. Fetch
+          // only the final LOD, not every intermediate orbit/zoom position.
+          updateAbort?.abort();
+          if (updateTimer) clearTimeout(updateTimer);
+          updateTimer = setTimeout(() => {
+            updateTimer = null;
+            if (!lifetime.signal.aborted && latestView) schedule(latestView);
+          }, cameraSettleMs);
+        }
       }
     },
     cancel() {
       lifetime.abort();
+      if (updateTimer) clearTimeout(updateTimer);
       updateAbort?.abort();
       reader?.close();
       if (!settled) {
