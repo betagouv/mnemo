@@ -1,5 +1,6 @@
 "use client";
 
+import { SegmentedControl } from "@codegouvfr/react-dsfr/SegmentedControl";
 import type {
   IfcViewerController,
   IfcViewerPhase,
@@ -157,27 +158,42 @@ export function ViewCube({
           ))}
         </div>
       </div>
-      <div className="block h-4"></div>
-      <div
-        aria-label="Type de projection"
-        className={styles.projectionSwitch}
-        role="group"
-      >
-        {(["orthographic", "perspective"] as const).map((mode) => (
-          <button
-            aria-label={`Projection ${mode === "orthographic" ? "orthographique" : "perspective"}`}
-            aria-pressed={projectionMode === mode}
-            className={styles.projectionButton}
-            key={mode}
-            onClick={() => getViewer()?.setProjectionMode(mode)}
-            title={mode === "orthographic" ? "Orthographique" : "Perspective"}
-            type="button"
-          >
-            <ProjectionIcon mode={mode} />
-            <span>{mode === "orthographic" ? "Ortho" : "Persp."}</span>
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        className={styles.projectionControl}
+        hideLegend
+        legend="Type de projection"
+        segments={[
+          {
+            label: (
+              <>
+                <ProjectionIcon mode="orthographic" />
+                <span>Ortho</span>
+              </>
+            ),
+            nativeInputProps: {
+              "aria-label": "Projection orthographique",
+              checked: projectionMode === "orthographic",
+              onChange: () => getViewer()?.setProjectionMode("orthographic"),
+              value: "orthographic",
+            },
+          },
+          {
+            label: (
+              <>
+                <ProjectionIcon mode="perspective" />
+                <span>Persp.</span>
+              </>
+            ),
+            nativeInputProps: {
+              "aria-label": "Projection perspective",
+              checked: projectionMode === "perspective",
+              onChange: () => getViewer()?.setProjectionMode("perspective"),
+              value: "perspective",
+            },
+          },
+        ]}
+        small
+      />
       <button
         className={styles.fitButton}
         onClick={() => getViewer()?.fitToView()}

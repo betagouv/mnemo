@@ -4,16 +4,19 @@
   top: 0.875rem;
   right: 0.875rem;
   display: flex;
-  width: 6.25rem;
+  width: 7.5rem;
   flex-direction: column;
   align-items: center;
   gap: 0.45rem;
 }
 
 .perspective {
-  scale: 0.8;
-  width: 4rem;
-  height: 4rem;
+  scale: 1;
+  display: grid;
+  /* The rotated faces extend beyond the 4rem cube; reserve their footprint. */
+  width: 7rem;
+  height: 7rem;
+  place-items: center;
   perspective: 13rem;
   cursor: grab;
   touch-action: none;
@@ -24,52 +27,39 @@
   cursor: grabbing;
 }
 
-.projectionSwitch {
-  display: flex;
+.projectionControl {
   width: 100%;
-  border: 1px solid #dddde3;
-  background: #fff;
+  min-width: 0;
 }
 
-.projectionButton {
-  display: flex;
+.projectionControl :global(.fr-segmented__elements) {
+  width: 100%;
+  background: var(--background-default-grey);
+}
+
+.projectionControl :global(.fr-segmented__element) {
+  flex: 1;
   min-width: 0;
-  width: 50%;
-  height: 2.6rem;
-  flex-direction: column;
+}
+
+.projectionControl :global(.fr-segmented__element) input + label {
+  display: flex;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  padding: 0.12rem;
-  border: 0;
-  color: #3a3a3a;
-  background: #fff;
-  cursor: pointer;
-  font-size: 0.62rem;
+  gap: 0.25rem;
+  min-height: 1.75rem;
+  padding: 0.25rem 0.125rem;
+  font-size: 0.625rem;
   line-height: 1;
+  text-align: center;
+  white-space: nowrap;
 }
 
-.projectionButton + .projectionButton {
-  border-left: 1px solid #dddde3;
-}
-
-.projectionButton[aria-pressed="true"] {
-  color: #000091;
-  background: #e3e3fd;
-  font-weight: 700;
-}
-
-.projectionButton:hover {
-  background: #f5f5fe;
-}
-
-.projectionButton:focus-visible {
-  outline: 2px solid #000091;
-  outline-offset: -3px;
-}
-
-.projectionButton svg {
-  width: 1.2rem;
-  height: 1.2rem;
+.projectionControl svg {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
   fill: none;
   stroke: currentColor;
   stroke-linecap: round;
@@ -111,8 +101,8 @@
 
 .cube {
   position: relative;
-  width: 100%;
-  height: 100%;
+  width: 4rem;
+  height: 4rem;
   transform: rotateX(-20deg) rotateY(-35deg);
   transform-style: preserve-3d;
 }
