@@ -27,14 +27,14 @@ describe("delete resource", () => {
       id: "job-id",
       type: "delete_project",
       resourceId: "project-id",
-      objectKeys: ["original.ifc", "octree/metadata.json"],
+      objectKeys: ["original.ifc", "derived/cloud.copc.laz"],
       attempt: 1,
       maxAttempts: 5,
     });
 
     expect(operations).toEqual([
       "object:original.ifc",
-      "object:octree/metadata.json",
+      "object:derived/cloud.copc.laz",
       "working-copies",
       "record",
     ]);

@@ -31,6 +31,11 @@ session pool therefore remain local to their worker or Next.js runtime.
 
 Do not create empty layers. Add each folder only with the first real slice that uses it.
 
+The current point-cloud format and one-off deployment are specified by
+[ADR 0016](0016-copc-only-point-clouds.md) and
+[ADR 0015](0015-s3-native-ifc-and-oneoff-processing.md); the Potree reference
+above records the original boundary decision, not a second active converter.
+
 ## Consequences
 
 - Browser dependencies cannot leak into server or domain code.

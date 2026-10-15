@@ -2,5 +2,5 @@
 set -euo pipefail
 
 converter_dir="$(cd "$(dirname "$0")" && pwd)"
-export LD_LIBRARY_PATH="${converter_dir}/pdal-env/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
-exec "${converter_dir}/pdal-env/bin/untwine" "$@"
+export LD_LIBRARY_PATH="${converter_dir}/untwine-env/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+exec "${converter_dir}/untwine-env/bin/untwine" "$@"

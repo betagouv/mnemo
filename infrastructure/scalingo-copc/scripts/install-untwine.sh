@@ -14,8 +14,8 @@ mkdir -p "$install_dir"
 cp "$archive_dir/bin/micromamba" "$install_dir/micromamba"
 chmod +x "$install_dir/micromamba"
 MAMBA_ROOT_PREFIX="$archive_dir/cache" "$install_dir/micromamba" create --yes \
-  --prefix "$install_dir/pdal-env" --channel conda-forge --strict-channel-priority \
+  --prefix "$install_dir/untwine-env" --channel conda-forge --strict-channel-priority \
   'untwine=1.5.1'
-"$install_dir/pdal-env/bin/untwine" --help >/dev/null
+"$install_dir/untwine-env/bin/untwine" --help >/dev/null
 cp scripts/untwine bin/untwine
 chmod +x bin/untwine

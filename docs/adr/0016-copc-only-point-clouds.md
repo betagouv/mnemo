@@ -40,8 +40,9 @@ columns or deleting old derived objects.
   path; smaller builds and less custom decoding code.
 - **Costs and risks:** existing non-COPC derivatives stop displaying until
   reuploaded; COPC conversion still needs significant temporary disk and time.
-- **Follow-up:** reupload wanted development assets, then retire legacy columns
-  through a data-preserving migration after old S3 objects are accounted for.
+- **Follow-up:** reupload wanted development assets and remove old results and
+  their S3 objects through normal asset deletion. The schema-cleanup migration
+  refuses to drop the old key columns while any legacy result remains.
 
 ## Validation and review
 

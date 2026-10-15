@@ -64,7 +64,7 @@ describe("S3 streamed uploads", () => {
     const contentLength = 6 * 1024 * 1024 * 1024;
 
     await storage.writeObjectStream({
-      objectKey: "artifacts/octree.bin",
+      objectKey: "artifacts/cloud.copc.laz",
       contentType: "application/octet-stream",
       contentLength,
       body: bytes(),
@@ -75,7 +75,7 @@ describe("S3 streamed uploads", () => {
       client: expect.any(S3Client),
       params: expect.objectContaining({
         Bucket: "mnemo",
-        Key: "artifacts/octree.bin",
+        Key: "artifacts/cloud.copc.laz",
         ContentLength: contentLength,
         ContentType: "application/octet-stream",
       }),

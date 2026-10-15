@@ -51,5 +51,5 @@ same change as a new record.
 | [0012](0012-ifc-lite-mcp-runtime.md)                | Dedicated IFC-Lite MCP runtime             | Accepted                                                          |
 | [0013](0013-persistent-assistant-threads.md)        | Persistent assistant threads               | Accepted                                                          |
 | [0014](0014-nextjs-zod-prisma.md)                   | Native Next.js boundaries and Prisma       | Accepted                                                          |
-| [0015](0015-s3-native-ifc-and-oneoff-processing.md) | S3-native IFC and on-demand Potree         | Accepted                                                          |
+| [0015](0015-s3-native-ifc-and-oneoff-processing.md) | S3-native IFC and on-demand conversion     | Accepted; COPC format in [0016](0016-copc-only-point-clouds.md)   |
 | [0016](0016-copc-only-point-clouds.md)              | COPC-only tiled point clouds               | Accepted                                                          |

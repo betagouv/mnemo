@@ -20,6 +20,17 @@ Le bucket S3 doit rester privé. Configurer son **CORS** pour l'origine HTTPS de
 
 ## 2. Déployer une révision
 
+Avant de livrer la migration `20261015160000`, contrôler la base actuelle :
+
+```sql
+SELECT asset_id, format FROM point_cloud_processing_results
+WHERE format <> 'copc-v1' OR copc_object_key IS NULL
+   OR metadata_object_key IS NOT NULL OR hierarchy_object_key IS NOT NULL
+   OR octree_object_key IS NOT NULL;
+```
+
+Si la requête retourne des lignes, supprimer ces actifs depuis **la version actuellement déployée**, attendre la fin de leurs tâches de suppression S3, puis vérifier à nouveau. Réenvoyer les originaux à conserver. La migration refuse de supprimer les anciennes colonnes tant qu'il reste des références ; ne pas la forcer.
+
 Depuis la racine du dépôt, après avoir committé les changements à livrer. L'archive ci-dessous contient **uniquement `HEAD`** ; elle exclut les modifications non committées. Le dossier `master/` à sa racine est requis par le déploiement depuis une archive.
 
 ```bash

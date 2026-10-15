@@ -28,7 +28,9 @@ describe("point-cloud contracts", () => {
         expiresAt: "2026-09-09T12:00:00.000Z",
       }).mode,
     ).toBe("copc");
-    expect(() => pointCloudSourceSchema.parse({ mode: "octree" })).toThrow();
+    expect(() =>
+      pointCloudSourceSchema.parse({ mode: "unsupported" }),
+    ).toThrow();
   });
 
   it("accepts a finite spatial transform and CRS metadata", () => {

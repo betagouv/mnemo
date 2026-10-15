@@ -27,7 +27,7 @@ export class PrismaPointCloudSourceRepository implements PointCloudSourceReposit
         originalObjectKey: row.original_object_key,
       },
       result:
-        result?.format === "copc-v1" && result.copc_object_key
+        result?.format === "copc-v1"
           ? {
               format: "copc-v1" as const,
               copcObjectKey: result.copc_object_key,

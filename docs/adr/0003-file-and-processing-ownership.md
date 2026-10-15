@@ -15,6 +15,12 @@ Browsers upload large files directly with short-lived presigned URLs. A committe
 
 Deletion is asynchronous and idempotent. It removes derived artifacts, originals, processing caches, and database records while retaining enough job state to retry partial failure safely.
 
+For the current implementation, [ADR 0015](0015-s3-native-ifc-and-oneoff-processing.md)
+places IFC parsing in the Rust service on viewer open, and
+[ADR 0016](0016-copc-only-point-clouds.md) selects COPC for LAS/LAZ derivatives.
+The earlier Potree and generic worker wording above is historical, not an
+additional active processing path.
+
 ## Consequences
 
 - Restarting or replacing an IFC-Lite server cannot lose an original model.

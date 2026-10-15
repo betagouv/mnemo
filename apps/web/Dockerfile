@@ -37,12 +37,12 @@ ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 WORKDIR /app
 ENV MNEMO_LOCAL_COPC_BINARY=/app/copc-once.js
-ENV UNTWINE_PATH=/opt/pdal/bin/untwine
+ENV UNTWINE_PATH=/opt/untwine/bin/untwine
 
 RUN groupadd --system --gid 1001 nodejs \
   && useradd --system --uid 1001 --gid nodejs nextjs
 
-COPY --from=untwine-converter /app/bin /opt/pdal/bin
+COPY --from=untwine-converter /app/bin /opt/untwine/bin
 COPY --from=build --chown=nextjs:nodejs /workspace/apps/processing-worker/dist/process-point-cloud-once.js /app/copc-once.js
 
 COPY --from=build --chown=nextjs:nodejs /workspace/apps/web/public ./apps/web/public

@@ -70,4 +70,18 @@ describe("project membership persistence", () => {
       { projectId, projectTitle: "Integration test project", role: "editor" },
     ]);
   });
+
+  it("stores only the COPC artifact key for point clouds", async () => {
+    const columns = await database.db.$queryRaw<Array<{ column_name: string }>>`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'point_cloud_processing_results'
+        AND column_name LIKE '%object_key'
+      ORDER BY column_name
+    `;
+    expect(columns.map(({ column_name }) => column_name)).toEqual([
+      "copc_object_key",
+    ]);
+  });
 });

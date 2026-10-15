@@ -67,15 +67,11 @@ export class PrismaPointCloudProcessingRepository implements PointCloudProcessin
         processor = EXCLUDED.processor,
         processor_version = EXCLUDED.processor_version,
         copc_object_key = EXCLUDED.copc_object_key,
-        metadata_object_key = NULL,
-        hierarchy_object_key = NULL,
-        octree_object_key = NULL,
         point_count = EXCLUDED.point_count,
         spacing = EXCLUDED.spacing,
         processed_at = EXCLUDED.processed_at,
         updated_at = EXCLUDED.updated_at
-      -- Never overwrite old object keys: asset deletion still needs them.
-      WHERE point_cloud_processing_results.format = 'copc-v1'
+      WHERE point_cloud_processing_results.format = EXCLUDED.format
       RETURNING asset_id AS "assetId"
     `);
     return rows.length > 0;

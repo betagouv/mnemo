@@ -122,14 +122,7 @@ export class PrismaAssetRepository implements AssetRepository {
             type: "delete_asset",
             object_keys: [
               row.original_object_key,
-              ...(result
-                ? [
-                    result.metadata_object_key,
-                    result.hierarchy_object_key,
-                    result.octree_object_key,
-                    result.copc_object_key,
-                  ].filter((key): key is string => key !== null)
-                : []),
+              ...(result ? [result.copc_object_key] : []),
             ],
             available_at: requestedAt,
           },

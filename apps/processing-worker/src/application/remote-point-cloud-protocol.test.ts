@@ -34,8 +34,8 @@ describe("remote point cloud protocol", () => {
         status: "succeeded",
         result: {
           format: "copc-v1",
-          processor: "PDAL writers.copc",
-          processorVersion: "2.9.3",
+          processor: "Untwine",
+          processorVersion: "1.5.1",
           copcObjectKey: "projects/scan/derived/copc-v1/cloud.copc.laz",
           pointCount: 1_800,
           spacing: 0.15,

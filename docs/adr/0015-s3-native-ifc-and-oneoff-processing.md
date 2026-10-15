@@ -3,6 +3,7 @@
 - Status: accepted
 - Date: 2026-10-13
 - Supersedes: [ADR 0006](0006-persistent-processing-leases.md) and [ADR 0008](0008-ifc-lite-server-distribution.md) where they require a permanent processing worker or a Rust-only runtime image.
+- Format update: [ADR 0016](0016-copc-only-point-clouds.md) replaces the Potree conversion mentioned below with COPC. The S3-only one-off boundary remains accepted.
 
 ## Context
 

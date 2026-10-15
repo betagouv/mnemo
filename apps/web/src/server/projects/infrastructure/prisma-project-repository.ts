@@ -162,12 +162,7 @@ export class PrismaProjectRepository implements ProjectRepository {
         }),
         transaction.point_cloud_processing_results.findMany({
           where: { assets: { project_id: projectId } },
-          select: {
-            metadata_object_key: true,
-            hierarchy_object_key: true,
-            octree_object_key: true,
-            copc_object_key: true,
-          },
+          select: { copc_object_key: true },
         }),
       ]);
 
@@ -187,12 +182,7 @@ export class PrismaProjectRepository implements ProjectRepository {
                   ? [viewpoint.snapshot_object_key]
                   : [],
               ),
-              ...artifacts.flatMap((artifact) => [
-                artifact.metadata_object_key,
-                artifact.hierarchy_object_key,
-                artifact.octree_object_key,
-                artifact.copc_object_key,
-              ].filter((key): key is string => key !== null)),
+              ...artifacts.map((artifact) => artifact.copc_object_key),
             ],
             available_at: requestedAt,
           },
