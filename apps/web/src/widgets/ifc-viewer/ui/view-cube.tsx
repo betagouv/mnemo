@@ -194,15 +194,6 @@ export function ViewCube({
         ]}
         small
       />
-      <button
-        className={styles.fitButton}
-        onClick={() => getViewer()?.fitToView()}
-        title="Tout cadrer"
-        type="button"
-      >
-        <span className="fr-icon-focus-3-line" aria-hidden="true" />
-        Tout cadrer
-      </button>
     </nav>
   );
 }
