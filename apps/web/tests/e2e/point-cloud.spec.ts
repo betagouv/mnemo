@@ -50,7 +50,7 @@ test("uploads, processes and range-loads the versioned COPC fixture", async ({
         },
         { timeout: 120_000, intervals: [1_000, 2_000, 3_000] },
       )
-      .toContain("Prêt");
+      .toMatch(/prêt/i);
 
     const sourceResponse = await request.get(
       `/api/projects/${projectId}/assets/${assetId}/point-cloud/source`,
