@@ -74,6 +74,7 @@ jobs:
       S3_BUCKET: mnemo-files
       S3_ACCESS_KEY: mnemo
       S3_SECRET_KEY: mnemo-local-password
+      IFC_BROWSER_PROCESSING_MAX_BYTES: "0"
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -85,6 +86,7 @@ jobs:
       - run: pnpm db:migrate
       - run: pnpm db:seed
       - run: docker compose --env-file .env.local.example up -d minio create-bucket
+      - run: docker compose --env-file .env.local.example up -d --wait ifc-lite-server
       - run: pnpm --filter @mnemo/web exec playwright install --with-deps chromium
       - run: pnpm build
       - run: pnpm test:e2e
