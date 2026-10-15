@@ -22,7 +22,7 @@ export default defineConfig({
   webServer: externalBaseUrl
     ? undefined
     : {
-        command: "pnpm dev:e2e",
+        command: process.env.CI ? "pnpm start:e2e" : "pnpm dev:e2e",
         env: {
           DATABASE_URL:
             process.env.DATABASE_URL ??

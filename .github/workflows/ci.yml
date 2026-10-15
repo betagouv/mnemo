@@ -86,4 +86,5 @@ jobs:
       - run: pnpm db:seed
       - run: docker compose --env-file .env.local.example up -d minio create-bucket
       - run: pnpm --filter @mnemo/web exec playwright install --with-deps chromium
+      - run: pnpm build
       - run: pnpm test:e2e
