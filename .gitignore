@@ -27,6 +27,7 @@ models/
 *.ifczip
 *.las
 *.laz
+!apps/web/tests/fixtures/tiny.copc.laz
 *.e57
 *.ply
 
