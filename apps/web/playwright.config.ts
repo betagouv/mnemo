@@ -12,7 +12,7 @@ export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
-  workers: process.env.CI ? 2 : undefined,
+  workers: process.env.CI ? 1 : undefined,
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? "github" : "list",
   use: {
@@ -51,7 +51,28 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: {
+        ...devices["Desktop Chrome"],
+        channel: "chrome",
+        launchOptions: {
+          args: process.env.CI
+            ? [
+                "--enable-unsafe-webgpu",
+                "--enable-features=Vulkan",
+                "--use-vulkan=swiftshader",
+                "--disable-vulkan-surface",
+                "--ignore-gpu-blocklist",
+                "--enable-gpu",
+              ]
+            : [
+                "--enable-gpu",
+                "--enable-webgpu",
+                "--enable-unsafe-webgpu",
+                "--use-angle=default",
+                "--ignore-gpu-blocklist",
+              ],
+        },
+      },
     },
   ],
 });

@@ -1,7 +1,13 @@
+import { fileURLToPath } from "node:url";
+
 import { openAssetResultSchema } from "@mnemo/contracts/assets";
 import { expect, test } from "@playwright/test";
 
 import { gotoHydrated, waitForHydration } from "./hydration";
+
+const sampleIfcPath = fileURLToPath(
+  new URL("../fixtures/Ifc4_SampleHouse.ifc", import.meta.url),
+);
 
 test("renders the application foundation", async ({ page }) => {
   await gotoHydrated(page, "/");
@@ -159,6 +165,7 @@ test("creates, reloads, opens and deletes a project asset", async ({
   page,
   request,
 }) => {
+  test.setTimeout(180_000);
   const projectName = `Projet Playwright ${Date.now()}`;
 
   await gotoHydrated(page, "/projets");
@@ -208,12 +215,10 @@ test("creates, reloads, opens and deletes a project asset", async ({
       page.getByRole("heading", { name: "Fichiers du projet" }),
     ).toBeVisible();
 
-    const fileName = `maquette-${Date.now()}.ifc`;
-    await page.locator('input[type="file"][accept*=".ifc"]').setInputFiles({
-      name: fileName,
-      mimeType: "application/x-step",
-      buffer: Buffer.from("ISO-10303-21;\nEND-ISO-10303-21;\n"),
-    });
+    const fileName = "Ifc4_SampleHouse.ifc";
+    await page
+      .locator('input[type="file"][accept*=".ifc"]')
+      .setInputFiles(sampleIfcPath);
 
     await expect(page.getByRole("heading", { name: fileName })).toBeVisible();
     await page.reload();
@@ -235,6 +240,47 @@ test("creates, reloads, opens and deletes a project asset", async ({
     expect(openAssetResultSchema.parse(await response.json()).asset.id).toBe(
       assetId,
     );
+
+    await page.getByRole("link", { name: "Visualiser le projet" }).click();
+    await expect(page).toHaveURL(/\/projets\/[0-9a-f-]+\/viewer$/);
+    await expect(
+      page.locator('[aria-label="Visionneuse 3D du projet"]'),
+    ).toBeVisible();
+
+    // Hosted CI has no reliable WebGPU device. The same versioned fixture is
+    // parsed and counted without GPU in sample-house-fixture.test.ts; the
+    // headed local E2E additionally checks the rendered viewer counters.
+    if (process.env.CI) return;
+
+    const stats = page
+      .locator('[aria-label="Visionneuse 3D du projet"] [role="status"]')
+      .filter({ hasText: "entités IFC" });
+    const viewerError = page.locator(
+      '[aria-label="Visionneuse 3D du projet"] [role="alert"]',
+    );
+    try {
+      await expect(stats.or(viewerError)).toBeVisible({ timeout: 120_000 });
+    } catch (error) {
+      const visibleText = (await page.locator("body").innerText()).slice(
+        0,
+        2_000,
+      );
+      throw new Error(
+        `Le viewer ne s'est pas chargé. Texte visible : ${visibleText}`,
+        {
+          cause: error,
+        },
+      );
+    }
+    if (await viewerError.isVisible()) {
+      throw new Error(
+        `Le viewer IFC a échoué : ${await viewerError.innerText()}`,
+      );
+    }
+    await expect(stats).toContainText(/47\s*309\s*entités IFC/, {
+      timeout: 120_000,
+    });
+    await expect(stats).toContainText(/223\s*maillages/);
   } finally {
     await gotoHydrated(page, projectHref);
     page.once("dialog", (dialog) => void dialog.accept());
