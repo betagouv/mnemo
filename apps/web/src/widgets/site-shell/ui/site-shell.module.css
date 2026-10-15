@@ -1,0 +1,56 @@
+.compactHeader :global(.fr-header__body-row) {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.compactHeader :global(.fr-header__brand) {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.compactHeader :global(.fr-header__logo),
+.compactHeader :global(.fr-header__operator),
+.compactHeader :global(.fr-header__service) {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.compactHeader :global(.fr-header__logo) {
+  padding-right: 0.5rem;
+}
+
+/* Keep the DSFR Marianne flag, without the text or motto, in the viewer. */
+.compactHeader :global(.fr-header__logo .fr-logo) {
+  font-size: 0;
+  line-height: 0;
+}
+
+.compactHeader :global(.fr-header__logo .fr-logo::before) {
+  margin-bottom: 0;
+}
+
+.compactHeader :global(.fr-header__logo .fr-logo::after) {
+  content: none;
+}
+
+.compactHeader :global(.fr-header__operator img) {
+  width: 9.0625rem;
+  max-height: 2.5rem;
+  object-fit: cover;
+  object-position: center;
+}
+
+.compactHeader :global(.fr-header__service-title) {
+  margin: 0;
+}
+
+@media (width <= 61.99rem) {
+  .compactHeader :global(.fr-header__service) {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  .compactHeader :global(.fr-header__service::before) {
+    display: none;
+  }
+}
