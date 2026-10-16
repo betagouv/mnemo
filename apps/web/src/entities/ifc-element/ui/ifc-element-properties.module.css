@@ -107,7 +107,7 @@
   grid-template-columns: minmax(4.5rem, 0.9fr) minmax(0, 1fr);
   gap: 0.45rem;
   padding: 0.35rem 0;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--viewer-border);
 }
 
 .values > div:last-child {

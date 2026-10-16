@@ -1,6 +1,6 @@
 .disclosure {
   min-width: 0;
-  border-bottom: 1px solid var(--viewer-border, #dedee6);
+  border-bottom: 1px solid var(--viewer-border, var(--border-default-grey));
 }
 
 .header {
@@ -13,7 +13,7 @@
 }
 
 .header[data-expanded="true"] {
-  background: var(--viewer-soft, #f5f5fe);
+  background: var(--viewer-soft, var(--background-alt-blue-france));
 }
 
 .heading {
@@ -31,7 +31,7 @@
   align-items: center;
   padding: 0;
   border: 0;
-  color: var(--viewer-accent, #000091);
+  color: var(--viewer-accent, var(--text-action-high-blue-france));
   background: transparent;
   background-image: none;
   cursor: pointer;
@@ -41,7 +41,7 @@
 }
 
 .toggle:focus-visible {
-  outline: 2px solid var(--viewer-accent, #000091);
+  outline: 2px solid var(--viewer-accent, var(--text-action-high-blue-france));
   outline-offset: 2px;
 }
 

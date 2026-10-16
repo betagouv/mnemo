@@ -4,7 +4,7 @@
   height: 100%;
   min-height: 0;
   grid-template-rows: auto minmax(0, 1fr);
-  background: #fff;
+  background: var(--background-default-grey);
 }
 
 .header {
@@ -60,7 +60,7 @@
 }
 
 .error {
-  color: #b34000;
+  color: var(--text-default-warning);
 }
 
 .empty {

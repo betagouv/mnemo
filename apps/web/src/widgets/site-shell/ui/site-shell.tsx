@@ -1,5 +1,6 @@
 import Footer from "@codegouvfr/react-dsfr/Footer";
 import Header from "@codegouvfr/react-dsfr/Header";
+import { headerFooterDisplayItem } from "@codegouvfr/react-dsfr/Display";
 
 import styles from "./site-shell.module.css";
 
@@ -35,7 +36,7 @@ export function SiteHeader({
     <Header
       brandTop={brand}
       operatorLogo={operatorLogo}
-      className={compact ? styles.compactHeader : undefined}
+      className={`${styles.siteHeader} ${compact ? styles.compactHeader : ""}`}
       homeLinkProps={
         projectTitle && projectHref
           ? { href: projectHref, title: `Dossier ${projectTitle}` }
@@ -57,8 +58,9 @@ export function SiteFooter({ className }: { className?: string } = {}) {
   return (
     <Footer
       accessibility="non compliant"
+      bottomItems={[headerFooterDisplayItem]}
       brandTop={brand}
-      classes={className ? { root: className } : undefined}
+      classes={{ root: `${styles.siteFooter} ${className ?? ""}` }}
       contentDescription="Mémoire Numérique pour l'Exploitation et la Maintenance des Ouvrages"
       homeLinkProps={homeLinkProps}
       operatorLogo={operatorLogo}

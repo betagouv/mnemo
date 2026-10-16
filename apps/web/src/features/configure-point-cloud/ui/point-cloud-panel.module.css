@@ -1,7 +1,7 @@
 .panel {
   width: 100%;
   color: var(--viewer-text);
-  background: #fff;
+  background: var(--background-default-grey);
 }
 
 .cloudRow {
@@ -95,12 +95,12 @@
 }
 
 .cloudDetails header span[data-phase="ready"] {
-  color: #18753c;
+  color: var(--text-default-success);
 }
 
 .cloudDetails header span[data-phase="error"],
 .error {
-  color: #b34000 !important;
+  color: var(--text-default-warning) !important;
 }
 
 .cloudDetails header > strong {

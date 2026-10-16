@@ -7,8 +7,8 @@
   padding: 0;
   border: 2px solid var(--viewer-accent);
   border-radius: 2px;
-  color: #fff;
-  background: #fff;
+  color: var(--text-inverted-blue-france);
+  background: var(--background-default-grey);
   font-size: 0.62rem;
   font-weight: 700;
   line-height: 1;
@@ -24,6 +24,6 @@
 }
 
 .visibility[data-exceptions="true"] {
-  outline: 2px solid #e4794a;
+  outline: 2px solid var(--border-plain-warning);
   outline-offset: 2px;
 }

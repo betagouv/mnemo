@@ -30,7 +30,7 @@
 }
 
 .body {
-  scrollbar-color: #b6b6bd transparent;
+  scrollbar-color: var(--border-default-grey) transparent;
   scrollbar-width: thin;
 }
 

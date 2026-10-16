@@ -143,6 +143,9 @@ export class IfcViewerController {
   private colorOverrides = new Map<number, [number, number, number, number]>();
   private readonly pointCloudLayers: PointCloudLayers;
   private projectionSwitchGeneration = 0;
+  private backgroundColor: [number, number, number, number] = [
+    0.97, 0.97, 0.985, 1,
+  ];
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -407,6 +410,11 @@ export class IfcViewerController {
     const normalized = Math.min(12, Math.max(1, pointSize));
     this.renderer.setPointCloudOptions({ pointSize: normalized });
     this.updateSnapshot({ pointCloudOptions: { pointSize: normalized } });
+    this.renderer.requestRender();
+  }
+
+  setBackgroundColor(color: [number, number, number, number]) {
+    this.backgroundColor = color;
     this.renderer.requestRender();
   }
 
@@ -890,7 +898,7 @@ export class IfcViewerController {
       ) {
         this.renderer.consumeRenderRequest();
         this.renderer.render({
-          clearColor: [0.97, 0.97, 0.985, 1],
+          clearColor: this.backgroundColor,
           isInteracting: this.interactions.isInteracting,
           selectedId:
             this.snapshot.selection && this.snapshot.activeModelId

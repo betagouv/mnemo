@@ -52,7 +52,7 @@
 .model[data-mode="hide"][data-exceptions="true"],
 .storey[data-mode="hide"][data-exceptions="true"],
 .classGroup[data-mode="hide"][data-exceptions="true"] {
-  background: #fff4ed;
+  background: var(--background-contrast-warning);
 }
 
 .storey,
@@ -66,7 +66,7 @@
 }
 
 .classGroup {
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--viewer-border);
 }
 
 .element {
@@ -124,8 +124,8 @@
   flex: none;
   margin-left: auto;
   padding: 0.05rem 0.25rem;
-  color: #b34000;
-  background: #fff0e8;
+  color: var(--text-default-warning);
+  background: var(--background-contrast-warning);
   font-size: 0.56rem;
   font-style: normal;
   font-weight: 700;
@@ -165,9 +165,9 @@
 .mixedHint {
   margin: 0.25rem 0;
   padding: 0.25rem 0.35rem;
-  border-left: 2px solid #e4794a;
-  color: #7c3300;
-  background: #fff4ed;
+  border-left: 2px solid var(--border-plain-warning);
+  color: var(--text-default-warning);
+  background: var(--background-contrast-warning);
   font-size: 0.62rem;
   line-height: 1.3;
 }
