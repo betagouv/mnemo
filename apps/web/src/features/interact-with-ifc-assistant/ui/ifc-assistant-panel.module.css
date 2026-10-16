@@ -7,7 +7,7 @@
 .panel {
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: var(--background-default-grey);
 }
 
 .panel[hidden] {
@@ -17,7 +17,7 @@
 .thread {
   min-height: 0;
   flex: 1;
-  background: #fff;
+  background: var(--background-default-grey);
 }
 
 .threadToolbar {
@@ -41,7 +41,7 @@
   overflow: hidden;
   border: 1px solid var(--viewer-border);
   color: var(--viewer-text);
-  background: #fff;
+  background: var(--background-default-grey);
   font-size: 0.68rem;
   text-overflow: ellipsis;
 }
@@ -53,13 +53,13 @@
   place-items: center;
   border: 1px solid var(--viewer-border);
   color: var(--viewer-accent);
-  background: #fff;
+  background: var(--background-default-grey);
   cursor: pointer;
 }
 
 .threadToolbar button:hover:not(:disabled) {
   border-color: var(--viewer-accent);
-  background: #e3e3fd;
+  background: var(--background-alt-blue-france-hover);
 }
 
 .threadToolbar button:disabled,
@@ -82,8 +82,8 @@
 }
 
 .threadError {
-  color: #b34000;
-  background: #fff4ed;
+  color: var(--text-default-warning);
+  background: var(--background-contrast-warning);
 }
 
 .threadLoading {
@@ -97,7 +97,7 @@
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  scrollbar-color: #b6b6bd transparent;
+  scrollbar-color: var(--border-default-grey) transparent;
   scrollbar-width: thin;
 }
 
@@ -114,7 +114,7 @@
   display: grid;
   place-items: center;
   border-radius: 50%;
-  color: #fff;
+  color: var(--text-inverted-blue-france);
   background: var(--viewer-accent);
   font-weight: 800;
 }
@@ -139,7 +139,7 @@
   display: inline-flex;
   gap: 0.35rem;
   align-items: center;
-  color: #18753c;
+  color: var(--text-default-success);
   font-size: 0.64rem;
 }
 
@@ -147,7 +147,7 @@
   width: 0.4rem;
   height: 0.4rem;
   border-radius: 50%;
-  background: #18753c;
+  background: var(--background-action-high-success);
 }
 
 .suggestions {
@@ -159,7 +159,7 @@
 
 .suggestions button {
   padding: 0.55rem 0.65rem;
-  border: 1px solid #c5c5f8;
+  border: 1px solid var(--border-default-blue-france);
   color: var(--viewer-accent);
   background: var(--viewer-soft);
   font-size: 0.68rem;
@@ -170,7 +170,7 @@
 
 .suggestions button:hover {
   border-color: var(--viewer-accent);
-  background: #e3e3fd;
+  background: var(--background-alt-blue-france-hover);
 }
 
 .userMessage,
@@ -267,7 +267,7 @@
   align-items: center;
   margin: 0.35rem 0;
   padding: 0.35rem 0.5rem;
-  border: 1px solid #c5c5f8;
+  border: 1px solid var(--border-default-blue-france);
   color: var(--viewer-accent);
   background: var(--viewer-soft);
 }
@@ -289,7 +289,7 @@
 
 .messageError {
   margin: 0.5rem 0 0;
-  color: #b34000;
+  color: var(--text-default-warning);
   font-size: 0.7rem;
 }
 
@@ -301,7 +301,10 @@
   gap: 0.35rem;
   margin-top: auto;
   padding: 0.65rem 0.75rem 0.75rem;
-  background: linear-gradient(transparent, #fff 1.2rem);
+  background: linear-gradient(
+    transparent,
+    var(--background-default-grey) 1.2rem
+  );
 }
 
 .composer {
@@ -311,7 +314,7 @@
   align-items: end;
   padding: 0.45rem;
   border: 1px solid var(--viewer-border);
-  background: #fff;
+  background: var(--background-default-grey);
 }
 
 .composer:focus-within {
@@ -341,7 +344,7 @@
   display: grid;
   place-items: center;
   border: 0;
-  color: #fff;
+  color: var(--text-inverted-blue-france);
   background: var(--viewer-accent);
   cursor: pointer;
 }

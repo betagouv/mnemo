@@ -32,7 +32,7 @@ export function ViewerSidePanel({
   return (
     <aside
       aria-labelledby={titleId}
-      className={`${styles.root} z-[2] grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] border-l border-[var(--viewer-border)] bg-white max-[769px]:absolute max-[769px]:inset-y-0 max-[769px]:right-0 max-[769px]:z-20 max-[769px]:w-[min(100vw,26rem)] min-[769px]:max-[1025px]:absolute min-[769px]:max-[1025px]:inset-y-0 min-[769px]:max-[1025px]:right-0 min-[769px]:max-[1025px]:w-[22rem] min-[769px]:max-[897px]:w-[min(22rem,48vw)]`}
+      className={`${styles.root} z-[2] grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] border-l border-[var(--viewer-border)] bg-[var(--background-default-grey)] max-[769px]:absolute max-[769px]:inset-y-0 max-[769px]:right-0 max-[769px]:z-20 max-[769px]:w-[min(100vw,26rem)] min-[769px]:max-[1025px]:absolute min-[769px]:max-[1025px]:inset-y-0 min-[769px]:max-[1025px]:right-0 min-[769px]:max-[1025px]:w-[22rem] min-[769px]:max-[897px]:w-[min(22rem,48vw)]`}
       hidden={!isOpen}
     >
       <header

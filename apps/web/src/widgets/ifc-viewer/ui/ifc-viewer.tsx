@@ -194,7 +194,7 @@ export function ProjectViewer({
       </aside>
 
       <section
-        className="relative min-h-0 min-w-0 overflow-hidden bg-[#f7f7fb]"
+        className="relative min-h-0 min-w-0 overflow-hidden bg-[var(--background-alt-grey)]"
         aria-label="Visionneuse 3D du projet"
       >
         <canvas

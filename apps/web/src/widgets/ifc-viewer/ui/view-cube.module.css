@@ -79,10 +79,10 @@
   height: 100%;
   padding: 0;
   place-items: center;
-  border: 1px solid #8d8dff;
+  border: 1px solid var(--border-default-blue-france);
   border-radius: 0;
-  color: #000091;
-  background: #f5f5fe;
+  color: var(--text-action-high-blue-france);
+  background: var(--background-alt-blue-france);
   backface-visibility: hidden;
   cursor: pointer;
   font-size: 0.58rem;
@@ -94,10 +94,10 @@
 
 .face:hover,
 .face:focus-visible {
-  border-color: #000091;
-  outline: 2px solid #000091;
+  border-color: var(--border-default-blue-france);
+  outline: 2px solid var(--border-default-blue-france);
   outline-offset: -3px;
-  background: #dedeff;
+  background: var(--background-alt-blue-france-hover);
 }
 
 .front {

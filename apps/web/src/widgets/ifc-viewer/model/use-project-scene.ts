@@ -132,6 +132,19 @@ export function useProjectScene({
     const controller = new IfcViewerController(canvas);
     let cancelled = false;
     controllerRef.current = controller;
+    const syncBackground = () => {
+      controller.setBackgroundColor(
+        document.documentElement.dataset.frTheme === "dark"
+          ? [0.12, 0.12, 0.12, 1]
+          : [0.97, 0.97, 0.985, 1],
+      );
+    };
+    syncBackground();
+    const themeObserver = new MutationObserver(syncBackground);
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-fr-theme"],
+    });
     const unsubscribe = controller.subscribe(setSnapshot);
     void (async () => {
       try {
@@ -174,6 +187,7 @@ export function useProjectScene({
 
     return () => {
       cancelled = true;
+      themeObserver.disconnect();
       unsubscribe();
       controller.dispose();
       controllerRef.current = null;

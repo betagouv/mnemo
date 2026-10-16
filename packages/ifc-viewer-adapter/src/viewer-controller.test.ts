@@ -631,6 +631,19 @@ function createHarness({
 }
 
 describe("IfcViewerController", () => {
+  it("updates the scene background without recreating or reframing the renderer", async () => {
+    const { calls, controller, advanceFrame } = createHarness();
+    await controller.init();
+
+    controller.setBackgroundColor([0.12, 0.12, 0.12, 1]);
+    advanceFrame();
+
+    expect(calls.lastRenderOptions?.clearColor).toEqual([0.12, 0.12, 0.12, 1]);
+    expect(calls.rendererCreated).toBe(1);
+    expect(calls.fitToView).toBe(0);
+    controller.dispose();
+  });
+
   it("projects world anchors into CSS pixels for scene overlays", () => {
     const { controller, setCanvasPixelSize } = createHarness();
     setCanvasPixelSize(500, 350);

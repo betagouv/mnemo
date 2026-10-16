@@ -21,9 +21,9 @@ export function ViewerFooter() {
   }, [expanded]);
 
   return (
-    <div className={`${styles.root} relative z-20 h-14 flex-none bg-white`}>
+    <div className={`${styles.root} relative z-20 h-14 flex-none`}>
       <div
-        className={`${styles.panel} absolute right-0 bottom-0 left-0 bg-white shadow-[0_-8px_24px_rgb(0_0_0_/_12%)]`}
+        className={`${styles.panel} absolute right-0 bottom-0 left-0 shadow-[0_-8px_24px_rgb(0_0_0_/_12%)]`}
       >
         <button
           aria-label={expanded ? "Fermer" : "Plus d’informations"}

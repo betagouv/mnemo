@@ -3,11 +3,11 @@
 @tailwind utilities;
 
 :root {
-  --mnemo-ink: #161616;
-  --mnemo-blue: #000091;
-  --mnemo-blue-dark: #00006d;
-  --mnemo-soft: #f5f5fe;
-  --mnemo-mint: #b8fec9;
+  --mnemo-ink: var(--text-default-grey);
+  --mnemo-blue: var(--text-action-high-blue-france);
+  --mnemo-blue-dark: var(--background-action-high-blue-france-hover);
+  --mnemo-soft: var(--background-alt-blue-france);
+  --mnemo-mint: var(--background-contrast-success);
 }
 
 * {
@@ -17,10 +17,10 @@
 body {
   margin: 0;
   color: var(--mnemo-ink);
-  background: #fff;
+  background: var(--background-default-grey);
 }
 
 ::selection {
-  color: #fff;
-  background: var(--mnemo-blue);
+  color: var(--text-inverted-blue-france);
+  background: var(--background-action-high-blue-france);
 }

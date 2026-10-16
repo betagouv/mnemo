@@ -31,6 +31,10 @@ async function expectFloatingViewerTools(
         toolsRect.right <= viewportRect.right &&
         toolsRect.bottom < viewportRect.bottom,
       toolsAtLeft: toolsRect.left - viewportRect.left <= 20,
+      triggersAreSquare: triggerRects.every(
+        (rect) =>
+          Math.abs(rect.width - 44) <= 1 && Math.abs(rect.height - 44) <= 1,
+      ),
       triggersStackVertically: triggerRects.every(
         (rect, index) =>
           Math.abs(rect.left - triggerRects[0].left) <= 1 &&
@@ -42,6 +46,7 @@ async function expectFloatingViewerTools(
     sceneUsesFullHeight: true,
     toolsInsideScene: true,
     toolsAtLeft: true,
+    triggersAreSquare: true,
     triggersStackVertically: true,
   });
 }

@@ -15,7 +15,7 @@
   border: 1px solid var(--viewer-border);
   border-radius: 0;
   color: var(--viewer-text);
-  background: #fff;
+  background: var(--background-default-grey);
   font: inherit;
 }
 
@@ -141,7 +141,7 @@
 
 .message {
   margin: -0.4rem 0 0;
-  color: #18753c;
+  color: var(--text-default-success);
 }
 
 .topics,
@@ -186,7 +186,7 @@
 
 .topicList i[data-priority="high"],
 .topicList i[data-priority="critical"] {
-  background: #b34000;
+  background: var(--background-action-high-warning);
 }
 
 .topicList small {

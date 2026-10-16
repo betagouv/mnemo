@@ -1,3 +1,10 @@
+:global([data-fr-theme="dark"]) .siteHeader :global(.fr-header__operator img),
+:global([data-fr-theme="dark"]) .siteFooter :global(img.fr-footer__logo) {
+  /* The supplied logo is opaque white; keep its red/black mark legible on dark surfaces. */
+  filter: invert(1) hue-rotate(180deg);
+  mix-blend-mode: screen;
+}
+
 .compactHeader :global(.fr-header__body-row) {
   padding-top: 0;
   padding-bottom: 0;
