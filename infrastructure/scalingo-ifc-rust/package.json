@@ -9,6 +9,6 @@
     "postinstall": "ifc-lite-server download"
   },
   "dependencies": {
-    "@ifc-lite/server-bin": "2.0.0"
+    "@ifc-lite/server-bin": "2.0.1"
   }
 }

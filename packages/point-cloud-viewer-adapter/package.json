@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@ifc-lite/pointcloud": "0.12.0",
-    "@ifc-lite/renderer": "2.0.1"
+    "@ifc-lite/renderer": "6.4.0"
   },
   "devDependencies": {
     "typescript": "^5.9.3",

@@ -1,0 +1,13 @@
+diff --git a/dist/geometry-worker-pool.js b/dist/geometry-worker-pool.js
+index 9dff2b78df634aae2569ffda1ab74da88eb2864f..3cdb3ac7732a7ffa6b4729d969ed436bfc60e37e 100644
+--- a/dist/geometry-worker-pool.js
++++ b/dist/geometry-worker-pool.js
+@@ -29,7 +29,7 @@
+ import { accountWorkerMessages, perfCount } from '@ifc-lite/load-trace';
+ /** The one construction site of the geometry worker bundle (Vite rewrites this URL). */
+ export function spawnGeometryWorker() {
+-    return new Worker(new URL('./geometry.worker.ts', import.meta.url), { type: 'module' });
++    return new Worker(new URL('./geometry.worker.js', import.meta.url), { type: 'module' });
+ }
+ const MB = 1024 * 1024;
+ /** What a freshly instantiated engine holds: ~9 MB of initial wasm memory plus worker overhead. */

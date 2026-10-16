@@ -13,7 +13,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@ifc-lite/bcf": "3.0.1",
+    "@ifc-lite/bcf": "5.0.1",
     "@mnemo/contracts": "workspace:*",
     "zod": "4.5.4"
   },
