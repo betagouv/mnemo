@@ -495,7 +495,7 @@ export class IfcViewerController {
       undefined,
       targetDistance,
     );
-    const visibleIds = this.expressIdsFor(state.visibleGuids);
+    const visibleIds = this.expressIdsFor(state.visibleGuids ?? []);
     const hiddenIds = this.expressIdsFor(state.hiddenGuids);
     const colors = state.coloredGuids.map(({ color, guids }) => {
       const rgba = parseARGBColor(color);

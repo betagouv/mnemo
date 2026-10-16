@@ -11,3 +11,7 @@ onlyBuiltDependencies:
   - "@parcel/watcher"
   - esbuild
   - prisma
+# geometry 7.8.1 publishes geometry.worker.js but its pool still references .ts.
+# Remove this patch when the upstream package fixes its published worker URL.
+patchedDependencies:
+  "@ifc-lite/geometry@7.8.1": patches/@ifc-lite__geometry@7.8.1.patch
