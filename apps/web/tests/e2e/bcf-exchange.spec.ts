@@ -1,5 +1,5 @@
 import { decodeBcfArchive, encodeBcfArchive } from "@mnemo/bcf-adapter";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 import { gotoHydrated } from "./hydration";
 

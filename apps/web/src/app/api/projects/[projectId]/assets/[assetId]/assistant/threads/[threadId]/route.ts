@@ -7,7 +7,7 @@ import { projectIdSchema } from "@mnemo/contracts/projects";
 
 import { AssistantThreadAccessDeniedError } from "@/server/assistant/application/assistant-thread-errors";
 import { getAssistantThreadService } from "@/server/assistant/assistant-thread-service-factory";
-import { resolveActor } from "@/server/auth/resolve-actor";
+import { getCurrentActor } from "@/server/auth/resolve-actor";
 
 export const runtime = "nodejs";
 
@@ -23,15 +23,16 @@ export async function GET(
     return Response.json({ error: "Thread not found" }, { status: 404 });
   }
 
+  const actor = await getCurrentActor();
+  if (!actor)
+    return Response.json({ error: "Authentication required" }, { status: 401 });
+
   try {
-    const history = await getAssistantThreadService().history(
-      resolveActor().id,
-      {
-        projectId: projectId.data,
-        assetId: assetId.data,
-        threadId: threadId.data,
-      },
-    );
+    const history = await getAssistantThreadService().history(actor.id, {
+      projectId: projectId.data,
+      assetId: assetId.data,
+      threadId: threadId.data,
+    });
     return Response.json(assistantThreadHistorySchema.parse(history), {
       headers: { "cache-control": "no-store" },
     });

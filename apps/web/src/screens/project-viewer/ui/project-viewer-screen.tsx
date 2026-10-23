@@ -22,7 +22,7 @@ export async function ProjectViewerScreen({
   const parsed = projectIdSchema.safeParse(projectId);
   if (!parsed.success) notFound();
 
-  const actorId = resolveActor().id;
+  const actorId = (await resolveActor()).id;
   const project = await getProjectService().find(actorId, parsed.data);
   if (!project) notFound();
 
@@ -126,6 +126,7 @@ export async function ProjectViewerScreen({
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex-none">
         <SiteHeader
+          authenticated
           compact
           projectHref={`/projets/${project.id}`}
           projectTitle={project.title}

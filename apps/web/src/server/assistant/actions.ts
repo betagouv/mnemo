@@ -18,14 +18,14 @@ export async function createAssistantThread(
   input: CreateInput,
 ): Promise<AssistantThreadSummary> {
   return getAssistantThreadService().create(
-    resolveActor().id,
+    (await resolveActor()).id,
     createAssistantThreadInputSchema.parse(input),
   );
 }
 
 export async function deleteAssistantThread(input: DeleteInput) {
   return getAssistantThreadService().delete(
-    resolveActor().id,
+    (await resolveActor()).id,
     deleteAssistantThreadInputSchema.parse(input),
   );
 }

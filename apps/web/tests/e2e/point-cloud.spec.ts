@@ -1,7 +1,7 @@
 import { fileURLToPath } from "node:url";
 
 import { pointCloudSourceSchema } from "@mnemo/contracts/point-clouds";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 import { gotoHydrated, waitForHydration } from "./hydration";
 

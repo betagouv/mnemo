@@ -13,7 +13,7 @@ export async function updatePointCloudSettings(
   input: UpdatePointCloudSettingsInput,
 ) {
   return getPointCloudSettingsService().update(
-    resolveActor().id,
+    (await resolveActor()).id,
     updatePointCloudSettingsInputSchema.parse(input),
   );
 }

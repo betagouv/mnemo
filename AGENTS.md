@@ -75,7 +75,7 @@ app -> screens -> widgets -> features -> entities -> shared
 - PostgreSQL is the source of truth for projects, memberships, assets, scene state, jobs, BCF metadata, and chat metadata.
 - Object storage is the source of truth for original files and derived binary artifacts.
 - Project access is many-to-many through `project_members`; do not put a single owner foreign key in place of membership authorization.
-- Until authentication is implemented, resolve a seeded development actor through an application port. Production configuration must reject development authentication mode.
+- Authenticate users with Better Auth email/password sessions. There is no development actor or alternate authentication mode.
 - Authentication identifies the actor. Project permissions authorize each operation. Enforce authorization in server use cases, not only in pages or components.
 - Generate storage object keys on the server. Never trust a client-provided object key or prefix.
 - Deletion workflows must be idempotent and clean database records, original objects, derived artifacts, caches, and working copies.

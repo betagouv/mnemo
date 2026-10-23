@@ -5,6 +5,13 @@ const port = process.env.MNEMO_WEB_PORT ?? "3200";
 const modelDirectory =
   process.env.MNEMO_DEV_MODEL_DIR ?? resolve(".data/ifc-mcp-models");
 
+if (!process.env.BETTER_AUTH_URL) {
+  throw new Error("BETTER_AUTH_URL is required");
+}
+if ((process.env.BETTER_AUTH_SECRET?.length ?? 0) < 32) {
+  throw new Error("BETTER_AUTH_SECRET must be at least 32 characters");
+}
+
 function requireEnvironment(name) {
   const value = process.env[name];
   if (!value)
@@ -14,8 +21,6 @@ function requireEnvironment(name) {
 
 const environment = {
   ...process.env,
-  MNEMO_AUTH_MODE: process.env.MNEMO_AUTH_MODE ?? "development",
-  MNEMO_DEPLOYMENT_ENV: process.env.MNEMO_DEPLOYMENT_ENV ?? "local",
   MNEMO_BACKGROUND_JOBS: "1",
   MNEMO_REPO_ROOT: process.cwd(),
   MNEMO_ENV_FILE: process.env.MNEMO_ENV_FILE ?? ".env.local",
@@ -58,6 +63,6 @@ function run(args) {
 }
 
 run(["db:generate"]);
-run(["db:seed"]);
+run(["db:migrate"]);
 console.info(`Next.js development server: http://localhost:${port}`);
 run(["--filter", "@mnemo/web", "dev", "--hostname", "0.0.0.0", "--port", port]);

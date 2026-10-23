@@ -27,10 +27,12 @@ export function SiteHeader({
   compact = false,
   projectTitle,
   projectHref,
+  authenticated = false,
 }: {
   compact?: boolean;
   projectTitle?: string;
   projectHref?: string;
+  authenticated?: boolean;
 }) {
   return (
     <Header
@@ -49,6 +51,11 @@ export function SiteHeader({
           text: "Mes dossiers",
           linkProps: { href: "/projets" },
         },
+        {
+          iconId: "fr-icon-account-circle-line",
+          text: authenticated ? "Mon compte" : "Se connecter",
+          linkProps: { href: authenticated ? "/compte" : "/connexion" },
+        },
       ]}
     />
   );
@@ -65,17 +72,5 @@ export function SiteFooter({ className }: { className?: string } = {}) {
       homeLinkProps={homeLinkProps}
       operatorLogo={operatorLogo}
     />
-  );
-}
-
-export function SiteShell({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
-  return (
-    <div className="flex min-h-screen flex-col">
-      <SiteHeader />
-      <div className="flex-1">{children}</div>
-      <SiteFooter />
-    </div>
   );
 }

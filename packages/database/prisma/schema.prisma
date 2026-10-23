@@ -265,6 +265,8 @@ model users {
   id                   String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email                String                 @unique(map: "users_email_unique") @db.VarChar(320)
   display_name         String                 @db.VarChar(160)
+  email_verified       Boolean                @default(false)
+  image                String?
   created_at           DateTime               @default(now()) @db.Timestamptz(6)
   updated_at           DateTime               @default(now()) @updatedAt @db.Timestamptz(6)
   assets               assets[]
@@ -275,6 +277,60 @@ model users {
   point_cloud_settings point_cloud_settings[]
   project_members      project_members[]
   projects             projects[]
+  auth_sessions        auth_sessions[]
+  auth_accounts        auth_accounts[]
+}
+
+model auth_sessions {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id     String   @db.Uuid
+  token       String   @unique
+  expires_at  DateTime @db.Timestamptz(6)
+  ip_address  String?
+  user_agent  String?
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  user        users    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+}
+
+model auth_accounts {
+  id                       String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                  String    @db.Uuid
+  account_id               String
+  provider_id              String
+  access_token             String?
+  refresh_token            String?
+  access_token_expires_at  DateTime? @db.Timestamptz(6)
+  refresh_token_expires_at DateTime? @db.Timestamptz(6)
+  scope                    String?
+  id_token                 String?
+  password                 String?
+  created_at               DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  user                     users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([provider_id, account_id])
+  @@index([user_id])
+}
+
+model auth_verifications {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  identifier String
+  value      String
+  expires_at DateTime @db.Timestamptz(6)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@index([identifier])
+}
+
+model auth_rate_limits {
+  id          String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key         String @unique
+  count       Int
+  lastRequest BigInt @map("last_request")
 }
 
 enum asset_kind {

@@ -46,12 +46,6 @@ export function HomeScreen() {
             Retrouvez vos dossiers, leurs maquettes IFC et leurs nuages de
             points au même endroit.
           </p>
-          <div className="fr-callout">
-            <p className="fr-callout__text">
-              L’authentification sera ajoutée ultérieurement. Pour l’instant,
-              l’espace utilise un compte local de démonstration.
-            </p>
-          </div>
           <Button
             iconId="fr-icon-folder-2-line"
             linkProps={{ href: "/projets" }}

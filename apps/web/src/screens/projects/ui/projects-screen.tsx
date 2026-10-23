@@ -6,7 +6,7 @@ import { getProjectService } from "@/server/projects/project-service-factory";
 import { ProjectsWorkspace } from "./projects-workspace";
 
 export async function ProjectsScreen() {
-  const projects = await getProjectService().list(resolveActor().id);
+  const projects = await getProjectService().list((await resolveActor()).id);
 
   return <ProjectsWorkspace initialProjects={projects} />;
 }

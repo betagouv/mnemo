@@ -17,14 +17,17 @@ import { getProjectService } from "./project-service-factory";
 
 export async function createProject(input: CreateProjectInput) {
   return getProjectService().create(
-    resolveActor().id,
+    (await resolveActor()).id,
     createProjectInputSchema.parse(input),
   );
 }
 
 export async function updateProject(input: UpdateProjectInput) {
   const parsed = updateProjectInputSchema.parse(input);
-  const updated = await getProjectService().update(resolveActor().id, parsed);
+  const updated = await getProjectService().update(
+    (await resolveActor()).id,
+    parsed,
+  );
   if (!updated) throw new Error("Project not found or access denied");
   revalidatePath("/projets");
   revalidatePath(`/projets/${updated.id}`);
@@ -33,7 +36,10 @@ export async function updateProject(input: UpdateProjectInput) {
 
 export async function deleteProject(input: GetProjectInput) {
   const { projectId } = deleteProjectInputSchema.parse(input);
-  const result = await getProjectService().delete(resolveActor().id, projectId);
+  const result = await getProjectService().delete(
+    (await resolveActor()).id,
+    projectId,
+  );
   if (!result.accepted) throw new Error("Project not found");
   await Promise.all(
     result.assetIds.map((assetId) =>
