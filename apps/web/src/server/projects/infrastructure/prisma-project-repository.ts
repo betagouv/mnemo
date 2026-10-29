@@ -5,6 +5,7 @@ import type {
   ProjectForActor,
   ProjectRepository,
 } from "../application/project-repository";
+import { membershipAccessInclude, toProjectAccess } from "./project-access";
 
 export class PrismaProjectRepository implements ProjectRepository {
   constructor(private readonly database: MnemoPrismaDatabase) {}
@@ -49,23 +50,26 @@ export class PrismaProjectRepository implements ProjectRepository {
   async listForActor(actorId: string): Promise<ProjectForActor[]> {
     const memberships = await this.database.project_members.findMany({
       where: { user_id: actorId, projects: { archived_at: null } },
-      include: { projects: true },
+      include: { projects: true, ...membershipAccessInclude },
       orderBy: { projects: { updated_at: "desc" } },
     });
     const stats = await this.assetStatsForProjects(
       memberships.map((membership) => membership.project_id),
     );
 
-    return memberships.map(({ role, projects: project }) => ({
-      id: project.id,
-      title: project.title,
-      address: project.address,
-      description: project.description,
-      role,
-      createdAt: project.created_at,
-      updatedAt: project.updated_at,
-      assetStats: stats.get(project.id),
-    }));
+    return memberships.map((membership) => {
+      const project = membership.projects;
+      return {
+        id: project.id,
+        title: project.title,
+        address: project.address,
+        description: project.description,
+        ...toProjectAccess(membership),
+        createdAt: project.created_at,
+        updatedAt: project.updated_at,
+        assetStats: stats.get(project.id),
+      };
+    });
   }
 
   async findForActor(
@@ -76,7 +80,7 @@ export class PrismaProjectRepository implements ProjectRepository {
       where: {
         project_id_user_id: { project_id: projectId, user_id: actorId },
       },
-      include: { projects: true },
+      include: { projects: true, ...membershipAccessInclude },
     });
 
     if (!membership || membership.projects.archived_at) return undefined;
@@ -86,7 +90,7 @@ export class PrismaProjectRepository implements ProjectRepository {
       title: membership.projects.title,
       address: membership.projects.address,
       description: membership.projects.description,
-      role: membership.role,
+      ...toProjectAccess(membership),
       createdAt: membership.projects.created_at,
       updatedAt: membership.projects.updated_at,
       assetStats: stats.get(projectId),
@@ -113,6 +117,7 @@ export class PrismaProjectRepository implements ProjectRepository {
       address: project.address,
       description: project.description,
       role: "owner",
+      permissions: [],
       createdAt: project.created_at,
       updatedAt: project.updated_at,
     };
@@ -129,7 +134,22 @@ export class PrismaProjectRepository implements ProjectRepository {
         id: projectId,
         archived_at: null,
         project_members: {
-          some: { user_id: actorId, role: { in: ["owner", "editor"] } },
+          some: {
+            user_id: actorId,
+            OR: [
+              { role: { in: ["owner", "editor"] } },
+              { permissions: { some: { permission: "project:update" } } },
+              {
+                custom_roles: {
+                  some: {
+                    role: {
+                      permissions: { some: { permission: "project:update" } },
+                    },
+                  },
+                },
+              },
+            ],
+          },
         },
       },
       data: {

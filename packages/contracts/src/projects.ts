@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { projectRoles } from "@mnemo/domain/project";
+import { projectPermissions, projectRoles } from "@mnemo/domain/project";
 
 export const projectIdSchema = z.uuid();
 export type ProjectId = z.infer<typeof projectIdSchema>;
@@ -13,6 +13,7 @@ export const deleteProjectInputSchema = getProjectInputSchema;
 export type GetProjectInput = z.infer<typeof getProjectInputSchema>;
 
 export const projectRoleSchema = z.enum(projectRoles);
+export const projectPermissionSchema = z.enum(projectPermissions);
 
 export const createProjectInputSchema = z.object({
   title: z
@@ -46,6 +47,7 @@ export const projectSummarySchema = z.object({
   address: z.string().nullable(),
   description: z.string().nullable(),
   role: projectRoleSchema,
+  permissions: z.array(projectPermissionSchema),
   assetCount: z.number().int().nonnegative(),
   ifcCount: z.number().int().nonnegative(),
   pointCloudCount: z.number().int().nonnegative(),

@@ -57,7 +57,7 @@ export class PointCloudSettingsService {
     if (
       !match ||
       match.kind !== "point_cloud" ||
-      !hasProjectPermission(match.role, "project:update")
+      !hasProjectPermission(match, "project:update")
     ) {
       throw new PointCloudSettingsAccessDeniedError(
         "The actor cannot align this point cloud",

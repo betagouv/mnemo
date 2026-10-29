@@ -80,7 +80,7 @@ export class AssetService {
   ): Promise<BeginAssetUploadResult> {
     const project = await this.projects.findForActor(actorId, input.projectId);
 
-    if (!project || !canUploadAsset(project.role)) {
+    if (!project || !canUploadAsset(project)) {
       throw new AssetAccessDeniedError(
         "The actor cannot upload files to this project",
       );
@@ -137,7 +137,7 @@ export class AssetService {
       input.assetId,
     );
 
-    if (!match || !canUploadAsset(match.role)) {
+    if (!match || !canUploadAsset(match)) {
       throw new AssetAccessDeniedError(
         "The upload is not available to this actor",
       );
@@ -206,7 +206,7 @@ export class AssetService {
       input.assetId,
     );
 
-    if (!match || !hasProjectPermission(match.role, "asset:delete")) {
+    if (!match || !hasProjectPermission(match, "asset:delete")) {
       throw new AssetAccessDeniedError(
         "The actor cannot delete this project asset",
       );

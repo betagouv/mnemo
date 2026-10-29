@@ -5,6 +5,10 @@ import type {
 } from "@mnemo/database";
 
 import type { PointCloudSettingsRepository } from "../application/point-cloud-settings-repository";
+import {
+  membershipAccessInclude,
+  toProjectAccess,
+} from "@/server/projects/infrastructure/project-access";
 
 function toSettings(row: PrismaPointCloudSettingsRecord) {
   return {
@@ -40,6 +44,7 @@ export class PrismaPointCloudSettingsRepository implements PointCloudSettingsRep
       where: {
         project_id_user_id: { project_id: projectId, user_id: actorId },
       },
+      include: membershipAccessInclude,
     });
     if (!membership) return null;
 
@@ -51,7 +56,7 @@ export class PrismaPointCloudSettingsRepository implements PointCloudSettingsRep
     return {
       assetId: asset.id,
       kind: asset.kind,
-      role: membership.role,
+      ...toProjectAccess(membership),
       settings: asset.point_cloud_settings
         ? toSettings(asset.point_cloud_settings)
         : null,
