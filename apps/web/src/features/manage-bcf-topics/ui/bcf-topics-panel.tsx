@@ -47,6 +47,7 @@ export function BcfTopicsPanel({
   onCaptureViewpoint,
   onFocusComponent,
   onTopicCountChange,
+  permissions,
   projectId,
   selection,
 }: {
@@ -61,6 +62,12 @@ export function BcfTopicsPanel({
   onCaptureViewpoint: () => Promise<CapturedBcfViewpoint>;
   onFocusComponent: (assetId: string, expressId: number) => void;
   onTopicCountChange: (count: number) => void;
+  permissions: {
+    createTopic: boolean;
+    updateTopic: boolean;
+    createComment: boolean;
+    createViewpoint: boolean;
+  };
   projectId: string;
   selection: IfcElementDetails | null;
 }) {
@@ -312,20 +319,22 @@ export function BcfTopicsPanel({
   return (
     <div className={styles.panel}>
       <div className={styles.exchange}>
-        <label aria-disabled={pending !== null}>
-          <span className="fr-icon-upload-2-line" aria-hidden="true" />
-          {pending === "import" ? "Import…" : "Importer BCF"}
-          <input
-            accept=".bcf,.bcfzip,application/zip"
-            disabled={pending !== null}
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              event.target.value = "";
-              if (file) void importArchive(file);
-            }}
-            type="file"
-          />
-        </label>
+        {permissions.createTopic ? (
+          <label aria-disabled={pending !== null}>
+            <span className="fr-icon-upload-2-line" aria-hidden="true" />
+            {pending === "import" ? "Import…" : "Importer BCF"}
+            <input
+              accept=".bcf,.bcfzip,application/zip"
+              disabled={pending !== null}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = "";
+                if (file) void importArchive(file);
+              }}
+              type="file"
+            />
+          </label>
+        ) : null}
         <button
           disabled={pending !== null}
           onClick={() => void exportArchive()}
@@ -335,69 +344,73 @@ export function BcfTopicsPanel({
           {pending === "export" ? "Export…" : "Exporter"}
         </button>
       </div>
-      <form
-        className={styles.create}
-        onSubmit={(event) => void createTopic(event)}
-      >
-        <div className={styles.sectionTitle}>
-          <strong>Nouvelle remarque</strong>
-          {selection?.globalId ? (
-            <span title={selection.globalId}>
-              liée à {selection.ifcClass} #{selection.expressId}
-            </span>
-          ) : (
-            <span>sans élément lié</span>
-          )}
-        </div>
-        <input
-          aria-label="Titre de la remarque"
-          maxLength={255}
-          onChange={(event) => setTitle(event.target.value)}
-          placeholder="Titre de la remarque"
-          required
-          value={title}
-        />
-        <textarea
-          aria-label="Description de la remarque"
-          maxLength={10_000}
-          onChange={(event) => setDescription(event.target.value)}
-          placeholder="Description"
-          rows={3}
-          value={description}
-        />
-        <div className={styles.fields}>
-          <label>
-            Type
-            <select
-              onChange={(event) => setType(event.target.value as BcfTopicType)}
-              value={type}
-            >
-              <option value="issue">Problème</option>
-              <option value="request">Demande</option>
-              <option value="comment">Information</option>
-            </select>
-          </label>
-          <label>
-            Priorité
-            <select
-              onChange={(event) =>
-                setPriority(event.target.value as BcfPriority)
-              }
-              value={priority}
-            >
-              {Object.entries(priorityLabels).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <button disabled={pending !== null || !title.trim()} type="submit">
-          <span className="fr-icon-add-line" aria-hidden="true" />
-          {pending === "topic" ? "Création…" : "Créer"}
-        </button>
-      </form>
+      {permissions.createTopic ? (
+        <form
+          className={styles.create}
+          onSubmit={(event) => void createTopic(event)}
+        >
+          <div className={styles.sectionTitle}>
+            <strong>Nouvelle remarque</strong>
+            {selection?.globalId ? (
+              <span title={selection.globalId}>
+                liée à {selection.ifcClass} #{selection.expressId}
+              </span>
+            ) : (
+              <span>sans élément lié</span>
+            )}
+          </div>
+          <input
+            aria-label="Titre de la remarque"
+            maxLength={255}
+            onChange={(event) => setTitle(event.target.value)}
+            placeholder="Titre de la remarque"
+            required
+            value={title}
+          />
+          <textarea
+            aria-label="Description de la remarque"
+            maxLength={10_000}
+            onChange={(event) => setDescription(event.target.value)}
+            placeholder="Description"
+            rows={3}
+            value={description}
+          />
+          <div className={styles.fields}>
+            <label>
+              Type
+              <select
+                onChange={(event) =>
+                  setType(event.target.value as BcfTopicType)
+                }
+                value={type}
+              >
+                <option value="issue">Problème</option>
+                <option value="request">Demande</option>
+                <option value="comment">Information</option>
+              </select>
+            </label>
+            <label>
+              Priorité
+              <select
+                onChange={(event) =>
+                  setPriority(event.target.value as BcfPriority)
+                }
+                value={priority}
+              >
+                {Object.entries(priorityLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <button disabled={pending !== null || !title.trim()} type="submit">
+            <span className="fr-icon-add-line" aria-hidden="true" />
+            {pending === "topic" ? "Création…" : "Créer"}
+          </button>
+        </form>
+      ) : null}
 
       {message ? <p className={styles.message}>{message}</p> : null}
 
@@ -442,7 +455,7 @@ export function BcfTopicsPanel({
             </div>
             <select
               aria-label="Statut de la remarque"
-              disabled={pending !== null}
+              disabled={pending !== null || !permissions.updateTopic}
               onChange={(event) =>
                 void updateStatus(event.target.value as BcfTopicStatus)
               }
@@ -479,16 +492,18 @@ export function BcfTopicsPanel({
           ))}
           <div className={styles.viewpointHeader}>
             <strong>Points de vue</strong>
-            <button
-              disabled={
-                pending !== null || !canCaptureViewpoint || !activeTopic
-              }
-              onClick={() => void captureViewpoint()}
-              type="button"
-            >
-              <span className="fr-icon-camera-line" aria-hidden="true" />
-              {pending === "viewpoint" ? "Capture…" : "Capturer la vue"}
-            </button>
+            {permissions.createViewpoint ? (
+              <button
+                disabled={
+                  pending !== null || !canCaptureViewpoint || !activeTopic
+                }
+                onClick={() => void captureViewpoint()}
+                type="button"
+              >
+                <span className="fr-icon-camera-line" aria-hidden="true" />
+                {pending === "viewpoint" ? "Capture…" : "Capturer la vue"}
+              </button>
+            ) : null}
           </div>
           {activeTopic.viewpoints.length ? (
             <div className={styles.viewpointList}>
@@ -539,25 +554,27 @@ export function BcfTopicsPanel({
               </article>
             ))}
           </div>
-          <form
-            className={styles.commentForm}
-            onSubmit={(event) => void addComment(event)}
-          >
-            <textarea
-              aria-label="Nouveau commentaire"
-              maxLength={10_000}
-              onChange={(event) => setComment(event.target.value)}
-              placeholder="Ajouter un commentaire"
-              rows={2}
-              value={comment}
-            />
-            <button
-              disabled={pending !== null || !comment.trim()}
-              type="submit"
+          {permissions.createComment ? (
+            <form
+              className={styles.commentForm}
+              onSubmit={(event) => void addComment(event)}
             >
-              {pending === "comment" ? "Envoi…" : "Commenter"}
-            </button>
-          </form>
+              <textarea
+                aria-label="Nouveau commentaire"
+                maxLength={10_000}
+                onChange={(event) => setComment(event.target.value)}
+                placeholder="Ajouter un commentaire"
+                rows={2}
+                value={comment}
+              />
+              <button
+                disabled={pending !== null || !comment.trim()}
+                type="submit"
+              >
+                {pending === "comment" ? "Envoi…" : "Commenter"}
+              </button>
+            </form>
+          ) : null}
         </section>
       ) : null}
     </div>
