@@ -3,7 +3,7 @@ import { projectIdSchema } from "@mnemo/contracts/projects";
 
 import { AssetAccessDeniedError } from "@/server/assets/application/asset-errors";
 import { getAssetService } from "@/server/assets/asset-service-factory";
-import { resolveActor } from "@/server/auth/resolve-actor";
+import { getCurrentActor } from "@/server/auth/resolve-actor";
 
 export const runtime = "nodejs";
 
@@ -18,8 +18,12 @@ export async function GET(
     return Response.json({ error: "Asset not found" }, { status: 404 });
   }
 
+  const actor = await getCurrentActor();
+  if (!actor)
+    return Response.json({ error: "Authentication required" }, { status: 401 });
+
   try {
-    const access = await getAssetService().open(resolveActor().id, {
+    const access = await getAssetService().open(actor.id, {
       projectId: projectId.data,
       assetId: assetId.data,
     });

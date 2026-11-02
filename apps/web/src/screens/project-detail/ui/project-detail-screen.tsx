@@ -24,7 +24,7 @@ export async function ProjectDetailScreen({
     notFound();
   }
 
-  const actorId = resolveActor().id;
+  const actorId = (await resolveActor()).id;
   const project = await getProjectService().find(actorId, parsedProjectId.data);
 
   if (!project) {

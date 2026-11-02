@@ -12,7 +12,6 @@
     "dev:web": "pnpm --filter @mnemo/web dev",
     "db:generate": "pnpm --filter @mnemo/database db:generate",
     "db:migrate": "pnpm --filter @mnemo/database db:migrate",
-    "db:seed": "pnpm --filter @mnemo/database db:seed",
     "scalingo-postbuild": "pnpm --filter @mnemo/web build && node scripts/prepare-web-standalone.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

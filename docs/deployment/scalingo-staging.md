@@ -2,17 +2,17 @@
 
 Un seul dépôt, trois applications dans la région `osc-secnum-fr1` : `mnemo-web` (Next.js et orchestration), `mnemo-ifc-rust` (lecture des IFC) et `mnemo-potree` (nom historique, conversion **COPC** à la demande). Le développement local reste disponible avec `make dev`.
 
-> Ce staging utilise un accès Basic Auth partagé et un utilisateur applicatif de développement. Ne pas y déposer de données sensibles avant la mise en place d'une véritable authentification.
+L'accès applicatif utilise un compte personnel Better Auth (e-mail et mot de passe). L'inscription est publique ; l'adresse e-mail n'est pas encore vérifiée et la récupération du mot de passe n'est pas disponible.
 
 ## 1. Configurer les applications
 
 Renseigner les secrets dans **Environment** sur Scalingo, jamais dans Git. Les trois apps utilisent le même dépôt, mais pas les mêmes variables.
 
-| App              | Configuration Scalingo                                             | Variables à renseigner                                                                                                                                                                                                                                                                                                                                                                                                           |
-| ---------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `mnemo-web`      | Build depuis la racine ; `web` ≥ 1                                 | `MNEMO_DEPLOYMENT_ENV=staging`, `MNEMO_AUTH_MODE=development`, `MNEMO_STAGING_USER`, `MNEMO_STAGING_PASSWORD`, `DATABASE_URL`, `S3_ENDPOINT`, `S3_PUBLIC_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `IFC_SERVER_URL`, `IFC_SERVER_API_TOKEN`, `MNEMO_BACKGROUND_JOBS=1`, `POINT_CLOUD_PROCESSING_MODE=scalingo`, `SCALINGO_API_TOKEN`, `SCALINGO_APP=mnemo-potree`, `SCALINGO_REGION=osc-secnum-fr1` |
-| `mnemo-ifc-rust` | `PROJECT_DIR=infrastructure/scalingo-ifc-rust` ; **un seul** `web` | `IFC_SERVER_API_TOKEN` (identique à celui de `mnemo-web`), `S3_ENDPOINT`, `S3_BUCKET`. Dimensionner `MAX_FILE_SIZE_MB` et le conteneur selon les IFC visés.                                                                                                                                                                                                                                                                      |
-| `mnemo-potree`   | `web=0` ; un one-off par conversion                                | `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`. Aucun accès PostgreSQL.                                                                                                                                                                                                                                                                                                                               |
+| App              | Configuration Scalingo                                             | Variables à renseigner                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ---------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mnemo-web`      | Build depuis la racine ; `web` ≥ 1                                 | `BETTER_AUTH_URL` (URL HTTPS publique), `BETTER_AUTH_SECRET` (secret aléatoire d'au moins 32 caractères), `DATABASE_URL`, `S3_ENDPOINT`, `S3_PUBLIC_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `IFC_SERVER_URL`, `IFC_SERVER_API_TOKEN`, `MNEMO_BACKGROUND_JOBS=1`, `POINT_CLOUD_PROCESSING_MODE=scalingo`, `SCALINGO_API_TOKEN`, `SCALINGO_APP=mnemo-potree`, `SCALINGO_REGION=osc-secnum-fr1` |
+| `mnemo-ifc-rust` | `PROJECT_DIR=infrastructure/scalingo-ifc-rust` ; **un seul** `web` | `IFC_SERVER_API_TOKEN` (identique à celui de `mnemo-web`), `S3_ENDPOINT`, `S3_BUCKET`. Dimensionner `MAX_FILE_SIZE_MB` et le conteneur selon les IFC visés.                                                                                                                                                                                                                                                                 |
+| `mnemo-potree`   | `web=0` ; un one-off par conversion                                | `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`. Aucun accès PostgreSQL.                                                                                                                                                                                                                                                                                                                          |
 
 `mnemo-web` utilise son addon PostgreSQL. `IFC_SERVER_URL` pointe vers `mnemo-ifc-rust`. Le jeton `SCALINGO_API_TOKEN` doit pouvoir lancer des one-offs sur `mnemo-potree` ; régler au besoin `SCALINGO_ONE_OFF_SIZE` sur `mnemo-web` (un LAZ d'environ 2 Go a été testé en `3XL`). Rust reçoit une URL S3 présignée : il n'a besoin ni de clés S3 ni de `DATABASE_URL`.
 
@@ -42,11 +42,10 @@ scalingo --region osc-secnum-fr1 --app mnemo-ifc-rust deploy "$deploy_dir/mnemo.
 scalingo --region osc-secnum-fr1 --app mnemo-web deploy "$deploy_dir/mnemo.tar.gz" "$revision"
 ```
 
-Après le premier déploiement de `mnemo-web`, initialiser sa base. Relancer les migrations lors des évolutions du schéma ; le seed n'est nécessaire qu'à l'initialisation.
+Après le déploiement de `mnemo-web`, appliquer les migrations de base de données :
 
 ```bash
 scalingo --region osc-secnum-fr1 --app mnemo-web run 'pnpm db:migrate'
-scalingo --region osc-secnum-fr1 --app mnemo-web run 'pnpm db:seed'
 ```
 
 Si le code de conversion COPC a changé, construire et déployer séparément son paquet. L'app n'a aucun conteneur permanent : conserver `web=0`.
@@ -65,7 +64,7 @@ scalingo --region osc-secnum-fr1 --app mnemo-potree deploy "$deploy_dir/copc.tar
 ## 3. Vérifier
 
 - Dans **Deploy** et **Logs**, confirmer que les builds ont réussi ; dans **Resources**, vérifier `web ≥ 1` pour `mnemo-web`, `web = 1` pour Rust et `web = 0` pour COPC.
-- Ouvrir la webapp : `401` sans identifiants, accès avec le Basic Auth. Un staging sans identifiants configurés doit répondre `503`.
+- Ouvrir la webapp : l'accueil est public, les dossiers demandent une connexion. Créer un compte, se connecter, puis vérifier que la déconnexion coupe l'accès aux dossiers. Sans `BETTER_AUTH_URL` ou `BETTER_AUTH_SECRET`, l'application répond `503`.
 - Envoyer un IFC et un LAZ depuis l'interface. L'IFC doit devenir visualisable ; le LAZ doit déclencher un one-off `mnemo-potree`, produire un `cloud.copc.laz` sur S3, puis s'afficher dans le viewer.
 - En cas d'échec, consulter les logs de l'app concernée et `scalingo --region osc-secnum-fr1 --app mnemo-potree ps` pendant la conversion.
 

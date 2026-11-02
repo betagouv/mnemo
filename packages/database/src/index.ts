@@ -9,4 +9,3 @@ export type {
   point_cloud_settings as PrismaPointCloudSettingsRecord,
 } from "./generated/prisma/client";
 export { Prisma } from "./generated/prisma/client";
-export { developmentActorId } from "./development-actor";

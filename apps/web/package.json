@@ -19,9 +19,11 @@
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@ai-sdk/mcp": "2.0.47",
     "@assistant-ui/ai-sdk": "0.0.4",
     "@assistant-ui/react": "0.15.18",
     "@assistant-ui/react-markdown": "0.14.14",
+    "@better-auth/prisma-adapter": "1.7.10",
     "@codegouvfr/react-dsfr": "1.34.0",
     "@mnemo/bcf-adapter": "workspace:*",
     "@mnemo/contracts": "workspace:*",
@@ -31,8 +33,8 @@
     "@mnemo/processing-worker": "workspace:*",
     "@mnemo/storage": "workspace:*",
     "@openrouter/ai-sdk-provider": "3.0.0",
-    "@ai-sdk/mcp": "2.0.47",
     "ai": "^7.0.96",
+    "better-auth": "1.7.10",
     "client-only": "0.0.1",
     "next": "16.3.4",
     "react": "19.2.8",

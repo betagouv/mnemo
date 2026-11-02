@@ -2,7 +2,7 @@ import { assetIdSchema } from "@mnemo/contracts/assets";
 import { pointCloudSourceSchema } from "@mnemo/contracts/point-clouds";
 import { projectIdSchema } from "@mnemo/contracts/projects";
 
-import { resolveActor } from "@/server/auth/resolve-actor";
+import { getCurrentActor } from "@/server/auth/resolve-actor";
 import { PointCloudSourceAccessDeniedError } from "@/server/point-clouds/application/point-cloud-source-service";
 import { getPointCloudSourceService } from "@/server/point-clouds/point-cloud-source-service-factory";
 
@@ -19,8 +19,12 @@ export async function GET(
     return Response.json({ error: "Point cloud not found" }, { status: 404 });
   }
 
+  const actor = await getCurrentActor();
+  if (!actor)
+    return Response.json({ error: "Authentication required" }, { status: 401 });
+
   try {
-    const source = await getPointCloudSourceService().open(resolveActor().id, {
+    const source = await getPointCloudSourceService().open(actor.id, {
       projectId: projectId.data,
       assetId: assetId.data,
     });

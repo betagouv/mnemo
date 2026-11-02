@@ -1,4 +1,4 @@
-import { resolveActor } from "@/server/auth/resolve-actor";
+import { getCurrentActor } from "@/server/auth/resolve-actor";
 import { getBcfTopicService } from "@/server/bcf/bcf-topic-service-factory";
 import {
   exportBcfArchiveResponse,
@@ -13,18 +13,24 @@ type RouteContext = {
 };
 
 export async function GET(_request: Request, context: RouteContext) {
+  const actor = await getCurrentActor();
+  if (!actor)
+    return Response.json({ error: "Authentication required" }, { status: 401 });
   const { projectId } = await context.params;
   return exportBcfArchiveResponse({
-    actorId: resolveActor().id,
+    actorId: actor.id,
     projectId,
     service: getBcfTopicService(),
   });
 }
 
 export async function POST(request: Request, context: RouteContext) {
+  const actor = await getCurrentActor();
+  if (!actor)
+    return Response.json({ error: "Authentication required" }, { status: 401 });
   const { projectId } = await context.params;
   return importBcfArchiveResponse({
-    actorId: resolveActor().id,
+    actorId: actor.id,
     projectId,
     request,
     service: getBcfTopicService(),

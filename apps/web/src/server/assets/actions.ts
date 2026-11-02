@@ -16,21 +16,24 @@ import { getAssetService } from "./asset-service-factory";
 
 export async function beginAssetUpload(input: BeginAssetUploadInput) {
   return getAssetService().beginUpload(
-    resolveActor().id,
+    (await resolveActor()).id,
     beginAssetUploadInputSchema.parse(input),
   );
 }
 
 export async function completeAssetUpload(input: CompleteAssetUploadInput) {
   return getAssetService().completeUpload(
-    resolveActor().id,
+    (await resolveActor()).id,
     completeAssetUploadInputSchema.parse(input),
   );
 }
 
 export async function deleteAsset(input: DeleteAssetInput) {
   const parsed = deleteAssetInputSchema.parse(input);
-  const result = await getAssetService().delete(resolveActor().id, parsed);
+  const result = await getAssetService().delete(
+    (await resolveActor()).id,
+    parsed,
+  );
   await disposeIfcMcpAsset(parsed.assetId).catch((error) => {
     console.error("Failed to dispose IFC MCP asset cache", {
       assetId: parsed.assetId,

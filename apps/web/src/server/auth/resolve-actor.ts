@@ -1,30 +1,22 @@
-import { developmentActorId } from "@mnemo/database";
+import { headers } from "next/headers";
 
-export type Actor = {
-  id: string;
-  authenticationMode: "development";
-};
+export type Actor = { id: string };
 
-export function resolveActor(): Actor {
-  const authenticationMode = process.env.MNEMO_AUTH_MODE ?? "development";
-  const deploymentEnvironment = process.env.MNEMO_DEPLOYMENT_ENV ?? "local";
-
-  if (authenticationMode !== "development") {
-    throw new Error(`Unsupported authentication mode: ${authenticationMode}`);
+export class AuthenticationRequiredError extends Error {
+  constructor() {
+    super("Authentication required");
   }
+}
 
-  if (
-    deploymentEnvironment === "production" ||
-    (deploymentEnvironment === "local" &&
-      (process.env.APP || process.env.SCALINGO_APPLICATION_ID))
-  ) {
-    throw new Error(
-      "Development authentication cannot be used without an explicit staging deployment",
-    );
-  }
+export async function getCurrentActor(): Promise<Actor | null> {
+  const requestHeaders = await headers();
+  const { auth } = await import("./better-auth");
+  const session = await auth.api.getSession({ headers: requestHeaders });
+  return session ? { id: session.user.id } : null;
+}
 
-  return {
-    id: developmentActorId,
-    authenticationMode,
-  };
+export async function resolveActor(): Promise<Actor> {
+  const actor = await getCurrentActor();
+  if (!actor) throw new AuthenticationRequiredError();
+  return actor;
 }

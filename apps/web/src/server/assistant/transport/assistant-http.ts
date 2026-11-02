@@ -11,7 +11,10 @@ import { z } from "zod";
 
 import { getAssetService } from "@/server/assets/asset-service-factory";
 import { AssetAccessDeniedError } from "@/server/assets/application/asset-errors";
-import { resolveActor } from "@/server/auth/resolve-actor";
+import {
+  AuthenticationRequiredError,
+  resolveActor,
+} from "@/server/auth/resolve-actor";
 import { getAssistantConfiguration } from "@/shared/config/assistant/server-only";
 import { getIfcMcpTools } from "@/server/assistant/infrastructure/ifc-mcp-runtime";
 import { AssistantThreadAccessDeniedError } from "@/server/assistant/application/assistant-thread-errors";
@@ -65,7 +68,7 @@ export type AssistantHttpDependencies = {
     actorId: string,
     input: { projectId: string; assetId: string },
   ) => Promise<AuthorizedAssistantAsset>;
-  resolveActorId: () => string;
+  resolveActorId: () => string | Promise<string>;
   requireThread: (
     actorId: string,
     input: { projectId: string; assetId: string; threadId: string },
@@ -175,7 +178,7 @@ function jsonError(status: number, error: string) {
 const defaultDependencies: AssistantHttpDependencies = {
   authorize: (actorId, input) =>
     getAssetService().locateOriginal(actorId, input),
-  resolveActorId: () => resolveActor().id,
+  resolveActorId: async () => (await resolveActor()).id,
   requireThread: (actorId, input) =>
     getAssistantThreadService().requireForChat(actorId, input),
   stream: async (input) => {
@@ -238,7 +241,7 @@ export async function handleAssistantHttpRequest(
 
   try {
     const input = await parseAssistantRequest(request);
-    const actorId = dependencies.resolveActorId();
+    const actorId = await dependencies.resolveActorId();
     const access = await dependencies.authorize(actorId, {
       projectId: projectId.data,
       assetId: input.assetId,
@@ -262,6 +265,9 @@ export async function handleAssistantHttpRequest(
       },
     });
   } catch (error) {
+    if (error instanceof AuthenticationRequiredError) {
+      return jsonError(401, "Authentification requise.");
+    }
     if (error instanceof AssistantRequestTooLargeError) {
       return jsonError(413, "La conversation envoyée est trop volumineuse.");
     }

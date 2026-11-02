@@ -10,6 +10,8 @@ if (
 
 export default defineConfig({
   testDir: "./tests/e2e",
+  globalSetup: "./tests/e2e/auth-setup.ts",
+  globalTeardown: "./tests/e2e/auth-teardown.ts",
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   workers: process.env.CI ? 1 : undefined,
@@ -34,8 +36,11 @@ export default defineConfig({
             process.env.IFC_SERVER_API_TOKEN ?? "mnemo-local-ifc-token",
           IFC_LITE_SERVER_URL:
             process.env.IFC_LITE_SERVER_URL ?? "http://localhost:3301",
-          MNEMO_AUTH_MODE: process.env.MNEMO_AUTH_MODE ?? "development",
-          MNEMO_DEPLOYMENT_ENV: process.env.MNEMO_DEPLOYMENT_ENV ?? "local",
+          BETTER_AUTH_URL:
+            process.env.BETTER_AUTH_URL ?? "http://127.0.0.1:3100",
+          BETTER_AUTH_SECRET:
+            process.env.BETTER_AUTH_SECRET ??
+            "local-e2e-only-secret-at-least-32-characters",
           S3_ACCESS_KEY: process.env.S3_ACCESS_KEY ?? "mnemo",
           S3_BUCKET: process.env.S3_BUCKET ?? "mnemo-files",
           S3_ENDPOINT: process.env.S3_ENDPOINT ?? "http://localhost:9200",

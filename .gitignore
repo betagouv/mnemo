@@ -36,3 +36,4 @@ models/
 .vscode/
 .DS_Store
 *.swp
+.e2e-auth-account.json
