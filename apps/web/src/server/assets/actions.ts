@@ -8,6 +8,7 @@ import {
   type CompleteAssetUploadInput,
   type DeleteAssetInput,
 } from "@mnemo/contracts/assets";
+import { revalidatePath } from "next/cache";
 
 import { disposeIfcMcpAsset } from "@/server/assistant/infrastructure/ifc-mcp-runtime";
 import { resolveActor } from "@/server/auth/resolve-actor";
@@ -22,10 +23,13 @@ export async function beginAssetUpload(input: BeginAssetUploadInput) {
 }
 
 export async function completeAssetUpload(input: CompleteAssetUploadInput) {
-  return getAssetService().completeUpload(
+  const parsed = completeAssetUploadInputSchema.parse(input);
+  const asset = await getAssetService().completeUpload(
     (await resolveActor()).id,
-    completeAssetUploadInputSchema.parse(input),
+    parsed,
   );
+  revalidatePath(`/projets/${parsed.projectId}`);
+  return asset;
 }
 
 export async function deleteAsset(input: DeleteAssetInput) {
