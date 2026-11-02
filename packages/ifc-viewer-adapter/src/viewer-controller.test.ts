@@ -30,6 +30,7 @@ function createHarness({
     colorOverridesSet: 0,
     colorOverridesCleared: 0,
     batchesAdded: 0,
+    streamingFinalized: 0,
     meshIds: [] as number[][],
     bimIndexIds: [] as number[][],
     fitToView: 0,
@@ -169,6 +170,9 @@ function createHarness({
     },
     hasQueuedMeshes: () => false,
     flushPending: () => false,
+    finalizeStreamingAsync: async () => {
+      calls.streamingFinalized += 1;
+    },
     getEntityBoundingBox: () => pickedBounds,
     getBounds: () => ({
       min: { x: 0, y: 2, z: 4 },
@@ -192,6 +196,7 @@ function createHarness({
     onDeviceLost: () => () => undefined,
     resize: () => undefined,
     getScene: () => scene,
+    clearCaches: () => undefined,
     getCamera: () => camera,
     raycastScene: () => {
       if (raycastDepth === null) return null;
@@ -1083,6 +1088,7 @@ describe("IfcViewerController", () => {
       downloadUrl: "http://storage.local/mep.ifc",
     });
 
+    expect(calls.streamingFinalized).toBe(2);
     controller.setLayerVisibility("model-a", { kind: "model" }, "opacity");
     expect(controller.getLayerVisibility("model-a", { kind: "model" })).toBe(
       "opacity",
@@ -1121,16 +1127,18 @@ describe("IfcViewerController", () => {
         expressId: 84,
       }),
     ).toBe("hide");
+    // Only #42 has rendered geometry in this fixture; #84 cannot make it mixed.
     expect(
       controller.getLayerExceptionCount("model-a", { kind: "model" }),
-    ).toBeGreaterThan(0);
+    ).toBe(0);
     expect(
       controller.getLayerExceptionCount("model-a", {
         kind: "storey",
         expressId: 10,
       }),
-    ).toBeGreaterThan(0);
+    ).toBe(0);
 
+    expect(calls.streamingFinalized).toBe(2);
     expect(calls.rendererCreated).toBe(1);
     expect(calls.fitToView).toBe(0);
     expect(calls.cameraPosesApplied).toBe(0);

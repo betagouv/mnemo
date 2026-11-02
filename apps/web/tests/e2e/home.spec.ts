@@ -402,6 +402,29 @@ test("creates, reloads, opens and deletes a project asset", async ({
       timeout: 120_000,
     });
     await expect(stats).toContainText(/223\s*maillages/);
+
+    const tree = page.getByRole("complementary", {
+      name: "Explorateur du projet",
+    });
+    const modelVisibility = tree.getByRole("checkbox", {
+      name: new RegExp(`^${fileName} :`),
+    });
+    const storeyVisibility = tree.getByRole("checkbox").nth(1);
+    await storeyVisibility.click();
+    await expect(storeyVisibility).toHaveAttribute("data-mode", "opacity");
+    await expect(modelVisibility).toHaveAttribute("data-exceptions", "true");
+    await expect(modelVisibility).toHaveAttribute("aria-checked", "mixed");
+
+    // Clicking a mixed parent restores every descendant, even collapsed ones.
+    await modelVisibility.click();
+    await expect(modelVisibility).toHaveAttribute("aria-checked", "true");
+    await expect(storeyVisibility).toHaveAttribute("data-mode", "show");
+    for (const mode of ["opacity", "hide", "show"]) {
+      await modelVisibility.click();
+      await expect(modelVisibility).toHaveAttribute("data-mode", mode);
+      await expect(storeyVisibility).toHaveAttribute("data-mode", mode);
+      await expect(modelVisibility).toHaveAttribute("data-exceptions", "false");
+    }
   } finally {
     await gotoHydrated(page, projectHref);
     page.once("dialog", (dialog) => void dialog.accept());

@@ -23,21 +23,27 @@ export function VisibilityCheckbox({
 }) {
   const modes: VisibilityMode[] =
     cycle === "two-state" ? ["show", "hide"] : ["show", "opacity", "hide"];
+  const mixed = exceptionCount > 0;
+  const stateLabel = mixed ? "Visibilité mixte" : modeLabels[mode];
 
   return (
     <button
-      aria-checked={mode === "opacity" ? "mixed" : mode === "show"}
-      aria-label={`${label} : ${modeLabels[mode]}${exceptionCount ? `, ${exceptionCount} exception${exceptionCount > 1 ? "s" : ""} dans ce groupe` : ""}. Activer l’état suivant`}
+      aria-checked={mixed || mode === "opacity" ? "mixed" : mode === "show"}
+      aria-label={`${label} : ${stateLabel}. ${mixed ? "Afficher tout le groupe" : "Activer l’état suivant"}`}
       className={styles.visibility}
       data-exceptions={exceptionCount > 0}
       data-mode={mode}
-      onClick={() => onChange(modes[(modes.indexOf(mode) + 1) % modes.length])}
+      onClick={() =>
+        onChange(
+          mixed ? "show" : modes[(modes.indexOf(mode) + 1) % modes.length],
+        )
+      }
       role="checkbox"
-      title={`${label} : ${modeLabels[mode]}`}
+      title={`${label} : ${stateLabel}`}
       type="button"
     >
       <span aria-hidden="true">
-        {mode === "show" ? "✓" : mode === "opacity" ? "−" : ""}
+        {mixed || mode === "opacity" ? "−" : mode === "show" ? "✓" : ""}
       </span>
     </button>
   );
