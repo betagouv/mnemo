@@ -1,24 +1,28 @@
 "use server";
 
 import {
-  addMemberInputSchema,
+  issueProjectInvitationInputSchema,
   createProjectRoleInputSchema,
   deleteProjectRoleInputSchema,
   removeMemberInputSchema,
+  revokeProjectInvitationInputSchema,
   setMemberAccessInputSchema,
   updateProjectRoleInputSchema,
-  type AddMemberInput,
+  type IssueProjectInvitationInput,
   type CreateProjectRoleInput,
   type DeleteProjectRoleInput,
   type RemoveMemberInput,
+  type RevokeProjectInvitationInput,
   type SetMemberAccessInput,
   type UpdateProjectRoleInput,
 } from "@mnemo/contracts/project-access";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 
 import { resolveActor } from "@/server/auth/resolve-actor";
 
 import { getProjectAccessService } from "./project-access-service-factory";
+import { getProjectInvitationService } from "./project-invitation-service-factory";
 
 function refreshAccess(projectId: string) {
   revalidatePath(`/projets/${projectId}/acces`);
@@ -64,8 +68,53 @@ export async function removeProjectMember(input: RemoveMemberInput) {
   refreshAccess(parsed.projectId);
 }
 
-export async function addProjectMember(input: AddMemberInput) {
-  const parsed = addMemberInputSchema.parse(input);
-  await getProjectAccessService().addMember((await resolveActor()).id, parsed);
+export async function issueProjectInvitation(
+  input: IssueProjectInvitationInput,
+) {
+  const parsed = issueProjectInvitationInputSchema.parse(input);
+  await getProjectInvitationService().issue((await resolveActor()).id, parsed);
   refreshAccess(parsed.projectId);
+}
+
+export async function revokeProjectInvitation(
+  input: RevokeProjectInvitationInput,
+) {
+  const parsed = revokeProjectInvitationInputSchema.parse(input);
+  await getProjectInvitationService().revoke(
+    (await resolveActor()).id,
+    parsed.projectId,
+    parsed.invitationId,
+  );
+  refreshAccess(parsed.projectId);
+}
+
+export async function acceptProjectInvitation(token: string) {
+  const projectId = await getProjectInvitationService().accept(
+    (await resolveActor()).id,
+    token,
+  );
+  refreshAccess(projectId);
+  revalidatePath("/projets");
+  return projectId;
+}
+
+export async function acceptAccountProjectInvitation(invitationId: string) {
+  const id = z.uuid().parse(invitationId);
+  const projectId = await getProjectInvitationService().acceptForAccount(
+    (await resolveActor()).id,
+    id,
+  );
+  refreshAccess(projectId);
+  revalidatePath("/projets");
+  revalidatePath("/compte");
+  return projectId;
+}
+
+export async function declineAccountProjectInvitation(invitationId: string) {
+  const id = z.uuid().parse(invitationId);
+  await getProjectInvitationService().declineForAccount(
+    (await resolveActor()).id,
+    id,
+  );
+  revalidatePath("/compte");
 }

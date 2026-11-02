@@ -1,5 +1,4 @@
 import type {
-  AddMemberInput,
   CreateProjectRoleInput,
   SetMemberAccessInput,
   UpdateProjectRoleInput,
@@ -24,6 +23,14 @@ export type ProjectMemberAccess = {
 export type ProjectAccessOverview = {
   roles: CustomProjectRole[];
   members: ProjectMemberAccess[];
+  invitations: {
+    id: string;
+    email: string;
+    baseRole: ProjectRole;
+    roleIds: string[];
+    permissions: ProjectPermission[];
+    expiresAt: Date;
+  }[];
 };
 
 export interface ProjectAccessRepository {
@@ -37,5 +44,4 @@ export interface ProjectAccessRepository {
     projectId: string,
     userId: string,
   ): Promise<void>;
-  addMember(actorId: string, input: AddMemberInput): Promise<void>;
 }

@@ -4,8 +4,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { betterAuth } from "better-auth";
 
 import { getRuntimePrismaDatabase } from "@/server/database/runtime-database";
-
-import { sendAuthEmail } from "./brevo-email";
+import { sendTransactionalEmail } from "@/server/email/brevo-email";
 
 export const auth = betterAuth({
   appName: "Mnemo",
@@ -18,28 +17,46 @@ export const auth = betterAuth({
     maxPasswordLength: 512,
     requireEmailVerification: true,
     sendResetPassword: async ({ user, url }) => {
-      // Do not expose account existence through provider latency or errors.
-      void sendAuthEmail({
-        to: user.email,
-        subject: "Réinitialiser votre mot de passe Mnemo",
-        text: `Bonjour,\n\nPour choisir un nouveau mot de passe Mnemo, ouvrez ce lien :\n${url}\n\nSi vous n'êtes pas à l'origine de cette demande, ignorez ce message.`,
-      }).catch(() => {
-        console.error("Password reset email delivery failed");
-      });
+      try {
+        await sendTransactionalEmail({
+          to: user.email,
+          subject: "Réinitialiser votre mot de passe Mnemo",
+          intro:
+            "Vous avez demandé à choisir un nouveau mot de passe pour votre compte Mnemo.",
+          actionLabel: "Réinitialiser mon mot de passe",
+          actionUrl: url,
+          note: "Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer ce message.",
+        });
+        console.info("Password reset email accepted by Brevo");
+      } catch (error) {
+        console.error(
+          "Password reset email delivery failed:",
+          error instanceof Error ? error.message : "unknown",
+        );
+      }
     },
     revokeSessionsOnPasswordReset: true,
   },
   emailVerification: {
     sendOnSignUp: true,
     sendVerificationEmail: async ({ user, url }) => {
-      // The resend endpoint must behave the same for unknown addresses.
-      void sendAuthEmail({
-        to: user.email,
-        subject: "Confirmer votre adresse e-mail Mnemo",
-        text: `Bonjour,\n\nPour confirmer votre adresse e-mail Mnemo, ouvrez ce lien :\n${url}\n\nSi vous n'avez pas créé de compte, ignorez ce message.`,
-      }).catch(() => {
-        console.error("Verification email delivery failed");
-      });
+      try {
+        await sendTransactionalEmail({
+          to: user.email,
+          subject: "Confirmer votre adresse e-mail Mnemo",
+          intro:
+            "Confirmez votre adresse e-mail pour activer votre compte Mnemo.",
+          actionLabel: "Confirmer mon adresse",
+          actionUrl: url,
+          note: "Si vous n'avez pas créé de compte Mnemo, vous pouvez ignorer ce message.",
+        });
+        console.info("Verification email accepted by Brevo");
+      } catch (error) {
+        console.error(
+          "Verification email delivery failed:",
+          error instanceof Error ? error.message : "unknown",
+        );
+      }
     },
   },
   user: {

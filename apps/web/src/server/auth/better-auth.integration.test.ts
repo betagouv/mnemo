@@ -5,12 +5,14 @@ import { afterAll, describe, expect, it, vi } from "vitest";
 import { getRuntimePrismaDatabase } from "@/server/database/runtime-database";
 
 const deliveries = vi.hoisted(
-  () => [] as { to: string; subject: string; text: string }[],
+  () => [] as { to: string; subject: string; actionUrl: string }[],
 );
-vi.mock("./brevo-email", () => ({
-  sendAuthEmail: vi.fn(async (message: (typeof deliveries)[number]) => {
-    deliveries.push(message);
-  }),
+vi.mock("@/server/email/brevo-email", () => ({
+  sendTransactionalEmail: vi.fn(
+    async (message: (typeof deliveries)[number]) => {
+      deliveries.push(message);
+    },
+  ),
 }));
 
 const email = `mnemo-auth-test-${randomUUID()}@example.invalid`;
@@ -41,7 +43,7 @@ function post(path: string, body: unknown, cookie?: string) {
 }
 
 function lastLink() {
-  const link = deliveries.at(-1)?.text.match(/https?:\/\/\S+/)?.[0];
+  const link = deliveries.at(-1)?.actionUrl;
   if (!link) throw new Error("Expected an email containing a link");
   return link;
 }
@@ -69,9 +71,10 @@ describe("Better Auth email verification and password recovery", () => {
       to: email,
       subject: "Confirmer votre adresse e-mail Mnemo",
     });
-    const { sendAuthEmail } = await import("./brevo-email");
+    const { sendTransactionalEmail } =
+      await import("@/server/email/brevo-email");
     const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.mocked(sendAuthEmail).mockRejectedValueOnce(
+    vi.mocked(sendTransactionalEmail).mockRejectedValueOnce(
       new Error("provider failure"),
     );
     const failedResend = await auth.handler(

@@ -1,5 +1,4 @@
 import type {
-  AddMemberInput,
   CreateProjectRoleInput,
   SetMemberAccessInput,
   UpdateProjectRoleInput,
@@ -12,31 +11,7 @@ import type {
   ProjectAccessOverview,
   ProjectAccessRepository,
 } from "../application/project-access-repository";
-
-async function requireOwner(
-  tx: Prisma.TransactionClient,
-  projectId: string,
-  actorId: string,
-) {
-  const member = await tx.project_members.findUnique({
-    where: { project_id_user_id: { project_id: projectId, user_id: actorId } },
-    select: { role: true },
-  });
-  if (member?.role !== "owner") throw new ProjectAccessDeniedError();
-}
-
-async function requireProjectRoles(
-  tx: Prisma.TransactionClient,
-  projectId: string,
-  roleIds: string[],
-) {
-  const uniqueIds = [...new Set(roleIds)];
-  if (!uniqueIds.length) return;
-  const count = await tx.project_roles.count({
-    where: { project_id: projectId, id: { in: uniqueIds } },
-  });
-  if (count !== uniqueIds.length) throw new ProjectAccessDeniedError();
-}
+import { requireOwner, requireProjectRoles } from "./project-access-guards";
 
 async function replaceGrants(
   tx: Prisma.TransactionClient,
@@ -71,7 +46,7 @@ export class PrismaProjectAccessRepository implements ProjectAccessRepository {
   constructor(private readonly db: MnemoPrismaDatabase) {}
 
   async list(projectId: string): Promise<ProjectAccessOverview> {
-    const [roles, members] = await Promise.all([
+    const [roles, members, invitations] = await Promise.all([
       this.db.project_roles.findMany({
         where: { project_id: projectId },
         include: { permissions: true },
@@ -81,6 +56,10 @@ export class PrismaProjectAccessRepository implements ProjectAccessRepository {
         where: { project_id: projectId },
         include: { users: true, permissions: true, custom_roles: true },
         orderBy: { joined_at: "asc" },
+      }),
+      this.db.project_invitations.findMany({
+        where: { project_id: projectId, expires_at: { gt: new Date() } },
+        orderBy: { created_at: "desc" },
       }),
     ]);
     return {
@@ -100,6 +79,14 @@ export class PrismaProjectAccessRepository implements ProjectAccessRepository {
         permissions: member.permissions
           .map((grant) => grant.permission)
           .filter(isProjectPermission),
+      })),
+      invitations: invitations.map((invitation) => ({
+        id: invitation.id,
+        email: invitation.email,
+        baseRole: invitation.base_role,
+        roleIds: invitation.role_ids,
+        permissions: invitation.permissions.filter(isProjectPermission),
+        expiresAt: invitation.expires_at,
       })),
     };
   }
@@ -151,43 +138,6 @@ export class PrismaProjectAccessRepository implements ProjectAccessRepository {
         where: { id: roleId, project_id: projectId },
       });
       if (!result.count) throw new ProjectAccessDeniedError();
-    });
-  }
-
-  async addMember(actorId: string, input: AddMemberInput) {
-    await this.db.$transaction(async (tx) => {
-      await requireOwner(tx, input.projectId, actorId);
-      await requireProjectRoles(tx, input.projectId, input.roleIds);
-      const user = await tx.users.findUnique({
-        where: { email: input.email.toLowerCase() },
-        select: { id: true, email_verified: true },
-      });
-      if (!user?.email_verified)
-        throw new ProjectAccessDeniedError("Compte introuvable ou non vérifié");
-      const existing = await tx.project_members.findUnique({
-        where: {
-          project_id_user_id: {
-            project_id: input.projectId,
-            user_id: user.id,
-          },
-        },
-      });
-      if (existing)
-        throw new ProjectAccessDeniedError("Déjà membre du dossier");
-      await tx.project_members.create({
-        data: {
-          project_id: input.projectId,
-          user_id: user.id,
-          role: input.baseRole,
-        },
-      });
-      await replaceGrants(
-        tx,
-        input.projectId,
-        user.id,
-        input.roleIds,
-        input.permissions,
-      );
     });
   }
 

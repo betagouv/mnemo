@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  addMemberInputSchema,
+  issueProjectInvitationInputSchema,
   createProjectRoleInputSchema,
   setMemberAccessInputSchema,
 } from "./project-access";
@@ -45,7 +45,7 @@ describe("project access inputs", () => {
       }).success,
     ).toBe(false);
     expect(
-      addMemberInputSchema.safeParse({
+      issueProjectInvitationInputSchema.safeParse({
         projectId,
         email: "guest@example.invalid",
         baseRole: "owner",

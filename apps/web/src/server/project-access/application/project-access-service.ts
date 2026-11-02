@@ -1,5 +1,4 @@
 import type {
-  AddMemberInput,
   CreateProjectRoleInput,
   SetMemberAccessInput,
   UpdateProjectRoleInput,
@@ -52,10 +51,5 @@ export class ProjectAccessService {
   async removeMember(actorId: string, projectId: string, userId: string) {
     await this.requireOwner(actorId, projectId);
     return this.access.removeMember(actorId, projectId, userId);
-  }
-
-  async addMember(actorId: string, input: AddMemberInput) {
-    await this.requireOwner(actorId, input.projectId);
-    return this.access.addMember(actorId, input);
   }
 }
