@@ -49,12 +49,6 @@
   line-height: 1.4;
 }
 
-.model[data-mode="hide"][data-exceptions="true"],
-.storey[data-mode="hide"][data-exceptions="true"],
-.classGroup[data-mode="hide"][data-exceptions="true"] {
-  background: var(--background-contrast-warning);
-}
-
 .storey,
 .classGroup {
   display: grid;

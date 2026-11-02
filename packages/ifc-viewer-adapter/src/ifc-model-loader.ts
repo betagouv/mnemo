@@ -216,6 +216,17 @@ export class IfcModelLoader {
 
       if (!this.isCurrentLoad(generation)) return;
 
+      // Streaming fragments cannot be partitioned for per-entity transparency.
+      // Consolidate them before enabling model controls, keeping the camera intact.
+      const scene = this.host.renderer.getScene();
+      const device = this.host.renderer.getGPUDevice();
+      const pipeline = this.host.renderer.getPipeline();
+      if (device && pipeline) {
+        await scene.finalizeStreamingAsync(device, pipeline);
+        if (!this.isCurrentLoad(generation)) return;
+        this.host.renderer.clearCaches();
+      }
+
       const bimIndex = this.host.runtime.createBimIndex(
         store,
         [...meshIds].map((id) => id - offset),

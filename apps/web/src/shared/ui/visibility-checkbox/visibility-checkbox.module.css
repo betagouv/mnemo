@@ -24,6 +24,6 @@
 }
 
 .visibility[data-exceptions="true"] {
-  outline: 2px solid var(--border-plain-warning);
-  outline-offset: 2px;
+  color: var(--viewer-accent);
+  background: var(--background-default-grey);
 }
