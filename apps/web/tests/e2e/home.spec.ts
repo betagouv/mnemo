@@ -362,7 +362,7 @@ test("creates, reloads, opens and deletes a project asset", async ({
       assetId,
     );
 
-    await page.getByRole("link", { name: "Ouvrir la vue 3D" }).click();
+    await page.getByRole("link", { name: "Ouvrir la vue" }).click();
     await expect(page).toHaveURL(/\/projets\/[0-9a-f-]+\/viewer$/);
     await expect(
       page.locator('[aria-label="Visionneuse 3D du projet"]'),

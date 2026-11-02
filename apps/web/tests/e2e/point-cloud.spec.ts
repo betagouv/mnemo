@@ -74,7 +74,7 @@ test("uploads, processes and range-loads the versioned COPC fixture", async ({
     }, source.copcUrl);
     expect(probe).toEqual({ status: 206, length: 375, signature: "LASF" });
 
-    await page.getByRole("link", { name: "Ouvrir la vue 3D" }).click();
+    await page.getByRole("link", { name: "Ouvrir la vue" }).click();
     await expect(page).toHaveURL(/\/projets\/[0-9a-f-]+\/viewer$/);
     await expect(
       page.locator('[aria-label="Visionneuse 3D du projet"]'),
