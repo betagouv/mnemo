@@ -39,8 +39,7 @@ export async function ProjectAccessScreen({
         </Link>
         <h1 className="mb-2 mt-6">Accès à {project.title}</h1>
         <p className="mb-8 text-[var(--text-mention-grey)]">
-          Ajoutez des comptes existants et définissez leurs droits dans ce
-          dossier.
+          Invitez des personnes et définissez leurs droits dans ce dossier.
         </p>
         <ProjectAccessManager projectId={project.id} overview={overview} />
       </div>

@@ -25,6 +25,6 @@ test("lets a project owner create a reusable BCF role", async ({ page }) => {
     page.getByRole("heading", { name: "Commentaire BCF" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Ajouter un membre" }),
+    page.getByRole("button", { name: "Inviter une personne" }),
   ).toBeVisible();
 });

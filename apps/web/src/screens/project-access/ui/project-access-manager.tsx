@@ -20,10 +20,11 @@ import type {
   ProjectMemberAccess,
 } from "@/server/project-access/application/project-access-repository";
 import {
-  addProjectMember,
   createProjectRole,
   deleteProjectRole,
+  issueProjectInvitation,
   removeProjectMember,
+  revokeProjectInvitation,
   setMemberAccess,
   updateProjectRole,
 } from "@/server/project-access/actions";
@@ -463,14 +464,12 @@ function MemberEditor({
   );
 }
 
-function AddMemberEditor({
+function InvitationEditor({
   projectId,
   roles,
-  onClose,
 }: {
   projectId: string;
   roles: CustomProjectRole[];
-  onClose: () => void;
 }) {
   const [email, setEmail] = useState("");
   const [baseRole, setBaseRole] = useState<"viewer" | "editor">("viewer");
@@ -485,27 +484,28 @@ function AddMemberEditor({
         event.preventDefault();
         void run(
           () =>
-            addProjectMember({
+            issueProjectInvitation({
               projectId,
               email,
               baseRole,
               roleIds,
               permissions,
             }),
-          "Membre ajouté.",
+          "Invitation créée. Son envoi a été accepté par le service de messagerie.",
         ).then((result) => {
-          if (result.ok) onClose();
+          if (result.ok) setEmail("");
         });
       }}
     >
-      <h3>Ajouter un membre</h3>
+      <h3>Inviter une personne</h3>
       <p className="text-sm">
-        Cette personne doit déjà avoir créé un compte Mnemo. Les adresses e-mail
-        ne sont pas vérifiées dans cette version.
+        Elle recevra un lien personnel valable 7 jours. Si elle n&apos;a pas
+        encore de compte Mnemo, elle pourra en créer un avant d&apos;accepter
+        l&apos;invitation.
       </p>
       <Feedback error={error} success={success} />
       <Input
-        label="Adresse e-mail du compte"
+        label="Adresse e-mail de la personne"
         nativeInputProps={{
           autoComplete: "email",
           maxLength: 320,
@@ -531,19 +531,54 @@ function AddMemberEditor({
       <PermissionPicker onChange={setPermissions} value={permissions} />
       <div className="flex flex-wrap gap-3">
         <Button disabled={pending} nativeButtonProps={{ type: "submit" }}>
-          Ajouter le membre
-        </Button>
-        <Button
-          disabled={pending}
-          priority="secondary"
-          nativeButtonProps={{ onClick: onClose, type: "button" }}
-        >
-          Annuler
+          Envoyer l&apos;invitation
         </Button>
       </div>
     </form>
   );
 }
+
+function PendingInvitation({
+  projectId,
+  invitation,
+}: {
+  projectId: string;
+  invitation: ProjectAccessOverview["invitations"][number];
+}) {
+  const { pending, error, success, run } = useActionState();
+  return (
+    <li className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--border-default-grey)] py-4 last:border-0">
+      <div>
+        <p className="mb-1 font-bold">{invitation.email}</p>
+        <p className="mb-0 text-sm text-[var(--text-mention-grey)]">
+          {baseRoleLabel(invitation.baseRole)} · expire le{" "}
+          {new Date(invitation.expiresAt).toLocaleDateString("fr-FR")}
+        </p>
+        <Feedback error={error} success={success} />
+      </div>
+      <Button
+        disabled={pending}
+        priority="secondary"
+        size="small"
+        nativeButtonProps={{
+          onClick: () =>
+            void run(
+              () =>
+                revokeProjectInvitation({
+                  projectId,
+                  invitationId: invitation.id,
+                }),
+              "Invitation annulée.",
+            ),
+          type: "button",
+        }}
+      >
+        Annuler l&apos;invitation
+      </Button>
+    </li>
+  );
+}
+
 export function ProjectAccessManager({
   projectId,
   overview,
@@ -574,15 +609,11 @@ export function ProjectAccessManager({
               type: "button",
             }}
           >
-            Ajouter un membre
+            Inviter une personne
           </Button>
         </div>
         {showMemberForm ? (
-          <AddMemberEditor
-            onClose={() => setShowMemberForm(false)}
-            projectId={projectId}
-            roles={overview.roles}
-          />
+          <InvitationEditor projectId={projectId} roles={overview.roles} />
         ) : null}
         <ul className="m-0 list-none border-t border-[var(--border-default-grey)] p-0">
           {overview.members.map((member) => (
@@ -594,6 +625,24 @@ export function ProjectAccessManager({
             />
           ))}
         </ul>
+        {overview.invitations.length > 0 ? (
+          <div className="mt-8">
+            <h3>Invitations en attente ({overview.invitations.length})</h3>
+            <p className="text-sm text-[var(--text-mention-grey)]">
+              L&apos;accès sera accordé quand la personne acceptera son
+              invitation.
+            </p>
+            <ul className="m-0 list-none border-t border-[var(--border-default-grey)] p-0">
+              {overview.invitations.map((invitation) => (
+                <PendingInvitation
+                  key={invitation.id}
+                  invitation={invitation}
+                  projectId={projectId}
+                />
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </section>
       <section
         aria-labelledby="roles-heading"

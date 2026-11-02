@@ -44,12 +44,20 @@ export const removeMemberInputSchema = z.object({
   userId: z.uuid(),
 });
 
-export const addMemberInputSchema = z.object({
+export const issueProjectInvitationInputSchema = z.object({
   projectId: projectIdSchema,
-  email: z.email().max(320),
+  email: z
+    .email()
+    .max(320)
+    .transform((email) => email.toLowerCase()),
   baseRole: baseRoleSchema,
   roleIds: roleIdsSchema,
   permissions: permissionListSchema,
+});
+
+export const revokeProjectInvitationInputSchema = z.object({
+  projectId: projectIdSchema,
+  invitationId: z.uuid(),
 });
 
 export type CreateProjectRoleInput = z.infer<
@@ -63,4 +71,9 @@ export type DeleteProjectRoleInput = z.infer<
 >;
 export type SetMemberAccessInput = z.infer<typeof setMemberAccessInputSchema>;
 export type RemoveMemberInput = z.infer<typeof removeMemberInputSchema>;
-export type AddMemberInput = z.infer<typeof addMemberInputSchema>;
+export type IssueProjectInvitationInput = z.infer<
+  typeof issueProjectInvitationInputSchema
+>;
+export type RevokeProjectInvitationInput = z.infer<
+  typeof revokeProjectInvitationInputSchema
+>;

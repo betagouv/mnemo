@@ -2,19 +2,29 @@ import "server-only";
 
 import { BrevoClient } from "@getbrevo/brevo";
 
-type AuthEmail = {
+import { renderMnemoEmail } from "./mnemo-email";
+
+type TransactionalEmail = {
   to: string;
   subject: string;
-  text: string;
+  intro: string;
+  actionLabel: string;
+  actionUrl: string;
+  note: string;
 };
 
-export async function sendAuthEmail({ to, subject, text }: AuthEmail) {
+export async function sendTransactionalEmail(message: TransactionalEmail) {
   const apiKey = process.env.BREVO_API_KEY;
   const senderEmail = process.env.BREVO_SENDER_EMAIL;
-  if (!apiKey || !senderEmail) {
+  const appUrl = process.env.BETTER_AUTH_URL;
+  if (!apiKey || !senderEmail || !appUrl) {
     throw new Error("Brevo email delivery is not configured");
   }
 
+  const { text, html } = renderMnemoEmail(
+    { title: message.subject, ...message },
+    appUrl,
+  );
   const client = new BrevoClient({
     apiKey,
     timeoutInSeconds: 10,
@@ -27,9 +37,10 @@ export async function sendAuthEmail({ to, subject, text }: AuthEmail) {
         email: senderEmail,
         name: process.env.BREVO_SENDER_NAME || "Mnemo",
       },
-      to: [{ email: to }],
-      subject,
+      to: [{ email: message.to }],
+      subject: message.subject,
       textContent: text,
+      htmlContent: html,
     });
   } catch {
     // Provider errors can include recipient addresses and request details.
