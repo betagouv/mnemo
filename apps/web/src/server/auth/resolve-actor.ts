@@ -13,7 +13,7 @@ export async function getCurrentActor(): Promise<Actor | null> {
   const requestHeaders = await headers();
   const { auth } = await import("./better-auth");
   const session = await auth.api.getSession({ headers: requestHeaders });
-  return session ? { id: session.user.id } : null;
+  return session?.user.emailVerified ? { id: session.user.id } : null;
 }
 
 export async function resolveActor(): Promise<Actor> {

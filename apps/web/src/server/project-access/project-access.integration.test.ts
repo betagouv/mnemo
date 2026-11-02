@@ -11,6 +11,7 @@ import { getProjectAccessService } from "./project-access-service-factory";
 const nonce = randomUUID();
 const emailOwner = `owner-${nonce}@example.invalid`;
 const emailGuest = `guest-${nonce}@example.invalid`;
+const emailUnverified = `unverified-${nonce}@example.invalid`;
 let projectId: string | undefined;
 
 afterAll(async () => {
@@ -18,7 +19,7 @@ afterAll(async () => {
   if (projectId)
     await database.projects.deleteMany({ where: { id: projectId } });
   await database.users.deleteMany({
-    where: { email: { in: [emailOwner, emailGuest] } },
+    where: { email: { in: [emailOwner, emailGuest, emailUnverified] } },
   });
 });
 
@@ -30,7 +31,11 @@ describe("project access persistence", () => {
         data: { email: emailOwner, display_name: "Owner" },
       }),
       database.users.create({
-        data: { email: emailGuest, display_name: "Guest" },
+        data: {
+          email: emailGuest,
+          display_name: "Guest",
+          email_verified: true,
+        },
       }),
     ]);
     const project = await getProjectService().create(owner.id, {
@@ -38,6 +43,19 @@ describe("project access persistence", () => {
     });
     projectId = project.id;
     const access = getProjectAccessService();
+
+    await database.users.create({
+      data: { email: emailUnverified, display_name: "Unverified" },
+    });
+    await expect(
+      access.addMember(owner.id, {
+        projectId: project.id,
+        email: emailUnverified,
+        baseRole: "viewer",
+        roleIds: [],
+        permissions: [],
+      }),
+    ).rejects.toBeInstanceOf(ProjectAccessDeniedError);
 
     await access.createRole(owner.id, {
       projectId: project.id,

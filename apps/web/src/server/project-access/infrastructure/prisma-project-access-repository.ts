@@ -160,9 +160,10 @@ export class PrismaProjectAccessRepository implements ProjectAccessRepository {
       await requireProjectRoles(tx, input.projectId, input.roleIds);
       const user = await tx.users.findUnique({
         where: { email: input.email.toLowerCase() },
-        select: { id: true },
+        select: { id: true, email_verified: true },
       });
-      if (!user) throw new ProjectAccessDeniedError("Compte introuvable");
+      if (!user?.email_verified)
+        throw new ProjectAccessDeniedError("Compte introuvable ou non vérifié");
       const existing = await tx.project_members.findUnique({
         where: {
           project_id_user_id: {

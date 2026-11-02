@@ -11,11 +11,27 @@ export const dynamic = "force-dynamic";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ retour?: string }>;
+  searchParams: Promise<{
+    retour?: string;
+    verification?: string;
+    reinitialisation?: string;
+  }>;
 }) {
   const actor = await getCurrentActor();
-  const { retour } = await searchParams;
+  const { retour, verification, reinitialisation } = await searchParams;
   const returnTo = safeReturnPath(retour);
   if (actor) redirect(returnTo);
-  return <AuthScreen mode="login" returnTo={returnTo} />;
+  return (
+    <AuthScreen
+      mode="login"
+      returnTo={returnTo}
+      notice={
+        verification === "ok"
+          ? "verified"
+          : reinitialisation === "ok"
+            ? "password-reset"
+            : undefined
+      }
+    />
+  );
 }
