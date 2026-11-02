@@ -7,7 +7,10 @@ import type {
   CreateBcfTopicInput,
   UpdateBcfTopicStatusInput,
 } from "@mnemo/contracts/bcf";
-import { hasProjectPermission } from "@mnemo/domain/project";
+import {
+  hasProjectPermission,
+  type ProjectPermission,
+} from "@mnemo/domain/project";
 import {
   buildBcfViewpointSnapshotKey,
   type ObjectStorage,
@@ -54,7 +57,7 @@ export class BcfTopicService {
   }
 
   async list(actorId: string, projectId: string) {
-    await this.requireProject(actorId, projectId, false);
+    await this.requireProject(actorId, projectId, "bcf:read");
     return Promise.all(
       (await this.topics.list(projectId)).map((topic) =>
         this.exposeTopic(topic),
@@ -63,7 +66,7 @@ export class BcfTopicService {
   }
 
   async create(actorId: string, input: CreateBcfTopicInput) {
-    await this.requireProject(actorId, input.projectId, true);
+    await this.requireProject(actorId, input.projectId, "bcf:topic:create");
     return this.exposeTopic(
       await this.topics.create({
         ...input,
@@ -75,7 +78,7 @@ export class BcfTopicService {
   }
 
   async addComment(actorId: string, input: AddBcfCommentInput) {
-    await this.requireProject(actorId, input.projectId, true);
+    await this.requireProject(actorId, input.projectId, "bcf:comment:create");
     const topic = await this.topics.addComment({
       ...input,
       id: this.createId(),
@@ -87,7 +90,7 @@ export class BcfTopicService {
   }
 
   async updateStatus(actorId: string, input: UpdateBcfTopicStatusInput) {
-    await this.requireProject(actorId, input.projectId, true);
+    await this.requireProject(actorId, input.projectId, "bcf:topic:update");
     const topic = await this.topics.updateStatus({
       ...input,
       updatedAt: this.now(),
@@ -100,7 +103,7 @@ export class BcfTopicService {
     actorId: string,
     input: BeginBcfViewpointCaptureInput,
   ) {
-    await this.requireProject(actorId, input.projectId, true);
+    await this.requireProject(actorId, input.projectId, "bcf:viewpoint:create");
     const id = this.createId();
     const createdAt = this.now();
     const expiresAt = new Date(
@@ -154,7 +157,7 @@ export class BcfTopicService {
     actorId: string,
     input: CompleteBcfViewpointCaptureInput,
   ) {
-    await this.requireProject(actorId, input.projectId, true);
+    await this.requireProject(actorId, input.projectId, "bcf:viewpoint:create");
     const viewpoint = await this.topics.findViewpoint(
       input.projectId,
       input.topicId,
@@ -192,7 +195,7 @@ export class BcfTopicService {
   }
 
   async exportArchive(actorId: string, projectId: string) {
-    const project = await this.requireProject(actorId, projectId, false);
+    const project = await this.requireProject(actorId, projectId, "bcf:read");
     const topics = await this.topics.list(projectId);
     const exportTopics = await Promise.all(
       topics.map(async (topic) => ({
@@ -237,7 +240,7 @@ export class BcfTopicService {
   }
 
   async importArchive(actorId: string, projectId: string, bytes: Uint8Array) {
-    await this.requireProject(actorId, projectId, true);
+    await this.requireProject(actorId, projectId, "bcf:topic:create");
     if (bytes.byteLength > maxBcfArchiveBytes) {
       throw new BcfArchiveTooLargeError(
         "L’archive BCF dépasse la limite de 50 Mio.",
@@ -392,17 +395,12 @@ export class BcfTopicService {
   private async requireProject(
     actorId: string,
     projectId: string,
-    write: boolean,
+    permission: ProjectPermission,
   ) {
     const project = await this.projects.findForActor(actorId, projectId);
-    if (
-      !project ||
-      (write && !hasProjectPermission(project.role, "bcf:write"))
-    ) {
+    if (!project || !hasProjectPermission(project, permission)) {
       throw new BcfTopicAccessDeniedError(
-        write
-          ? "The actor cannot update BCF topics in this project"
-          : "BCF topics are not available to this actor",
+        "BCF topics are not available to this actor",
       );
     }
     return project;

@@ -9,10 +9,37 @@ export const projectPermissions = [
   "member:manage",
   "asset:create",
   "asset:delete",
-  "bcf:write",
+  "bcf:read",
+  "bcf:topic:create",
+  "bcf:topic:update",
+  "bcf:comment:create",
+  "bcf:viewpoint:create",
 ] as const;
 
 export type ProjectPermission = (typeof projectPermissions)[number];
+
+export const assignableProjectPermissions = projectPermissions.filter(
+  (permission) =>
+    permission !== "project:read" &&
+    permission !== "project:delete" &&
+    permission !== "member:manage" &&
+    permission !== "bcf:read",
+);
+
+export function isAssignableProjectPermission(
+  value: string,
+): value is (typeof assignableProjectPermissions)[number] {
+  return (assignableProjectPermissions as readonly string[]).includes(value);
+}
+
+export type ProjectAccess = {
+  role: ProjectRole;
+  permissions?: ProjectPermission[];
+};
+
+export function isProjectPermission(value: string): value is ProjectPermission {
+  return (projectPermissions as readonly string[]).includes(value);
+}
 
 const permissionsByRole = {
   owner: new Set<ProjectPermission>(projectPermissions),
@@ -21,14 +48,23 @@ const permissionsByRole = {
     "project:update",
     "asset:create",
     "asset:delete",
-    "bcf:write",
+    "bcf:read",
+    "bcf:topic:create",
+    "bcf:topic:update",
+    "bcf:comment:create",
+    "bcf:viewpoint:create",
   ]),
-  viewer: new Set<ProjectPermission>(["project:read"]),
+  viewer: new Set<ProjectPermission>(["project:read", "bcf:read"]),
 } satisfies Record<ProjectRole, ReadonlySet<ProjectPermission>>;
 
 export function hasProjectPermission(
-  role: ProjectRole,
+  access: ProjectRole | ProjectAccess,
   permission: ProjectPermission,
 ) {
-  return permissionsByRole[role].has(permission);
+  const role = typeof access === "string" ? access : access.role;
+  return (
+    permissionsByRole[role].has(permission) ||
+    (typeof access !== "string" &&
+      (access.permissions?.includes(permission) ?? false))
+  );
 }

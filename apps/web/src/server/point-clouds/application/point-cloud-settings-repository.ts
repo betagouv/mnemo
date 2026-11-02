@@ -2,12 +2,11 @@ import type {
   PointCloudSettings,
   UpdatePointCloudSettingsInput,
 } from "@mnemo/contracts/point-clouds";
-import type { AssetKind, ProjectRole } from "@mnemo/domain";
+import type { AssetKind, ProjectAccess } from "@mnemo/domain";
 
-export type PointCloudSettingsForActor = {
+export type PointCloudSettingsForActor = ProjectAccess & {
   assetId: string;
   kind: AssetKind;
-  role: ProjectRole;
   settings: PointCloudSettings | null;
 };
 

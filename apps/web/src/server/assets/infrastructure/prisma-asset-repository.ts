@@ -5,6 +5,10 @@ import type {
   AssetRepository,
   PendingAsset,
 } from "../application/asset-repository";
+import {
+  membershipAccessInclude,
+  toProjectAccess,
+} from "@/server/projects/infrastructure/project-access";
 
 function toAsset(row: PrismaAssetRecord): AssetForActor {
   return {
@@ -47,12 +51,15 @@ export class PrismaAssetRepository implements AssetRepository {
       where: {
         project_id_user_id: { project_id: projectId, user_id: actorId },
       },
+      include: membershipAccessInclude,
     });
     if (!membership) return undefined;
     const row = await this.database.assets.findFirst({
       where: { id: assetId, project_id: projectId },
     });
-    return row ? { asset: toAsset(row), role: membership.role } : undefined;
+    return row
+      ? { asset: toAsset(row), ...toProjectAccess(membership) }
+      : undefined;
   }
 
   async createPending(input: PendingAsset): Promise<AssetForActor> {

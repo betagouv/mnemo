@@ -1,5 +1,5 @@
 import type { CreateProjectInput } from "@mnemo/contracts/projects";
-import type { ProjectRole } from "@mnemo/domain/project";
+import type { ProjectPermission, ProjectRole } from "@mnemo/domain/project";
 
 export type ProjectForActor = {
   id: string;
@@ -7,6 +7,7 @@ export type ProjectForActor = {
   address: string | null;
   description: string | null;
   role: ProjectRole;
+  permissions?: ProjectPermission[];
   createdAt: Date;
   updatedAt: Date;
   assetStats?: {

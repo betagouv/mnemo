@@ -1,4 +1,4 @@
-import type { AssetKind, AssetStatus, ProjectRole } from "@mnemo/domain";
+import type { AssetKind, AssetStatus, ProjectAccess } from "@mnemo/domain";
 
 export type AssetForActor = {
   id: string;
@@ -29,7 +29,7 @@ export interface AssetRepository {
     actorId: string,
     projectId: string,
     assetId: string,
-  ): Promise<{ asset: AssetForActor; role: ProjectRole } | undefined>;
+  ): Promise<({ asset: AssetForActor } & ProjectAccess) | undefined>;
   createPending(input: PendingAsset): Promise<AssetForActor>;
   completeUpload(assetId: string, uploadedAt: Date): Promise<AssetForActor>;
   requestDeletion(assetId: string, requestedAt: Date): Promise<void>;

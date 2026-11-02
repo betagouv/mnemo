@@ -1,5 +1,8 @@
-import type { ProjectRole } from "./project";
-import { hasProjectPermission } from "./project";
+import {
+  hasProjectPermission,
+  type ProjectAccess,
+  type ProjectRole,
+} from "./project";
 
 export const assetKinds = ["ifc", "point_cloud"] as const;
 export type AssetKind = (typeof assetKinds)[number];
@@ -29,6 +32,6 @@ export function supportsAssetFile(kind: AssetKind, fileName: string) {
   return extension ? extensionsByKind[kind].has(extension) : false;
 }
 
-export function canUploadAsset(role: ProjectRole) {
-  return hasProjectPermission(role, "asset:create");
+export function canUploadAsset(access: ProjectRole | ProjectAccess) {
+  return hasProjectPermission(access, "asset:create");
 }

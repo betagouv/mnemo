@@ -12,6 +12,7 @@ function toProjectSummary(project: ProjectForActor): ProjectSummary {
   const { assetStats, ...details } = project;
   return {
     ...details,
+    permissions: project.permissions ?? [],
     assetCount: assetStats?.assetCount ?? 0,
     ifcCount: assetStats?.ifcCount ?? 0,
     pointCloudCount: assetStats?.pointCloudCount ?? 0,
@@ -59,7 +60,7 @@ export class ProjectService {
     input: UpdateProjectInput,
   ): Promise<ProjectSummary | null> {
     const project = await this.projects.findForActor(actorId, input.projectId);
-    if (!project || !hasProjectPermission(project.role, "project:update")) {
+    if (!project || !hasProjectPermission(project, "project:update")) {
       return null;
     }
 
@@ -79,7 +80,7 @@ export class ProjectService {
   async delete(actorId: string, projectId: string) {
     const project = await this.projects.findForActor(actorId, projectId);
 
-    if (!project || !hasProjectPermission(project.role, "project:delete")) {
+    if (!project || !hasProjectPermission(project, "project:delete")) {
       return { accepted: false as const };
     }
 

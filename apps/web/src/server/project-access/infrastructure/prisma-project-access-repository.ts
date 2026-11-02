@@ -1,0 +1,229 @@
+import type {
+  AddMemberInput,
+  CreateProjectRoleInput,
+  SetMemberAccessInput,
+  UpdateProjectRoleInput,
+} from "@mnemo/contracts/project-access";
+import { Prisma, type MnemoPrismaDatabase } from "@mnemo/database";
+import { isProjectPermission } from "@mnemo/domain/project";
+
+import { ProjectAccessDeniedError } from "../application/project-access-service";
+import type {
+  ProjectAccessOverview,
+  ProjectAccessRepository,
+} from "../application/project-access-repository";
+
+async function requireOwner(
+  tx: Prisma.TransactionClient,
+  projectId: string,
+  actorId: string,
+) {
+  const member = await tx.project_members.findUnique({
+    where: { project_id_user_id: { project_id: projectId, user_id: actorId } },
+    select: { role: true },
+  });
+  if (member?.role !== "owner") throw new ProjectAccessDeniedError();
+}
+
+async function requireProjectRoles(
+  tx: Prisma.TransactionClient,
+  projectId: string,
+  roleIds: string[],
+) {
+  const uniqueIds = [...new Set(roleIds)];
+  if (!uniqueIds.length) return;
+  const count = await tx.project_roles.count({
+    where: { project_id: projectId, id: { in: uniqueIds } },
+  });
+  if (count !== uniqueIds.length) throw new ProjectAccessDeniedError();
+}
+
+async function replaceGrants(
+  tx: Prisma.TransactionClient,
+  projectId: string,
+  userId: string,
+  roleIds: string[],
+  permissions: string[],
+) {
+  await tx.project_member_roles.deleteMany({
+    where: { project_id: projectId, user_id: userId },
+  });
+  await tx.project_member_permissions.deleteMany({
+    where: { project_id: projectId, user_id: userId },
+  });
+  await tx.project_member_roles.createMany({
+    data: [...new Set(roleIds)].map((roleId) => ({
+      project_id: projectId,
+      user_id: userId,
+      role_id: roleId,
+    })),
+  });
+  await tx.project_member_permissions.createMany({
+    data: [...new Set(permissions)].map((permission) => ({
+      project_id: projectId,
+      user_id: userId,
+      permission,
+    })),
+  });
+}
+
+export class PrismaProjectAccessRepository implements ProjectAccessRepository {
+  constructor(private readonly db: MnemoPrismaDatabase) {}
+
+  async list(projectId: string): Promise<ProjectAccessOverview> {
+    const [roles, members] = await Promise.all([
+      this.db.project_roles.findMany({
+        where: { project_id: projectId },
+        include: { permissions: true },
+        orderBy: { name: "asc" },
+      }),
+      this.db.project_members.findMany({
+        where: { project_id: projectId },
+        include: { users: true, permissions: true, custom_roles: true },
+        orderBy: { joined_at: "asc" },
+      }),
+    ]);
+    return {
+      roles: roles.map((role) => ({
+        id: role.id,
+        name: role.name,
+        permissions: role.permissions
+          .map((grant) => grant.permission)
+          .filter(isProjectPermission),
+      })),
+      members: members.map((member) => ({
+        userId: member.user_id,
+        name: member.users.display_name,
+        email: member.users.email,
+        baseRole: member.role,
+        roleIds: member.custom_roles.map((grant) => grant.role_id),
+        permissions: member.permissions
+          .map((grant) => grant.permission)
+          .filter(isProjectPermission),
+      })),
+    };
+  }
+
+  async createRole(actorId: string, input: CreateProjectRoleInput) {
+    await this.db.$transaction(async (tx) => {
+      await requireOwner(tx, input.projectId, actorId);
+      await tx.project_roles.create({
+        data: {
+          project_id: input.projectId,
+          name: input.name,
+          permissions: {
+            create: [...new Set(input.permissions)].map((permission) => ({
+              permission,
+            })),
+          },
+        },
+      });
+    });
+  }
+
+  async updateRole(actorId: string, input: UpdateProjectRoleInput) {
+    await this.db.$transaction(async (tx) => {
+      await requireOwner(tx, input.projectId, actorId);
+      const role = await tx.project_roles.findFirst({
+        where: { id: input.roleId, project_id: input.projectId },
+      });
+      if (!role) throw new ProjectAccessDeniedError();
+      await tx.project_roles.update({
+        where: { id: role.id },
+        data: { name: input.name },
+      });
+      await tx.project_role_permissions.deleteMany({
+        where: { role_id: role.id },
+      });
+      await tx.project_role_permissions.createMany({
+        data: [...new Set(input.permissions)].map((permission) => ({
+          role_id: role.id,
+          permission,
+        })),
+      });
+    });
+  }
+
+  async deleteRole(actorId: string, projectId: string, roleId: string) {
+    await this.db.$transaction(async (tx) => {
+      await requireOwner(tx, projectId, actorId);
+      const result = await tx.project_roles.deleteMany({
+        where: { id: roleId, project_id: projectId },
+      });
+      if (!result.count) throw new ProjectAccessDeniedError();
+    });
+  }
+
+  async addMember(actorId: string, input: AddMemberInput) {
+    await this.db.$transaction(async (tx) => {
+      await requireOwner(tx, input.projectId, actorId);
+      await requireProjectRoles(tx, input.projectId, input.roleIds);
+      const user = await tx.users.findUnique({
+        where: { email: input.email.toLowerCase() },
+        select: { id: true },
+      });
+      if (!user) throw new ProjectAccessDeniedError("Compte introuvable");
+      const existing = await tx.project_members.findUnique({
+        where: {
+          project_id_user_id: {
+            project_id: input.projectId,
+            user_id: user.id,
+          },
+        },
+      });
+      if (existing)
+        throw new ProjectAccessDeniedError("Déjà membre du dossier");
+      await tx.project_members.create({
+        data: {
+          project_id: input.projectId,
+          user_id: user.id,
+          role: input.baseRole,
+        },
+      });
+      await replaceGrants(
+        tx,
+        input.projectId,
+        user.id,
+        input.roleIds,
+        input.permissions,
+      );
+    });
+  }
+
+  async setMember(actorId: string, input: SetMemberAccessInput) {
+    await this.db.$transaction(async (tx) => {
+      await requireOwner(tx, input.projectId, actorId);
+      await requireProjectRoles(tx, input.projectId, input.roleIds);
+      const result = await tx.project_members.updateMany({
+        where: {
+          project_id: input.projectId,
+          user_id: input.userId,
+          role: { not: "owner" },
+        },
+        data: { role: input.baseRole },
+      });
+      if (!result.count) throw new ProjectAccessDeniedError();
+      await replaceGrants(
+        tx,
+        input.projectId,
+        input.userId,
+        input.roleIds,
+        input.permissions,
+      );
+    });
+  }
+
+  async removeMember(actorId: string, projectId: string, userId: string) {
+    await this.db.$transaction(async (tx) => {
+      await requireOwner(tx, projectId, actorId);
+      const result = await tx.project_members.deleteMany({
+        where: {
+          project_id: projectId,
+          user_id: userId,
+          role: { not: "owner" },
+        },
+      });
+      if (!result.count) throw new ProjectAccessDeniedError();
+    });
+  }
+}
