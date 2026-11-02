@@ -1,9 +1,10 @@
 import { projectIdSchema } from "@mnemo/contracts/projects";
+import { hasProjectPermission } from "@mnemo/domain/project";
 import { notFound } from "next/navigation";
 
 import { getAssetService } from "@/server/assets/asset-service-factory";
 import { getAssistantThreadService } from "@/server/assistant/assistant-thread-service-factory";
-import { resolveActor } from "@/server/auth/resolve-actor";
+import { resolvePageActor } from "@/server/auth/resolve-actor";
 import { getBcfTopicService } from "@/server/bcf/bcf-topic-service-factory";
 import { getPointCloudSettingsService } from "@/server/point-clouds/point-cloud-settings-service-factory";
 import { getPointCloudSourceService } from "@/server/point-clouds/point-cloud-source-service-factory";
@@ -22,7 +23,7 @@ export async function ProjectViewerScreen({
   const parsed = projectIdSchema.safeParse(projectId);
   if (!parsed.success) notFound();
 
-  const actorId = (await resolveActor()).id;
+  const actorId = (await resolvePageActor()).id;
   const project = await getProjectService().find(actorId, parsed.data);
   if (!project) notFound();
 
@@ -140,6 +141,15 @@ export async function ProjectViewerScreen({
           ifcSources={ifcSources}
           assistantSessions={assistantSessions}
           initialBcfTopics={bcfTopics}
+          bcfPermissions={{
+            createTopic: hasProjectPermission(project, "bcf:topic:create"),
+            updateTopic: hasProjectPermission(project, "bcf:topic:update"),
+            createComment: hasProjectPermission(project, "bcf:comment:create"),
+            createViewpoint: hasProjectPermission(
+              project,
+              "bcf:viewpoint:create",
+            ),
+          }}
           key={project.id}
           pointCloudFailures={pointCloudFailures}
           pointCloudSources={pointCloudSources}

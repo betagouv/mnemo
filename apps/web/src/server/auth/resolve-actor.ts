@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
 export type Actor = { id: string };
 
@@ -18,5 +19,11 @@ export async function getCurrentActor(): Promise<Actor | null> {
 export async function resolveActor(): Promise<Actor> {
   const actor = await getCurrentActor();
   if (!actor) throw new AuthenticationRequiredError();
+  return actor;
+}
+
+export async function resolvePageActor(): Promise<Actor> {
+  const actor = await getCurrentActor();
+  if (!actor) redirect("/connexion");
   return actor;
 }

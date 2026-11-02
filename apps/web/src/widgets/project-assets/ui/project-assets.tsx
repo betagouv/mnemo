@@ -10,9 +10,13 @@ import { UploadAssetControls } from "@/features/upload-asset";
 import styles from "./project-assets.module.css";
 
 export function ProjectAssets({
+  canDelete,
+  canUpload,
   projectId,
   initialAssets,
 }: {
+  canDelete: boolean;
+  canUpload: boolean;
   projectId: string;
   initialAssets: AssetSummary[];
 }) {
@@ -27,7 +31,9 @@ export function ProjectAssets({
 
   return (
     <section className={styles.files} aria-labelledby="project-files-title">
-      <UploadAssetControls onUploaded={updateAsset} projectId={projectId} />
+      {canUpload ? (
+        <UploadAssetControls onUploaded={updateAsset} projectId={projectId} />
+      ) : null}
 
       <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h2 id="project-files-title">Fichiers</h2>
@@ -41,16 +47,18 @@ export function ProjectAssets({
           {assets.map((asset) => (
             <AssetCard
               action={
-                <DeleteAssetButton
-                  assetId={asset.id}
-                  assetName={asset.originalFileName}
-                  onDeleted={(assetId) =>
-                    setAssets((current) =>
-                      current.filter((item) => item.id !== assetId),
-                    )
-                  }
-                  projectId={projectId}
-                />
+                canDelete ? (
+                  <DeleteAssetButton
+                    assetId={asset.id}
+                    assetName={asset.originalFileName}
+                    onDeleted={(assetId) =>
+                      setAssets((current) =>
+                        current.filter((item) => item.id !== assetId),
+                      )
+                    }
+                    projectId={projectId}
+                  />
+                ) : undefined
               }
               asset={asset}
               key={asset.id}

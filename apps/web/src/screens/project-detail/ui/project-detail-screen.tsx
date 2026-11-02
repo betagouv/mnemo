@@ -8,7 +8,7 @@ import { DeleteProjectButton } from "@/features/delete-project";
 import { ProjectMetadataModal } from "@/features/manage-project-metadata";
 import { ProjectAssets } from "@/widgets/project-assets";
 import { getAssetService } from "@/server/assets/asset-service-factory";
-import { resolveActor } from "@/server/auth/resolve-actor";
+import { resolvePageActor } from "@/server/auth/resolve-actor";
 import { getProjectService } from "@/server/projects/project-service-factory";
 
 import styles from "./project-detail-screen.module.css";
@@ -24,7 +24,7 @@ export async function ProjectDetailScreen({
     notFound();
   }
 
-  const actorId = (await resolveActor()).id;
+  const actorId = (await resolvePageActor()).id;
   const project = await getProjectService().find(actorId, parsedProjectId.data);
 
   if (!project) {
@@ -68,15 +68,29 @@ export async function ProjectDetailScreen({
               Ouvrir la vue 3D
             </Button>
           ) : null}
-          {hasProjectPermission(project.role, "project:update") ? (
+          {hasProjectPermission(project, "project:update") ? (
             <ProjectMetadataModal project={project} />
+          ) : null}
+          {hasProjectPermission(project, "member:manage") ? (
+            <Button
+              iconId="fr-icon-team-line"
+              priority="secondary"
+              linkProps={{ href: `/projets/${project.id}/acces` }}
+            >
+              Accès au dossier
+            </Button>
           ) : null}
         </div>
       </header>
 
-      <ProjectAssets initialAssets={assets} projectId={project.id} />
+      <ProjectAssets
+        canDelete={hasProjectPermission(project, "asset:delete")}
+        canUpload={hasProjectPermission(project, "asset:create")}
+        initialAssets={assets}
+        projectId={project.id}
+      />
 
-      {project.role === "owner" ? (
+      {hasProjectPermission(project, "project:delete") ? (
         <section
           className={styles.management}
           aria-labelledby="management-title"

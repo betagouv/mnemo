@@ -62,6 +62,7 @@ export function ProjectViewer({
   assistantSessions,
   assistantConfigured,
   assistantMcpConfigured,
+  bcfPermissions,
   ifcSources,
   initialBcfTopics,
   pointCloudFailures,
@@ -72,6 +73,12 @@ export function ProjectViewer({
   assistantSessions: Record<string, AssistantSession>;
   assistantConfigured: boolean;
   assistantMcpConfigured: boolean;
+  bcfPermissions: {
+    createTopic: boolean;
+    updateTopic: boolean;
+    createComment: boolean;
+    createViewpoint: boolean;
+  };
   ifcSources: ViewerIfcSource[];
   initialBcfTopics: BcfTopic[];
   pointCloudFailures: ViewerPointCloudFailure[];
@@ -373,6 +380,7 @@ export function ProjectViewer({
         ) : activePanel === "bcf" ? (
           <BcfTopicsPanel
             assetId={activeModelId ?? ""}
+            permissions={bcfPermissions}
             canCaptureViewpoint={
               snapshot.phase === "ready" && Boolean(activeModelId)
             }
