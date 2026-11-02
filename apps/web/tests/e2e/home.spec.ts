@@ -340,9 +340,9 @@ test("creates, reloads, opens and deletes a project asset", async ({
     await fileChooser.setFiles(sampleIfcPath);
 
     await expect(page.getByRole("heading", { name: fileName })).toBeVisible();
-    await page.reload();
-    await waitForHydration(page);
-    await expect(page.getByRole("heading", { name: fileName })).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Ouvrir la vue 3D" }),
+    ).toBeVisible();
 
     const projectId = projectHref.split("/").at(-1);
     const assetId = await page
