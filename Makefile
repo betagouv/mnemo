@@ -8,7 +8,7 @@ MNEMO_DEV_GID := $(shell id -g)
 
 .DEFAULT_GOAL := help
 
-.PHONY: help dev dev-s3 test-e2e start start-detached stop down restart logs status config architecture architecture-validate
+.PHONY: help dev dev-s3 db-studio test-e2e start start-detached stop down restart logs status config architecture architecture-validate
 
 help: ## Afficher les commandes disponibles
 	@awk 'BEGIN {FS = ":.*## "; printf "Commandes Mnemo :\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-16s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -23,6 +23,9 @@ dev: ## Lancer Next.js avec hot reload et les services annexes dans Docker
 
 dev-s3: ## Lancer le développement avec le profil S3 externe
 	$(MAKE) dev ENV_FILE=.env.s3
+
+db-studio: ## Ouvrir Prisma Studio avec le profil d'environnement sélectionné
+	node scripts/with-env-profile.mjs "$(ENV_FILE)" pnpm --filter @mnemo/database exec prisma studio
 
 test-e2e: ## Lancer les tests navigateur visibles contre make dev
 	PLAYWRIGHT_BASE_URL="$(PLAYWRIGHT_BASE_URL)" node scripts/with-env-profile.mjs "$(ENV_FILE)" pnpm --filter @mnemo/web exec playwright test --headed --workers=1
