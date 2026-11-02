@@ -65,7 +65,7 @@ export async function ProjectDetailScreen({
               iconId="fr-icon-eye-line"
               linkProps={{ href: `/projets/${project.id}/viewer` }}
             >
-              Ouvrir la vue 3D
+              Ouvrir la vue
             </Button>
           ) : null}
           {hasProjectPermission(project, "project:update") ? (
