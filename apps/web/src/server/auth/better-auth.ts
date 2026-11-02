@@ -5,6 +5,8 @@ import { betterAuth } from "better-auth";
 
 import { getRuntimePrismaDatabase } from "@/server/database/runtime-database";
 
+import { sendAuthEmail } from "./brevo-email";
+
 export const auth = betterAuth({
   appName: "Mnemo",
   database: prismaAdapter(getRuntimePrismaDatabase(), {
@@ -14,7 +16,31 @@ export const auth = betterAuth({
     enabled: true,
     minPasswordLength: 12,
     maxPasswordLength: 512,
-    requireEmailVerification: false,
+    requireEmailVerification: true,
+    sendResetPassword: async ({ user, url }) => {
+      // Do not expose account existence through provider latency or errors.
+      void sendAuthEmail({
+        to: user.email,
+        subject: "Réinitialiser votre mot de passe Mnemo",
+        text: `Bonjour,\n\nPour choisir un nouveau mot de passe Mnemo, ouvrez ce lien :\n${url}\n\nSi vous n'êtes pas à l'origine de cette demande, ignorez ce message.`,
+      }).catch(() => {
+        console.error("Password reset email delivery failed");
+      });
+    },
+    revokeSessionsOnPasswordReset: true,
+  },
+  emailVerification: {
+    sendOnSignUp: true,
+    sendVerificationEmail: async ({ user, url }) => {
+      // The resend endpoint must behave the same for unknown addresses.
+      void sendAuthEmail({
+        to: user.email,
+        subject: "Confirmer votre adresse e-mail Mnemo",
+        text: `Bonjour,\n\nPour confirmer votre adresse e-mail Mnemo, ouvrez ce lien :\n${url}\n\nSi vous n'avez pas créé de compte, ignorez ce message.`,
+      }).catch(() => {
+        console.error("Verification email delivery failed");
+      });
+    },
   },
   user: {
     modelName: "users",
@@ -67,6 +93,9 @@ export const auth = betterAuth({
     customRules: {
       "/sign-in/email": { window: 60, max: 5 },
       "/sign-up/email": { window: 60, max: 5 },
+      "/send-verification-email": { window: 60, max: 3 },
+      "/request-password-reset": { window: 60, max: 3 },
+      "/reset-password": { window: 60, max: 5 },
     },
   },
   advanced: {

@@ -1,24 +1,35 @@
 import { randomUUID } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 
-import { request, type FullConfig } from "@playwright/test";
+import { createPrismaDatabase } from "@mnemo/database";
+import { hashPassword } from "better-auth/crypto";
 
-export default async function authSetup(config: FullConfig) {
-  const baseURL = String(config.projects[0]?.use.baseURL);
+export default async function authSetup() {
   const email = `mnemo-e2e-${randomUUID()}@example.invalid`;
-  const api = await request.newContext({ baseURL });
   const password = `Local-test-password-${randomUUID()}`;
-  const response = await api.post("/api/auth/sign-up/email", {
-    data: {
-      name: "Test navigateur Mnemo",
-      email,
-      password,
-    },
-  });
-  if (!response.ok()) {
-    throw new Error(`E2E account creation failed: HTTP ${response.status()}`);
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString)
+    throw new Error("DATABASE_URL is required for E2E setup");
+  const { db, close } = createPrismaDatabase({ connectionString });
+  try {
+    const user = await db.users.create({
+      data: {
+        email,
+        display_name: "Test navigateur Mnemo",
+        email_verified: true,
+      },
+    });
+    await db.auth_accounts.create({
+      data: {
+        user_id: user.id,
+        account_id: user.id,
+        provider_id: "credential",
+        password: await hashPassword(password),
+      },
+    });
+  } finally {
+    await close();
   }
-  await api.dispose();
   await writeFile(
     ".e2e-auth-account.json",
     JSON.stringify({ email, password }),
