@@ -1,12 +1,16 @@
 "use client";
 
-import type { BcfTopic } from "@mnemo/contracts/bcf";
+import type {
+  BcfTopicSummary,
+  BcfMarkerTopic,
+  CreateBcfTopicInput,
+} from "@mnemo/contracts/bcf";
 import type {
   AssistantThreadHistory,
   AssistantThreadSummary,
 } from "@mnemo/contracts/assistant";
 import Alert from "@codegouvfr/react-dsfr/Alert";
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import {
   SectionBoxGizmo,
@@ -15,7 +19,8 @@ import {
   SectionSketchOverlay,
 } from "@/features/control-section";
 import { IfcAssistantPanel } from "@/features/interact-with-ifc-assistant";
-import { BcfTopicsPanel } from "@/features/manage-bcf-topics";
+import { BcfPanel } from "./bcf-panel";
+import { BcfMarkers } from "./bcf-markers";
 import { useProjectScene } from "../model/use-project-scene";
 import { getActiveViewerModifiers } from "../model/viewer-active-modifiers";
 import {
@@ -74,13 +79,14 @@ export function ProjectViewer({
   assistantConfigured: boolean;
   assistantMcpConfigured: boolean;
   bcfPermissions: {
+    read: boolean;
     createTopic: boolean;
     updateTopic: boolean;
     createComment: boolean;
     createViewpoint: boolean;
   };
   ifcSources: ViewerIfcSource[];
-  initialBcfTopics: BcfTopic[];
+  initialBcfTopics: BcfTopicSummary[];
   pointCloudFailures: ViewerPointCloudFailure[];
   pointCloudSources: ViewerPointCloudSource[];
   projectId: string;
@@ -107,6 +113,29 @@ export function ProjectViewer({
     useState<ViewerToolGroupId | null>(null);
   const [panelFocusRequest, setPanelFocusRequest] = useState(0);
   const [bcfTopicCount, setBcfTopicCount] = useState(initialBcfTopics.length);
+  const [markerTopics, setMarkerTopics] = useState<BcfMarkerTopic[]>([]);
+  const [activeBcfTopicId, setActiveBcfTopicId] = useState<string | null>(null);
+  const captureBcf = useCallback(
+    (objects?: CreateBcfTopicInput["components"]) => {
+      const controller = controllerRef.current;
+      if (!controller)
+        return Promise.reject(new Error("La visionneuse n’est pas prête."));
+      return controller.captureBcfViewpoint(objects);
+    },
+    [controllerRef],
+  );
+  const previewBcfObjects = useCallback(
+    (objects: CreateBcfTopicInput["components"]) =>
+      controllerRef.current?.setBcfSelection(
+        activePanel === "bcf" ? objects : [],
+      ),
+    [controllerRef, activePanel],
+  );
+  const queryBcfObjects = useCallback(
+    () => controllerRef.current?.bcfObjects() ?? [],
+    [controllerRef],
+  );
+  const bcfPanelRef = useRef<{ open: (id: string) => Promise<void> }>(null);
   const toolBarRef = useRef<HTMLDivElement>(null);
   const lastPanelTrigger = useRef<HTMLButtonElement | null>(null);
 
@@ -210,6 +239,17 @@ export function ProjectViewer({
           ref={canvasRef}
         />
 
+        <BcfMarkers
+          topics={snapshot.phase === "ready" ? markerTopics : []}
+          getViewer={getViewer}
+          activeId={activeBcfTopicId}
+          onSelect={(id) => {
+            void bcfPanelRef.current?.open(id);
+            setActivePanel("bcf");
+            setActiveToolGroup("annotations");
+            setPanelFocusRequest((request) => request + 1);
+          }}
+        />
         <div className={styles.rightControls}>
           {snapshot.meshCount > 0 ||
           snapshot.pointClouds.some((cloud) => cloud.pointCount > 0) ? (
@@ -223,6 +263,7 @@ export function ProjectViewer({
         <ViewerToolBar
           activeGroupId={activeToolGroup}
           bcfTopicCount={bcfTopicCount}
+          canReadBcf={bcfPermissions.read}
           onFitToView={() => getViewer()?.fitToView()}
           onSelect={openPanel}
           rootRef={toolBarRef}
@@ -371,42 +412,49 @@ export function ProjectViewer({
             projectId={projectId}
           />
         ) : null}
+        {bcfPermissions.read ? (
+          <div className="h-full min-h-0" hidden={activePanel !== "bcf"}>
+            <BcfPanel
+              projectId={projectId}
+              initialTopics={initialBcfTopics}
+              permissions={bcfPermissions}
+              selection={
+                snapshot.selection?.globalId && activeModelId
+                  ? {
+                      assetId: activeModelId,
+                      expressId: snapshot.selection.expressId,
+                      globalId: snapshot.selection.globalId,
+                      name:
+                        snapshot.selection.name || snapshot.selection.globalId,
+                    }
+                  : null
+              }
+              queryObjects={queryBcfObjects}
+              previewObjects={previewBcfObjects}
+              capture={captureBcf}
+              canCapture={snapshot.phase === "ready" && Boolean(activeModelId)}
+              applyViewpoint={(view) =>
+                controllerRef.current?.applyBcfViewpoint(
+                  view.data,
+                  view.targetDistance,
+                ) ?? []
+              }
+              focusObject={(component) =>
+                controllerRef.current?.focusBcfComponent(component) ?? false
+              }
+              onTopicsChange={setBcfTopicCount}
+              onActiveTopicChange={setActiveBcfTopicId}
+              onMarkersChange={setMarkerTopics}
+              ref={bcfPanelRef}
+            />
+          </div>
+        ) : null}
         {activePanel === "assistant" ? (
           activeIfcSource ? null : (
             <p className={styles.panelState}>
               Ajoutez une maquette IFC pour utiliser l’assistant.
             </p>
           )
-        ) : activePanel === "bcf" ? (
-          <BcfTopicsPanel
-            assetId={activeModelId ?? ""}
-            permissions={bcfPermissions}
-            canCaptureViewpoint={
-              snapshot.phase === "ready" && Boolean(activeModelId)
-            }
-            initialTopics={initialBcfTopics}
-            onApplyViewpoint={(data, targetDistance) => {
-              controllerRef.current?.applyBcfViewpoint(data, targetDistance);
-            }}
-            onCaptureViewpoint={() => {
-              const controller = controllerRef.current;
-              if (!controller) {
-                return Promise.reject(
-                  new Error("La visionneuse n’est pas prête."),
-                );
-              }
-              return controller.captureBcfViewpoint();
-            }}
-            onFocusComponent={(assetId, expressId) => {
-              controllerRef.current?.setActiveModel(assetId);
-              controllerRef.current?.selectEntity(expressId);
-              controllerRef.current?.frameSelection();
-            }}
-            onTopicCountChange={setBcfTopicCount}
-            projectId={projectId}
-            selection={snapshot.selection}
-            availableIfcAssetIds={ifcSources.map((source) => source.assetId)}
-          />
         ) : activePanel === "cut-plane" || activePanel === "cut-box" ? (
           <SectionPanel
             getViewer={getViewer}

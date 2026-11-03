@@ -1,5 +1,8 @@
 import {
   createViewpoint,
+  computeMarkerPositions,
+  translateViewpoint,
+  viewpointFromWorld,
   extractViewpointState,
   parseARGBColor,
   toARGBColor,
@@ -11,10 +14,17 @@ import {
   type Renderer,
   type SectionPlaneAxis,
 } from "@ifc-lite/renderer";
-import type { BcfViewpointPayload } from "@mnemo/contracts/bcf";
+import type {
+  BcfViewpointPayload,
+  BcfComponent,
+  BcfMarkerTopic,
+  CreateBcfTopicInput,
+} from "@mnemo/contracts/bcf";
 import type { PointCloudTransform } from "@mnemo/point-cloud-viewer-adapter";
 
 import type { IfcBimQuery, IfcElementSummary } from "./bim-index";
+import { indexBcfComponents } from "./bcf-components";
+import { captureBcfSnapshot } from "./bcf-snapshot";
 import { BimLayerVisibility } from "./bim-layer-visibility";
 import { IfcModelLoader, type LoadedIfcModel } from "./ifc-model-loader";
 import { PointCloudLayers } from "./point-cloud-layers";
@@ -90,22 +100,6 @@ function errorMessage(error: unknown) {
   return error instanceof Error
     ? error.message
     : "Le chargement de la maquette a échoué.";
-}
-
-function screenshotDataUrlToBlob(dataUrl: string) {
-  const separator = dataUrl.indexOf(",");
-  if (separator < 0 || !dataUrl.slice(0, separator).includes(";base64")) {
-    return null;
-  }
-
-  const mediaType =
-    /^data:([^;,]+)/.exec(dataUrl.slice(0, separator))?.[1] ?? "image/png";
-  const decoded = atob(dataUrl.slice(separator + 1));
-  const bytes = new Uint8Array(decoded.length);
-  for (let index = 0; index < decoded.length; index += 1) {
-    bytes[index] = decoded.charCodeAt(index);
-  }
-  return new Blob([bytes], { type: mediaType });
 }
 
 export class IfcViewerController {
@@ -425,22 +419,24 @@ export class IfcViewerController {
   setPointCloudTransform(assetId: string, transform: PointCloudTransform) {
     this.pointCloudLayers.setTransform(assetId, transform);
   }
-  async captureBcfViewpoint(): Promise<CapturedBcfViewpoint> {
+  async captureBcfViewpoint(
+    components?: CreateBcfTopicInput["components"],
+  ): Promise<CapturedBcfViewpoint> {
     if (this.disposed || !this.snapshot.activeModelId) {
       throw new Error("La maquette doit être prête avant de capturer une vue.");
     }
 
-    const camera = this.renderer.getCamera();
-    const cameraState: ViewerCameraState = {
-      position: camera.getPosition(),
-      target: camera.getTarget(),
-      up: camera.getUp(),
-      fov: camera.getFOV(),
-      aspectRatio: camera.getAspect(),
-      isOrthographic: camera.getProjectionMode() === "orthographic",
-      orthoScale: camera.getOrthoSize(),
-    };
-    const visibleIds = this.ghostExceptIds ?? this.isolatedIds;
+    // Draw and copy in one JS task, before the compositor releases the texture.
+    this.renderScene(true);
+    const visibleIds = this.isolatedIds;
+    const fadedOpaqueIds = this.layerVisibility.ghostExceptIds;
+    const ghostOpaqueIds = this.ghostExceptIds;
+    const ghostColor = toARGBColor(
+      220,
+      220,
+      220,
+      this.snapshot.visual.contextOpacity * 255,
+    );
     const colorsByArgb = new Map<string, number[]>();
     for (const [expressId, color] of this.colorOverrides) {
       const argb = toARGBColor(
@@ -454,67 +450,150 @@ export class IfcViewerController {
       colorsByArgb.set(argb, ids);
     }
 
-    const created = createViewpoint({
-      camera: cameraState,
-      selectedGuids: this.globalIdsFor(
-        this.snapshot.selection && this.snapshot.activeModelId
-          ? [
-              this.federation.toGlobalId(
-                this.snapshot.activeModelId,
-                this.snapshot.selection.expressId,
-              ),
-            ]
-          : [],
-      ),
-      hiddenGuids: this.globalIdsFor(this.hiddenIds),
-      visibleGuids: visibleIds ? this.globalIdsFor(visibleIds) : [],
-      coloredGuids: [...colorsByArgb].map(([color, ids]) => ({
-        color,
-        guids: this.globalIdsFor(ids),
-      })),
+    const hidden = new Set([
+      ...this.hiddenIds,
+      ...this.layerVisibility.hiddenIds,
+    ]);
+    const fadedIds = [...this.models]
+      .flatMap(([assetId, model]) =>
+        [...model.meshIds].map((id) => this.federation.toGlobalId(assetId, id)),
+      )
+      .filter(
+        (id) =>
+          !hidden.has(id) &&
+          ((fadedOpaqueIds && !fadedOpaqueIds.has(id)) ||
+            (ghostOpaqueIds && !ghostOpaqueIds.has(id))),
+      );
+    if (fadedIds.length) colorsByArgb.set(ghostColor, fadedIds);
+    const references = indexBcfComponents(this.bcfObjects(), (asset, id) =>
+      this.federation.toGlobalId(asset, id),
+    );
+    const { snapshot, state } = await captureBcfSnapshot(this.renderer, () => {
+      const camera = this.renderer.getCamera();
+      const cameraState: ViewerCameraState = {
+        position: camera.getPosition(),
+        target: camera.getTarget(),
+        up: camera.getUp(),
+        fov: camera.getFOV(),
+        aspectRatio: camera.getAspect(),
+        isOrthographic: camera.getProjectionMode() === "orthographic",
+        orthoScale: camera.getOrthoSize(),
+      };
+      const created = createViewpoint({
+        camera: cameraState,
+        selectedGuids: components
+          ? components.map((component) => component.globalId)
+          : references
+              .encode(
+                this.snapshot.selection && this.snapshot.activeModelId
+                  ? [
+                      this.federation.toGlobalId(
+                        this.snapshot.activeModelId,
+                        this.snapshot.selection.expressId,
+                      ),
+                    ]
+                  : [],
+              )
+              .flatMap((ref) => (ref.ifcGuid ? [ref.ifcGuid] : [])),
+        hiddenGuids: references
+          .encode(hidden)
+          .flatMap((ref) => (ref.ifcGuid ? [ref.ifcGuid] : [])),
+        visibleGuids: visibleIds
+          ? references
+              .encode([...visibleIds].filter((id) => !hidden.has(id)))
+              .flatMap((ref) => (ref.ifcGuid ? [ref.ifcGuid] : []))
+          : undefined,
+        coloredGuids: [...colorsByArgb].map(([color, ids]) => ({
+          color,
+          guids: references
+            .encode(ids)
+            .flatMap((ref) => (ref.ifcGuid ? [ref.ifcGuid] : [])),
+        })),
+      });
+      created.components ??= {};
+      created.components.selection = components
+        ? components.map((component) =>
+            component.assetId && component.expressId
+              ? references.reference({
+                  assetId: component.assetId,
+                  expressId: component.expressId,
+                  globalId: component.globalId,
+                })
+              : { ifcGuid: component.globalId },
+          )
+        : references.encode(
+            this.snapshot.selection && this.snapshot.activeModelId
+              ? [
+                  this.federation.toGlobalId(
+                    this.snapshot.activeModelId,
+                    this.snapshot.selection.expressId,
+                  ),
+                ]
+              : [],
+          );
+      if (created.components.visibility)
+        created.components.visibility.exceptions = references.encode(
+          visibleIds ? [...visibleIds].filter((id) => !hidden.has(id)) : hidden,
+        );
+      if (created.components.coloring)
+        created.components.coloring = [...colorsByArgb].map(([color, ids]) => ({
+          color,
+          components: references.encode(ids),
+        }));
+      created.clippingPlanes = this.sections.captureBcfPlanes();
+      return {
+        data: translateViewpoint(created, this.modelLoader.renderOrigin),
+        targetDistance: Math.max(camera.getDistance(), 0.001),
+      };
     });
-    const screenshot = await this.renderer.captureScreenshot();
-
-    return {
-      data: {
-        guid: created.guid,
-        perspectiveCamera: created.perspectiveCamera,
-        orthogonalCamera: created.orthogonalCamera,
-        components: created.components,
-      },
-      targetDistance: Math.max(camera.getDistance(), 0.001),
-      snapshot: screenshot ? screenshotDataUrlToBlob(screenshot) : null,
-    };
+    return { ...state, snapshot };
   }
 
   applyBcfViewpoint(data: BcfViewpointPayload, targetDistance: number) {
-    if (this.disposed || !this.snapshot.activeModelId) return;
+    if (this.disposed || !this.snapshot.activeModelId) return [];
 
+    const references = indexBcfComponents(this.bcfObjects(), (asset, id) =>
+      this.federation.toGlobalId(asset, id),
+    );
+    const unresolved = new Set<string>();
+    const resolve = (refs: import("@ifc-lite/bcf").BCFComponent[]) => {
+      const result = references.resolve(refs);
+      result.unresolved.forEach((id) => unresolved.add(id));
+      return result.ids;
+    };
     const state = extractViewpointState(
-      data as BCFViewpoint,
+      viewpointFromWorld(data as BCFViewpoint, this.modelLoader.renderOrigin),
       undefined,
       targetDistance,
     );
-    const visibleIds = this.expressIdsFor(state.visibleGuids ?? []);
-    const hiddenIds = this.expressIdsFor(state.hiddenGuids);
-    const colors = state.coloredGuids.map(({ color, guids }) => {
-      const rgba = parseARGBColor(color);
-      return {
-        ids: this.expressIdsFor(guids),
-        color: [
-          rgba.r / 255,
-          rgba.g / 255,
-          rgba.b / 255,
-          rgba.a / 255,
-        ] as const,
-      };
-    });
+    const exceptions = resolve(data.components?.visibility?.exceptions ?? []);
+    const visibleIds = state.visibleGuids !== null ? exceptions : [];
+    const hiddenIds = state.visibleGuids === null ? exceptions : [];
+    const colors = (data.components?.coloring ?? []).map(
+      ({ color, components }) => {
+        const rgba = parseARGBColor(color);
+        return {
+          ids: resolve(components),
+          color: [
+            rgba.r / 255,
+            rgba.g / 255,
+            rgba.b / 255,
+            rgba.a / 255,
+          ] as const,
+        };
+      },
+    );
 
+    this.sections.applyBcfPlanes(
+      viewpointFromWorld(data as BCFViewpoint, this.modelLoader.renderOrigin)
+        .clippingPlanes ?? [],
+    );
+    this.layerVisibility.reset();
     this.applyVisualPlan({
-      focusIds: visibleIds.length ? visibleIds : null,
+      focusIds: state.visibleGuids !== null ? visibleIds : null,
       hiddenIds,
       colors,
-      showContext: this.snapshot.visual.showContext,
+      showContext: false,
       contextOpacity: this.snapshot.visual.contextOpacity,
       label: "Viewpoint BCF",
     });
@@ -542,14 +621,17 @@ export class IfcViewerController {
       }
     }
 
-    const selectedId = this.expressIdsFor(state.selectedGuids)[0] ?? null;
+    const selectedIds = resolve(data.components?.selection ?? []);
+    const selectedId = selectedIds[0] ?? null;
     const selected =
       selectedId === null ? null : this.federation.fromGlobalId(selectedId);
     if (selected && selected.modelId !== this.snapshot.activeModelId) {
       this.setActiveModel(selected.modelId);
     }
     this.selectEntity(selected?.expressId ?? null);
+    this.bcfSelectedIds = new Set(selectedIds);
     this.renderer.requestRender();
+    return [...unresolved];
   }
 
   fitToView() {
@@ -619,6 +701,7 @@ export class IfcViewerController {
     expressId: number | null,
     orbitCenter?: { x: number; y: number; z: number },
   ) {
+    this.bcfSelectedIds.clear();
     const generation = ++this.selectionGeneration;
 
     if (expressId === null) {
@@ -897,39 +980,45 @@ export class IfcViewerController {
         this.renderer.peekRenderRequest()
       ) {
         this.renderer.consumeRenderRequest();
-        this.renderer.render({
-          clearColor: this.backgroundColor,
-          isInteracting: this.interactions.isInteracting,
-          selectedId:
-            this.snapshot.selection && this.snapshot.activeModelId
-              ? this.federation.toGlobalId(
-                  this.snapshot.activeModelId,
-                  this.snapshot.selection.expressId,
-                )
-              : null,
-          hiddenIds: new Set([
-            ...this.hiddenIds,
-            ...this.layerVisibility.hiddenIds,
-          ]),
-          isolatedIds: this.isolatedIds,
-          ghostExceptIds: this.layerVisibility.ghostExceptIds
-            ? this.ghostExceptIds
-              ? new Set(
-                  [...this.ghostExceptIds].filter((id) =>
-                    this.layerVisibility.ghostExceptIds?.has(id),
-                  ),
-                )
-              : this.layerVisibility.ghostExceptIds
-            : this.ghostExceptIds,
-          ghostAlpha: this.snapshot.visual.contextOpacity,
-          ...this.sections.renderOptions,
-        });
+        this.renderScene();
       }
 
       this.frameHandle = this.runtime.requestFrame(frame);
     };
 
     this.frameHandle = this.runtime.requestFrame(frame);
+  }
+
+  private renderScene(restoreEvictedForCapture = false) {
+    this.renderer.render({
+      restoreEvictedForCapture,
+      clearColor: this.backgroundColor,
+      isInteracting: this.interactions.isInteracting,
+      selectedId:
+        this.snapshot.selection && this.snapshot.activeModelId
+          ? this.federation.toGlobalId(
+              this.snapshot.activeModelId,
+              this.snapshot.selection.expressId,
+            )
+          : null,
+      selectedIds: this.bcfSelectedIds,
+      hiddenIds: new Set([
+        ...this.hiddenIds,
+        ...this.layerVisibility.hiddenIds,
+      ]),
+      isolatedIds: this.isolatedIds,
+      ghostExceptIds: this.layerVisibility.ghostExceptIds
+        ? this.ghostExceptIds
+          ? new Set(
+              [...this.ghostExceptIds].filter((id) =>
+                this.layerVisibility.ghostExceptIds?.has(id),
+              ),
+            )
+          : this.layerVisibility.ghostExceptIds
+        : this.ghostExceptIds,
+      ghostAlpha: this.snapshot.visual.contextOpacity,
+      ...this.sections.renderOptions,
+    });
   }
 
   private notifyProjectionMode(mode: ViewerProjectionMode) {
@@ -982,28 +1071,85 @@ export class IfcViewerController {
     }
   }
 
-  private globalIdsFor(expressIds: Iterable<number>) {
-    const ids = new Set(expressIds);
-    const activeId = this.snapshot.activeModelId;
-    if (!activeId) return [];
-    return (this.models.get(activeId)?.bimIndex.query({}) ?? [])
-      .filter(
-        (entity) =>
-          ids.has(this.federation.toGlobalId(activeId, entity.expressId)) &&
-          entity.globalId,
-      )
-      .map((entity) => entity.globalId);
+  private bcfSelectedIds = new Set<number>();
+  setBcfSelection(components: CreateBcfTopicInput["components"]) {
+    this.bcfSelectedIds = new Set(
+      components.flatMap((component) =>
+        component.assetId && component.expressId
+          ? [this.federation.toGlobalId(component.assetId, component.expressId)]
+          : [],
+      ),
+    );
+    this.renderer.requestRender();
   }
-
-  private expressIdsFor(globalIds: Iterable<string>) {
-    const ids = new Set(globalIds);
-    const activeId = this.snapshot.activeModelId;
-    if (!activeId) return [];
-    return (this.models.get(activeId)?.bimIndex.query({}) ?? [])
-      .filter((entity) => ids.has(entity.globalId))
-      .map((entity) => this.federation.toGlobalId(activeId, entity.expressId));
+  bcfObjects() {
+    return [...this.models].flatMap(([assetId, model]) =>
+      model.bimIndex
+        .query({})
+        .filter((entity) => entity.globalId)
+        .map((entity) => ({
+          assetId,
+          globalId: entity.globalId,
+          expressId: entity.expressId,
+          name: `${entity.name || entity.globalId} · ${entity.ifcClass}`,
+        })),
+    );
   }
-
+  focusBcfComponent(
+    component: Pick<BcfComponent, "assetId" | "globalId" | "expressId">,
+  ) {
+    const matches = this.bcfObjects().filter(
+      (entity) =>
+        entity.globalId === component.globalId &&
+        (!component.assetId || entity.assetId === component.assetId),
+    );
+    if (matches.length !== 1) return false;
+    const entity = matches[0]!;
+    this.setActiveModel(entity.assetId);
+    this.selectEntity(entity.expressId);
+    this.frameSelection();
+    return true;
+  }
+  bcfMarkers(topics: BcfMarkerTopic[]) {
+    if (!topics.length) return [];
+    const idsByGuid = new Map<string, number[]>();
+    for (const entity of this.bcfObjects()) {
+      const ids = idsByGuid.get(entity.globalId) ?? [];
+      ids.push(this.federation.toGlobalId(entity.assetId, entity.expressId));
+      idsByGuid.set(entity.globalId, ids);
+    }
+    return topics.flatMap((topic) => {
+      if (!topic.viewpoint) return [];
+      const view = viewpointFromWorld(
+        topic.viewpoint,
+        this.modelLoader.renderOrigin,
+      );
+      const positioned = computeMarkerPositions(
+        [
+          {
+            guid: topic.id,
+            title: topic.title,
+            topicStatus: topic.status,
+            topicType: topic.type,
+            priority: topic.priority,
+            comments: [],
+            viewpoints: [view],
+          },
+        ],
+        (guid) => {
+          const ids = idsByGuid.get(guid) ?? [];
+          return ids.length === 1
+            ? this.renderer.getScene().getEntityBoundingBox(ids[0]!)
+            : null;
+        },
+        { targetDistance: topic.targetDistance },
+      );
+      // A camera position alone is not an accurate location for a remark.
+      return positioned
+        .filter((marker) => marker.positionSource !== "camera-position")
+        .map((marker) => ({ ...marker, index: topic.number }));
+    });
+  }
   private updateModelSnapshot(
     assetId: string,
     update: Partial<IfcModelSnapshot>,

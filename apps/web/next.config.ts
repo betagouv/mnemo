@@ -5,6 +5,10 @@ const nextConfig: NextConfig = {
   output: "standalone",
   outputFileTracingRoot: path.join(process.cwd(), "../.."),
   reactStrictMode: true,
+  experimental: {
+    // BCF visibility/selection lists travel as JSON; image bytes still upload directly to S3.
+    serverActions: { bodySizeLimit: "8mb" },
+  },
   transpilePackages: [
     "@codegouvfr/react-dsfr",
     "@mnemo/contracts",

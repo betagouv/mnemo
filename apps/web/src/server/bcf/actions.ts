@@ -2,19 +2,19 @@
 
 import {
   addBcfCommentInputSchema,
-  beginBcfViewpointCaptureInputSchema,
-  completeBcfViewpointCaptureInputSchema,
   createBcfTopicInputSchema,
   updateBcfTopicStatusInputSchema,
+  updateBcfTopicInputSchema,
+  prepareBcfSnapshotInputSchema,
+  saveBcfViewpointInputSchema,
   type AddBcfCommentInput,
-  type BeginBcfViewpointCaptureInput,
-  type CompleteBcfViewpointCaptureInput,
   type CreateBcfTopicInput,
   type UpdateBcfTopicStatusInput,
+  type UpdateBcfTopicInput,
+  type PrepareBcfSnapshotInput,
+  type SaveBcfViewpointInput,
 } from "@mnemo/contracts/bcf";
-
 import { resolveActor } from "@/server/auth/resolve-actor";
-
 import { getBcfTopicService } from "./bcf-topic-service-factory";
 
 export async function createBcfTopic(input: CreateBcfTopicInput) {
@@ -23,35 +23,33 @@ export async function createBcfTopic(input: CreateBcfTopicInput) {
     createBcfTopicInputSchema.parse(input),
   );
 }
-
 export async function addBcfComment(input: AddBcfCommentInput) {
   return getBcfTopicService().addComment(
     (await resolveActor()).id,
     addBcfCommentInputSchema.parse(input),
   );
 }
-
 export async function updateBcfTopicStatus(input: UpdateBcfTopicStatusInput) {
   return getBcfTopicService().updateStatus(
     (await resolveActor()).id,
     updateBcfTopicStatusInputSchema.parse(input),
   );
 }
-
-export async function beginBcfViewpointCapture(
-  input: BeginBcfViewpointCaptureInput,
-) {
-  return getBcfTopicService().beginViewpointCapture(
+export async function updateBcfTopic(input: UpdateBcfTopicInput) {
+  return getBcfTopicService().update(
     (await resolveActor()).id,
-    beginBcfViewpointCaptureInputSchema.parse(input),
+    updateBcfTopicInputSchema.parse(input),
   );
 }
-
-export async function completeBcfViewpointCapture(
-  input: CompleteBcfViewpointCaptureInput,
-) {
-  return getBcfTopicService().completeViewpointCapture(
+export async function prepareBcfSnapshot(input: PrepareBcfSnapshotInput) {
+  return getBcfTopicService().prepareSnapshot(
     (await resolveActor()).id,
-    completeBcfViewpointCaptureInputSchema.parse(input),
+    prepareBcfSnapshotInputSchema.parse(input),
+  );
+}
+export async function saveBcfViewpoint(input: SaveBcfViewpointInput) {
+  return getBcfTopicService().saveViewpoint(
+    (await resolveActor()).id,
+    saveBcfViewpointInputSchema.parse(input),
   );
 }

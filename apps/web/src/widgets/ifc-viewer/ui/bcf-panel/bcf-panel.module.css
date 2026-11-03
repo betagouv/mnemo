@@ -1,0 +1,64 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  gap: 0.5rem;
+  padding: 0.75rem;
+}
+.content {
+  display: grid;
+  align-content: start;
+  gap: 0.75rem;
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+}
+.content[data-screen="detail"] {
+  display: block;
+  overflow: hidden;
+}
+.content[data-screen="create"],
+.content[data-screen="edit"] {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.screenTitle {
+  margin: 0;
+  font-size: 1.125rem;
+  line-height: 1.5;
+}
+/* DSFR groups already carry page spacing; the panel supplies its own compact grid. */
+.root .content :global(.fr-input-group),
+.root .content :global(.fr-select-group),
+.root .content :global(.fr-fieldset),
+.root .content :global(.fr-checkbox-group) {
+  margin: 0;
+}
+.root .content :global(.fr-fieldset__element) {
+  margin-bottom: 0.25rem;
+}
+.root .content :global(.fr-label) {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.root .content :global(.fr-hint-text) {
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+.root .content :global(.fr-select),
+.root .content :global(.fr-input) {
+  min-width: 0;
+}
+.root .content :global(.list-none) {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.root .content :global(.list-none) > li::marker {
+  content: "";
+}
+.root .content :global(.list-none) > li::before {
+  content: none;
+}

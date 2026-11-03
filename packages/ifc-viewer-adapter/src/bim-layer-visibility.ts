@@ -23,6 +23,11 @@ export class BimLayerVisibility {
     private readonly federation: FederationRegistry,
   ) {}
 
+  reset() {
+    this.modes.clear();
+    this.rebuild();
+  }
+
   get(assetId: string, target: BimLayerTarget): LayerVisibility {
     const summary = this.summaries.get(this.key(assetId, target));
     if (summary?.size === 1) return summary.keys().next().value!;

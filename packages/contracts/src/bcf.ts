@@ -5,14 +5,15 @@ import { projectIdSchema } from "./projects";
 
 export const bcfTopicIdSchema = z.uuid();
 export const bcfCommentIdSchema = z.uuid();
-export const bcfTopicStatusSchema = z.enum([
-  "open",
-  "in_progress",
-  "resolved",
-  "closed",
-]);
-export const bcfTopicTypeSchema = z.enum(["issue", "request", "comment"]);
-export const bcfPrioritySchema = z.enum(["low", "normal", "high", "critical"]);
+// BCF extension values belong to the project; imported values must retain their meaning.
+export const bcfTopicStatusSchema = z.string().trim().min(1).max(100);
+export const bcfTopicTypeSchema = bcfTopicStatusSchema;
+export const bcfPrioritySchema = bcfTopicStatusSchema;
+export const bcfDefaults = {
+  statuses: ["Open", "In Progress", "Resolved", "Closed"],
+  types: ["Issue", "Request", "Information"],
+  priorities: ["Low", "Normal", "High", "Critical"],
+} as const;
 
 export const bcfComponentSchema = z.object({
   id: z.uuid(),
@@ -26,6 +27,7 @@ export const bcfCommentSchema = z.object({
   authorName: z.string(),
   comment: z.string(),
   createdAt: z.iso.datetime(),
+  viewpointBcfGuid: z.uuid().nullable(),
 });
 
 const bcfPointSchema = z.object({
@@ -36,6 +38,8 @@ const bcfPointSchema = z.object({
 
 const bcfComponentReferenceSchema = z.object({
   ifcGuid: z.string().trim().min(1).max(64).optional(),
+  originatingSystem: z.string().max(320).optional(),
+  authoringToolId: z.string().max(320).optional(),
 });
 
 const bcfPerspectiveCameraSchema = z.object({
@@ -62,6 +66,14 @@ const bcfColoringSchema = z.object({
 export const bcfViewpointPayloadSchema = z
   .object({
     guid: z.uuid(),
+    clippingPlanes: z
+      .array(z.object({ location: bcfPointSchema, direction: bcfPointSchema }))
+      .max(32)
+      .optional(),
+    lines: z
+      .array(z.object({ startPoint: bcfPointSchema, endPoint: bcfPointSchema }))
+      .max(10000)
+      .optional(),
     perspectiveCamera: bcfPerspectiveCameraSchema.optional(),
     orthogonalCamera: bcfOrthogonalCameraSchema.optional(),
     components: z
@@ -74,6 +86,13 @@ export const bcfViewpointPayloadSchema = z
               .array(bcfComponentReferenceSchema)
               .max(100_000)
               .optional(),
+            viewSetupHints: z
+              .object({
+                spacesVisible: z.boolean().optional(),
+                spaceBoundariesVisible: z.boolean().optional(),
+                openingsVisible: z.boolean().optional(),
+              })
+              .optional(),
           })
           .optional(),
         coloring: z.array(bcfColoringSchema).max(256).optional(),
@@ -81,10 +100,8 @@ export const bcfViewpointPayloadSchema = z
       .optional(),
   })
   .refine(
-    (viewpoint) =>
-      Boolean(viewpoint.perspectiveCamera) !==
-      Boolean(viewpoint.orthogonalCamera),
-    "A viewpoint requires exactly one camera",
+    (viewpoint) => !(viewpoint.perspectiveCamera && viewpoint.orthogonalCamera),
+    "A viewpoint cannot contain two cameras",
   );
 
 export const bcfViewpointSchema = z.object({
@@ -92,11 +109,51 @@ export const bcfViewpointSchema = z.object({
   topicId: bcfTopicIdSchema,
   data: bcfViewpointPayloadSchema,
   targetDistance: z.number().finite().positive(),
-  snapshotUrl: z.url().nullable(),
+  snapshotUrl: z.string().startsWith("/api/projects/").nullable(),
   authorName: z.string(),
   createdAt: z.iso.datetime(),
 });
 
+// Protocol fields not exposed in the editor are still preserved during exchange.
+export const bcfExchangeMetadataSchema = z.object({
+  header: z
+    .array(
+      z.object({
+        ifcProject: z.string().optional(),
+        ifcSpatialStructureElement: z.string().optional(),
+        isExternal: z.boolean().optional(),
+        filename: z.string().optional(),
+        date: z.string().optional(),
+        reference: z.string().optional(),
+      }),
+    )
+    .max(1000)
+    .optional(),
+  stage: z.string().max(1000).optional(),
+  relatedTopics: z.array(z.string().max(64)).max(10000).optional(),
+  documentReferences: z
+    .array(
+      z.object({
+        guid: z.string().optional(),
+        isExternal: z.boolean().optional(),
+        referencedDocument: z.string().optional(),
+        documentGuid: z.string().optional(),
+        url: z.string().optional(),
+        description: z.string().optional(),
+      }),
+    )
+    .max(1000)
+    .optional(),
+  bimSnippet: z
+    .object({
+      snippetType: z.string(),
+      isExternal: z.boolean(),
+      reference: z.string(),
+      referenceSchema: z.string().optional(),
+    })
+    .optional(),
+});
+export type BcfExchangeMetadata = z.infer<typeof bcfExchangeMetadataSchema>;
 export const bcfTopicSchema = z.object({
   id: bcfTopicIdSchema,
   projectId: projectIdSchema,
@@ -106,6 +163,12 @@ export const bcfTopicSchema = z.object({
   status: bcfTopicStatusSchema,
   priority: bcfPrioritySchema,
   authorName: z.string(),
+  authorEmail: z.string(),
+  modifiedAuthor: z.string().nullable(),
+  number: z.int().positive(),
+  assignedTo: z.string().max(320).nullable(),
+  dueDate: z.iso.date().nullable(),
+  labels: z.array(z.string().max(100)).max(50),
   components: z.array(bcfComponentSchema),
   comments: z.array(bcfCommentSchema),
   viewpoints: z.array(bcfViewpointSchema),
@@ -117,71 +180,86 @@ export const listBcfTopicsInputSchema = z.object({
   projectId: projectIdSchema,
 });
 
-export const createBcfTopicInputSchema = z.object({
-  projectId: projectIdSchema,
+export const bcfComponentInputSchema = z.object({
+  assetId: assetIdSchema.nullable(),
+  globalId: z.string().trim().min(1).max(64),
+  expressId: z.int().positive().nullable(),
+});
+export const bcfViewpointDraftSchema = z.object({
+  data: bcfViewpointPayloadSchema,
+  targetDistance: z.number().finite().positive().max(1_000_000_000),
+  uploadId: z.uuid().optional(),
+});
+const topicFields = {
   title: z.string().trim().min(1).max(255),
   description: z.string().trim().max(10_000).optional(),
-  type: bcfTopicTypeSchema.default("issue"),
-  priority: bcfPrioritySchema.default("normal"),
-  component: z
-    .object({
-      assetId: assetIdSchema,
-      globalId: z.string().trim().min(1).max(64),
-      expressId: z.int().positive(),
-    })
-    .optional(),
+  type: bcfTopicTypeSchema.default("Issue"),
+  priority: bcfPrioritySchema.default("Normal"),
+  assignedTo: z.string().trim().min(1).max(320).nullable().default(null),
+  dueDate: z.iso.date().nullable().default(null),
+  labels: z.array(z.string().trim().min(1).max(100)).max(50).default([]),
+  components: z.array(bcfComponentInputSchema).max(10_000).default([]),
+};
+export const createBcfTopicInputSchema = z.object({
+  projectId: projectIdSchema,
+  ...topicFields,
+  viewpoint: bcfViewpointDraftSchema.optional(),
 });
-
+export const updateBcfTopicInputSchema = z.object({
+  projectId: projectIdSchema,
+  topicId: bcfTopicIdSchema,
+  ...topicFields,
+  status: bcfTopicStatusSchema,
+});
 export const addBcfCommentInputSchema = z.object({
   projectId: projectIdSchema,
   topicId: bcfTopicIdSchema,
   comment: z.string().trim().min(1).max(10_000),
+  viewpoint: bcfViewpointDraftSchema.optional(),
 });
-
 export const updateBcfTopicStatusInputSchema = z.object({
   projectId: projectIdSchema,
   topicId: bcfTopicIdSchema,
   status: bcfTopicStatusSchema,
 });
-
-export const beginBcfViewpointCaptureInputSchema = z.object({
+export const prepareBcfSnapshotInputSchema = z.object({
+  projectId: projectIdSchema,
+  mediaType: z.enum(["image/png", "image/jpeg"]),
+  sizeBytes: z
+    .int()
+    .positive()
+    .max(10 * 1024 * 1024),
+});
+export const saveBcfViewpointInputSchema = z.object({
   projectId: projectIdSchema,
   topicId: bcfTopicIdSchema,
-  data: bcfViewpointPayloadSchema,
-  targetDistance: z.number().finite().positive().max(1_000_000_000),
-  snapshot: z
-    .object({
-      mediaType: z.enum(["image/png", "image/jpeg"]),
-      sizeBytes: z
-        .int()
-        .positive()
-        .max(10 * 1024 * 1024),
-    })
-    .optional(),
+  viewpoint: bcfViewpointDraftSchema,
 });
-
-export const completeBcfViewpointCaptureInputSchema = z.object({
-  projectId: projectIdSchema,
-  topicId: bcfTopicIdSchema,
-  viewpointId: z.uuid(),
-});
-
-const bcfSnapshotUploadSchema = z.object({
-  uploadUrl: z.url(),
-  requiredHeaders: z.record(z.string(), z.string()),
-  expiresAt: z.iso.datetime(),
-});
-
-export const beginBcfViewpointCaptureResultSchema = z.object({
-  topic: bcfTopicSchema,
-  viewpointId: z.uuid(),
-  snapshotUpload: bcfSnapshotUploadSchema.nullable(),
-});
+export const bcfProjectOptionsSchema = z
+  .object({
+    statuses: z.array(bcfTopicStatusSchema).min(1).max(100),
+    types: z.array(bcfTopicTypeSchema).min(1).max(100),
+    priorities: z.array(bcfPrioritySchema).min(1).max(100),
+  })
+  .refine(
+    (options) => options.statuses.includes("Open"),
+    "Le statut initial Open doit rester disponible.",
+  );
+export type BcfProjectOptions = z.infer<typeof bcfProjectOptionsSchema>;
+export type BcfViewpointDraft = z.infer<typeof bcfViewpointDraftSchema>;
+export type UpdateBcfTopicInput = z.infer<typeof updateBcfTopicInputSchema>;
+export type PrepareBcfSnapshotInput = z.infer<
+  typeof prepareBcfSnapshotInputSchema
+>;
+export type SaveBcfViewpointInput = z.infer<typeof saveBcfViewpointInputSchema>;
+export const bcfTopicSummarySchema = bcfTopicSchema
+  .omit({ comments: true, viewpoints: true, components: true })
+  .extend({ commentCount: z.int(), viewpointCount: z.int() });
+export type BcfTopicSummary = z.infer<typeof bcfTopicSummarySchema>;
 
 export const bcfTopicListSchema = z.array(bcfTopicSchema);
 
 export const bcfArchiveImportResultSchema = z.object({
-  topics: bcfTopicListSchema,
   imported: z.object({
     topics: z.int().nonnegative(),
     comments: z.int().nonnegative(),
@@ -205,12 +283,18 @@ export type AddBcfCommentInput = z.infer<typeof addBcfCommentInputSchema>;
 export type UpdateBcfTopicStatusInput = z.infer<
   typeof updateBcfTopicStatusInputSchema
 >;
-export type BeginBcfViewpointCaptureInput = z.infer<
-  typeof beginBcfViewpointCaptureInputSchema
->;
-export type CompleteBcfViewpointCaptureInput = z.infer<
-  typeof completeBcfViewpointCaptureInputSchema
->;
 export type BcfArchiveImportResult = z.infer<
   typeof bcfArchiveImportResultSchema
 >;
+
+export const bcfMarkerTopicSchema = z.object({
+  id: bcfTopicIdSchema,
+  title: z.string(),
+  number: z.int(),
+  type: z.string(),
+  status: z.string(),
+  priority: z.string(),
+  viewpoint: bcfViewpointPayloadSchema.nullable(),
+  targetDistance: z.number().positive(),
+});
+export type BcfMarkerTopic = z.infer<typeof bcfMarkerTopicSchema>;

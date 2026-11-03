@@ -90,7 +90,7 @@ describe("IFC-Lite BCF archive adapter", () => {
     );
   });
 
-  it("maps common foreign vocabulary and extracts referenced GlobalIds", async () => {
+  it("preserves foreign vocabulary without linking context-only objects", async () => {
     const project = createBCFProject({ name: "Import", version: "3.0" });
     const topic = createBCFTopic({
       title: "Collision",
@@ -120,10 +120,10 @@ describe("IFC-Lite BCF archive adapter", () => {
     );
 
     expect(decoded.topics[0]).toMatchObject({
-      type: "issue",
-      status: "open",
-      priority: "critical",
-      componentGlobalIds: ["0YvctA6Hn0pgmBdv0cPwH6"],
+      type: "Warning",
+      status: "Active",
+      priority: "Urgent",
+      componentGlobalIds: [],
     });
   });
 
@@ -137,5 +137,96 @@ describe("IFC-Lite BCF archive adapter", () => {
     await expect(
       decodeBcfArchive(bytes, { maxTopics: -1 }),
     ).rejects.toBeInstanceOf(BcfArchiveLimitError);
+  });
+});
+
+describe("loss-aware BCF exchange", () => {
+  it("preserves 2.1 camera semantics, clipping planes, assignment and headers", async () => {
+    const project = createBCFProject({ name: "Coordination", version: "2.1" });
+    const topic = createBCFTopic({
+      title: "Contrôle",
+      author: "author@example.fr",
+      topicType: "Custom type",
+      topicStatus: "À contrôler",
+      priority: "P1",
+    });
+    topic.assignedTo = "external@example.fr";
+    topic.dueDate = "2026-12-15T00:00:00Z";
+    topic.labels = ["Sécurité"];
+    topic.header = [
+      { filename: "architecture.ifc", reference: "source-model" },
+    ];
+    topic.stage = "Conception";
+    const view = createViewpoint({
+      camera: {
+        position: { x: 5, y: 6, z: 7 },
+        target: { x: 0, y: 0, z: 0 },
+        up: { x: 0, y: 1, z: 0 },
+        fov: Math.PI / 3,
+      },
+      selectedGuids: ["0YvctA6Hn0pgmBdv0cPwH6"],
+    });
+    view.clippingPlanes = [
+      { location: { x: 1, y: 2, z: 3 }, direction: { x: 0, y: 0, z: 1 } },
+    ];
+    topic.viewpoints = [view];
+    project.topics.set(topic.guid, topic);
+    const archive = await decodeBcfArchive(
+      new Uint8Array(await (await writeBCF(project)).arrayBuffer()),
+    );
+    const output = await decodeBcfArchive(
+      await encodeBcfArchive({
+        projectId,
+        projectName: "Coordination",
+        topics: archive.topics,
+      }),
+    );
+    expect(output.version).toBe("2.1");
+    expect(output.topics[0]).toMatchObject({
+      type: "Custom type",
+      status: "À contrôler",
+      priority: "P1",
+      assignedTo: "external@example.fr",
+      dueDate: "2026-12-15",
+      labels: ["Sécurité"],
+      metadata: {
+        stage: "Conception",
+        header: [{ filename: "architecture.ifc" }],
+      },
+      viewpoints: [{ data: { clippingPlanes: view.clippingPlanes } }],
+    });
+    expect(
+      output.topics[0]?.viewpoints[0]?.data.perspectiveCamera?.aspectRatio,
+    ).toBeUndefined();
+  });
+  it("exports subject objects without altering existing viewpoint selections", async () => {
+    const output = await decodeBcfArchive(
+      await encodeBcfArchive({
+        projectId,
+        projectName: "Coordination",
+        topics: [
+          {
+            guid: topicGuid,
+            title: "Remarque",
+            description: null,
+            type: "Issue",
+            status: "Open",
+            priority: "Normal",
+            authorName: "author@example.fr",
+            createdAt: "2026-11-03T10:00:00Z",
+            updatedAt: null,
+            componentGlobalIds: ["0YvctA6Hn0pgmBdv0cPwH6"],
+            comments: [],
+            viewpoints: [],
+          },
+        ],
+      }),
+    );
+    expect(output.topics[0]?.componentGlobalIds).toEqual([
+      "0YvctA6Hn0pgmBdv0cPwH6",
+    ]);
+    expect(
+      output.topics[0]?.viewpoints[0]?.data.perspectiveCamera,
+    ).toBeUndefined();
   });
 });

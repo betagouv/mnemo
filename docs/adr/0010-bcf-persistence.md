@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted.
+Superseded in part by [ADR 0018](0018-bcf-workspace.md).
 
 ## Context
 
