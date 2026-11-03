@@ -117,17 +117,17 @@ export class SceneInteractions {
   private readonly onWheel = (event: WheelEvent) => {
     event.preventDefault();
     const bounds = this.host.canvas.getBoundingClientRect();
-    this.host.renderer
-      .getCamera()
-      .zoom(
-        event.deltaY,
-        false,
-        event.clientX - bounds.left,
-        event.clientY - bounds.top,
-        this.host.canvas.width,
-        this.host.canvas.height,
-        event.shiftKey,
-      );
+    this.host.renderer.getCamera().zoom(
+      event.deltaY,
+      false,
+      event.clientX - bounds.left,
+      event.clientY - bounds.top,
+      // Cursor coordinates and viewport dimensions must share CSS pixels.
+      // The GPU drawing buffer can be larger on HiDPI displays.
+      bounds.width,
+      bounds.height,
+      event.shiftKey,
+    );
     this.host.renderer.requestRender();
   };
 
