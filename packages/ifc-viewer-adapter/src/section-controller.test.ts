@@ -205,3 +205,44 @@ describe("SectionController", () => {
     expect(controller.snapshot.active).toBeNull();
   });
 });
+
+describe("BCF clipping interoperability", () => {
+  it("round-trips an oblique cut without reducing it to a cardinal axis", () => {
+    const { controller } = createHarness();
+    const plane = {
+      location: { x: 3, y: -4, z: 5 },
+      direction: { x: 1 / Math.sqrt(2), y: 0, z: 1 / Math.sqrt(2) },
+    };
+    controller.applyBcfPlanes([plane]);
+    const captured = controller.captureBcfPlanes()[0]!;
+    expect(captured.direction.x).toBeCloseTo(plane.direction.x);
+    expect(captured.direction.z).toBeCloseTo(plane.direction.z);
+    const dot = (
+      a: { x: number; y: number; z: number },
+      b: { x: number; y: number; z: number },
+    ) => a.x * b.x + a.y * b.y + a.z * b.z;
+    expect(dot(captured.location, captured.direction)).toBeCloseTo(
+      dot(plane.location, plane.direction),
+    );
+  });
+  it("round-trips a section box through six BCF clipping planes", () => {
+    const { controller } = createHarness();
+    controller.showBox();
+    const box = controller.snapshot.box;
+    const planes = controller.captureBcfPlanes();
+    expect(planes).toHaveLength(6);
+    controller.reset();
+    controller.applyBcfPlanes(planes);
+    expect(controller.snapshot.box).toEqual(box);
+  });
+  it("reports unsupported combinations instead of silently applying one cut", () => {
+    const { controller } = createHarness();
+    expect(() =>
+      controller.applyBcfPlanes([
+        { location: { x: 0, y: 0, z: 0 }, direction: { x: 1, y: 1, z: 0 } },
+        { location: { x: 1, y: 0, z: 0 }, direction: { x: -1, y: 1, z: 0 } },
+      ]),
+    ).toThrow("combinaison");
+    expect(controller.snapshot.active).toBeNull();
+  });
+});

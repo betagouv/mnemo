@@ -8,6 +8,8 @@ import {
 } from "@ifc-lite/bcf";
 import {
   bcfPrioritySchema,
+  bcfExchangeMetadataSchema,
+  type BcfExchangeMetadata,
   bcfTopicStatusSchema,
   bcfTopicTypeSchema,
   bcfViewpointPayloadSchema,
@@ -70,6 +72,12 @@ export type BcfArchiveTopic = {
   status: BcfTopicStatus;
   priority: BcfPriority;
   authorName: string;
+  assignedTo?: string | null;
+  dueDate?: string | null;
+  labels?: string[];
+  modifiedAuthor?: string | null;
+  header?: BCFTopic["header"];
+  metadata?: BcfExchangeMetadata;
   createdAt: string | null;
   updatedAt: string | null;
   componentGlobalIds: string[];
@@ -108,66 +116,11 @@ function validOrGeneratedGuid(
   return generated;
 }
 
-function normalizedToken(value: string | undefined) {
-  return (
-    value
-      ?.trim()
-      .toLowerCase()
-      .replace(/[\s-]+/g, "_") ?? ""
-  );
-}
-
-function topicStatus(value: string | undefined): BcfTopicStatus {
-  const normalized = normalizedToken(value);
-  const aliases: Record<string, BcfTopicStatus> = {
-    active: "open",
-    closed: "closed",
-    completed: "resolved",
-    in_progress: "in_progress",
-    open: "open",
-    reopened: "open",
-    resolved: "resolved",
-  };
-  return bcfTopicStatusSchema.catch("open").parse(aliases[normalized]);
-}
-
-function topicType(value: string | undefined): BcfTopicType {
-  const normalized = normalizedToken(value);
-  const aliases: Record<string, BcfTopicType> = {
-    comment: "comment",
-    error: "issue",
-    info: "comment",
-    information: "comment",
-    issue: "issue",
-    request: "request",
-    warning: "issue",
-  };
-  return bcfTopicTypeSchema.catch("issue").parse(aliases[normalized]);
-}
-
-function topicPriority(value: string | undefined): BcfPriority {
-  const normalized = normalizedToken(value);
-  const aliases: Record<string, BcfPriority> = {
-    critical: "critical",
-    high: "high",
-    low: "low",
-    medium: "normal",
-    normal: "normal",
-    urgent: "critical",
-  };
-  return bcfPrioritySchema.catch("normal").parse(aliases[normalized]);
-}
-
 function collectComponentGlobalIds(viewpoints: BCFViewpoint[]) {
   const globalIds = new Set<string>();
 
   for (const viewpoint of viewpoints) {
-    const componentGroups = [
-      viewpoint.components?.selection,
-      viewpoint.components?.visibility?.exceptions,
-      ...(viewpoint.components?.coloring?.map((group) => group.components) ??
-        []),
-    ];
+    const componentGroups = [viewpoint.components?.selection];
     for (const components of componentGroups) {
       for (const component of components ?? []) {
         if (component.ifcGuid) globalIds.add(component.ifcGuid);
@@ -189,10 +142,8 @@ function decodeViewpoint(
     "Un point de vue",
   );
   const data = bcfViewpointPayloadSchema.safeParse({
+    ...viewpoint,
     guid,
-    perspectiveCamera: viewpoint.perspectiveCamera,
-    orthogonalCamera: viewpoint.orthogonalCamera,
-    components: viewpoint.components,
   });
   if (!data.success) {
     warnings.push(
@@ -201,6 +152,10 @@ function decodeViewpoint(
     return null;
   }
 
+  if (viewpoint.bitmaps?.length)
+    warnings.push(
+      `La vue ${viewpoint.guid} contient des annotations bitmap non prises en charge. Elles ne seront pas réexportées.`,
+    );
   const snapshotBytes = viewpoint.snapshotData;
   let snapshot: BcfArchiveViewpoint["snapshot"] = null;
   if (snapshotBytes && snapshotBytes.byteLength <= maxSnapshotBytes) {
@@ -240,6 +195,15 @@ function decodeTopic(
   limits: ResolvedBcfArchiveImportLimits,
   warnings: string[],
 ) {
+  if (
+    topic.bimSnippet?.isExternal === false ||
+    topic.documentReferences?.some(
+      (reference) => reference.documentGuid || reference.isExternal === false,
+    )
+  )
+    warnings.push(
+      `La remarque « ${topic.title} » référence des pièces jointes embarquées non prises en charge. Leurs références sont conservées, leurs fichiers ne sont pas réexportés.`,
+    );
   const decodedViewpoints = topic.viewpoints.map((source) => ({
     sourceGuid: source.guid,
     viewpoint: decodeViewpoint(source, warnings, limits.maxSnapshotBytes),
@@ -257,10 +221,16 @@ function decodeTopic(
     guid: validOrGeneratedGuid(topic.guid, warnings, "Une remarque"),
     title: topic.title.trim() || "Remarque BCF sans titre",
     description: topic.description?.trim() || null,
-    type: topicType(topic.topicType),
-    status: topicStatus(topic.topicStatus),
-    priority: topicPriority(topic.priority),
+    type: bcfTopicTypeSchema.parse(topic.topicType?.trim() || "Issue"),
+    status: bcfTopicStatusSchema.parse(topic.topicStatus?.trim() || "Open"),
+    priority: bcfPrioritySchema.parse(topic.priority?.trim() || "Normal"),
     authorName: topic.creationAuthor?.trim() || "Auteur BCF inconnu",
+    assignedTo: topic.assignedTo ?? null,
+    dueDate: topic.dueDate?.slice(0, 10) ?? null,
+    labels: topic.labels ?? [],
+    modifiedAuthor: topic.modifiedAuthor ?? null,
+    header: topic.header,
+    metadata: bcfExchangeMetadataSchema.parse(topic),
     createdAt: topic.creationDate ?? null,
     updatedAt: topic.modifiedDate ?? null,
     componentGlobalIds: collectComponentGlobalIds(topic.viewpoints),
@@ -308,12 +278,16 @@ export async function decodeBcfArchive(
 ): Promise<BcfArchiveDecodeResult> {
   const limits = { ...defaultLimits, ...overrides };
   let project: BCFProject;
+  const warnings: string[] = [];
 
   try {
     project = await readBCF(bytes, {
       maxArchiveBytes: limits.maxArchiveBytes,
       maxEntries: limits.maxEntries,
       maxExpandedBytes: limits.maxExpandedBytes,
+      onWarning: (message) => {
+        if (warnings.length < 500) warnings.push(message);
+      },
     });
   } catch (error) {
     if (error instanceof Error && /exceeds cap|zip bomb/i.test(error.message)) {
@@ -323,7 +297,6 @@ export async function decodeBcfArchive(
   }
 
   assertCollectionLimits(project, limits);
-  const warnings: string[] = [];
   const topics = [...project.topics.values()].map((topic) =>
     decodeTopic(topic, limits, warnings),
   );
@@ -347,29 +320,9 @@ export async function decodeBcfArchive(
     version: project.version,
     projectName: project.name?.trim() || null,
     topics,
-    warnings,
+    warnings: warnings.slice(0, 500),
   };
 }
-
-const statusToBcf: Record<BcfTopicStatus, string> = {
-  open: "Open",
-  in_progress: "In Progress",
-  resolved: "Resolved",
-  closed: "Closed",
-};
-
-const typeToBcf: Record<BcfTopicType, string> = {
-  issue: "Issue",
-  request: "Request",
-  comment: "Comment",
-};
-
-const priorityToBcf: Record<BcfPriority, string> = {
-  low: "Low",
-  normal: "Normal",
-  high: "High",
-  critical: "Critical",
-};
 
 function encodeComment(comment: BcfArchiveComment): BCFComment {
   return {
@@ -382,23 +335,10 @@ function encodeComment(comment: BcfArchiveComment): BCFComment {
 }
 
 function encodeViewpoint(viewpoint: BcfArchiveViewpoint): BCFViewpoint {
-  const perspectiveCamera = viewpoint.data.perspectiveCamera
-    ? {
-        ...viewpoint.data.perspectiveCamera,
-        aspectRatio: viewpoint.data.perspectiveCamera.aspectRatio ?? 1,
-      }
-    : undefined;
-  const orthogonalCamera = viewpoint.data.orthogonalCamera
-    ? {
-        ...viewpoint.data.orthogonalCamera,
-        aspectRatio: viewpoint.data.orthogonalCamera.aspectRatio ?? 1,
-      }
-    : undefined;
   return {
     ...viewpoint.data,
     guid: viewpoint.guid,
-    perspectiveCamera,
-    orthogonalCamera,
+
     snapshot: viewpoint.snapshot
       ? `data:${viewpoint.snapshot.mediaType};base64,`
       : undefined,
@@ -408,46 +348,58 @@ function encodeViewpoint(viewpoint: BcfArchiveViewpoint): BCFViewpoint {
 
 function encodeTopic(topic: BcfArchiveExportTopic): BCFTopic {
   const viewpoints = topic.viewpoints.map(encodeViewpoint);
-  const firstViewpoint = viewpoints[0];
-  if (firstViewpoint && topic.componentGlobalIds.length) {
-    const selection = new Map(
-      (firstViewpoint.components?.selection ?? []).flatMap((component) =>
-        component.ifcGuid ? [[component.ifcGuid, component] as const] : [],
-      ),
-    );
-    for (const ifcGuid of topic.componentGlobalIds) {
-      selection.set(ifcGuid, { ifcGuid });
-    }
-    firstViewpoint.components = {
-      ...firstViewpoint.components,
-      selection: [...selection.values()],
-    };
-  }
-
+  const selected = new Set(
+    viewpoints.flatMap(
+      (view) =>
+        view.components?.selection?.flatMap((component) =>
+          component.ifcGuid ? [component.ifcGuid] : [],
+        ) ?? [],
+    ),
+  );
+  const additional = topic.componentGlobalIds.filter(
+    (guid) => !selected.has(guid),
+  );
+  if (additional.length)
+    viewpoints.push({
+      guid: crypto.randomUUID(),
+      components: { selection: additional.map((ifcGuid) => ({ ifcGuid })) },
+    });
   return {
+    ...topic.metadata,
     guid: topic.guid,
     title: topic.title,
     description: topic.description ?? undefined,
-    topicType: typeToBcf[topic.type],
-    topicStatus: statusToBcf[topic.status],
-    priority: priorityToBcf[topic.priority],
+    topicType: topic.type,
+    topicStatus: topic.status,
+    priority: topic.priority,
     creationDate: topic.createdAt ?? undefined,
     creationAuthor: topic.authorName,
     modifiedDate: topic.updatedAt ?? undefined,
-    modifiedAuthor: topic.authorName,
+    modifiedAuthor: topic.modifiedAuthor ?? undefined,
+    assignedTo: topic.assignedTo ?? undefined,
+    dueDate: topic.dueDate ? `${topic.dueDate}T00:00:00Z` : undefined,
+    labels: topic.labels,
+    header: topic.header ?? topic.metadata?.header,
     comments: topic.comments.map(encodeComment),
     viewpoints,
   };
 }
 
 export async function encodeBcfArchive(input: BcfArchiveExportInput) {
+  const topics = input.topics.map(encodeTopic);
+  // Selection-only views are legal in 2.1, while 3.0 requires exactly one camera.
+  // A missing aspect ratio must never be replaced with an invented value either.
+  const needs21 = topics.some((topic) =>
+    topic.viewpoints.some((view) => {
+      const camera = view.perspectiveCamera ?? view.orthogonalCamera;
+      return !camera || !camera.aspectRatio;
+    }),
+  );
   const project: BCFProject = {
-    version: "3.0",
+    version: needs21 ? "2.1" : "3.0",
     projectId: input.projectId,
     name: input.projectName,
-    topics: new Map(
-      input.topics.map((topic) => [topic.guid, encodeTopic(topic)]),
-    ),
+    topics: new Map(topics.map((topic) => [topic.guid, topic])),
   };
   const blob = await writeBCF(project);
   return new Uint8Array(await blob.arrayBuffer());

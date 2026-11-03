@@ -27,22 +27,22 @@ describe("BCF contracts", () => {
       }),
     ).toMatchObject({
       title: "Porte à vérifier",
-      type: "issue",
-      priority: "normal",
+      type: "Issue",
+      priority: "Normal",
     });
   });
 
-  it("rejects an unknown topic status", () => {
+  it("rejects an empty topic status", () => {
     expect(() =>
       updateBcfTopicStatusInputSchema.parse({
         projectId: "98a7f2f9-c624-4824-98ad-1999903c3b09",
         topicId: "02609803-f2a6-4a1a-971c-bc579e28ea98",
-        status: "done",
+        status: "",
       }),
     ).toThrow();
   });
 
-  it("requires exactly one finite camera in a BCF viewpoint", () => {
+  it("allows selection-only views and rejects contradictory cameras", () => {
     const perspective = {
       cameraViewPoint: { x: 1, y: 2, z: 3 },
       cameraDirection: { x: 0, y: 0, z: -1 },
@@ -57,10 +57,17 @@ describe("BCF contracts", () => {
         perspectiveCamera: perspective,
       }),
     ).toMatchObject({ perspectiveCamera: perspective });
-    expect(() =>
+    expect(
       bcfViewpointPayloadSchema.parse({
         guid: "02609803-f2a6-4a1a-971c-bc579e28ea98",
       }),
-    ).toThrow("exactly one camera");
+    ).toHaveProperty("guid");
+    expect(() =>
+      bcfViewpointPayloadSchema.parse({
+        guid: "02609803-f2a6-4a1a-971c-bc579e28ea98",
+        perspectiveCamera: perspective,
+        orthogonalCamera: { ...perspective, viewToWorldScale: 10 },
+      }),
+    ).toThrow("two cameras");
   });
 });

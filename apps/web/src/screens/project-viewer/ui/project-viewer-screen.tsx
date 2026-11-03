@@ -27,9 +27,12 @@ export async function ProjectViewerScreen({
   const project = await getProjectService().find(actorId, parsed.data);
   if (!project) notFound();
 
+  const canReadBcf = hasProjectPermission(project, "bcf:read");
   const [assets, bcfTopics] = await Promise.all([
     getAssetService().list(actorId, project.id),
-    getBcfTopicService().list(actorId, project.id),
+    canReadBcf
+      ? getBcfTopicService().summaries(actorId, project.id)
+      : Promise.resolve([]),
   ]);
   const ifcSources = assets
     .filter((asset) => asset.kind === "ifc" && asset.status === "ready")
@@ -142,6 +145,7 @@ export async function ProjectViewerScreen({
           assistantSessions={assistantSessions}
           initialBcfTopics={bcfTopics}
           bcfPermissions={{
+            read: canReadBcf,
             createTopic: hasProjectPermission(project, "bcf:topic:create"),
             updateTopic: hasProjectPermission(project, "bcf:topic:update"),
             createComment: hasProjectPermission(project, "bcf:comment:create"),

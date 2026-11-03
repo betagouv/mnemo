@@ -27,12 +27,14 @@ const otherGroups = viewerToolGroups.filter(
 export function ViewerToolBar({
   activeGroupId,
   bcfTopicCount,
+  canReadBcf,
   onFitToView,
   onSelect,
   rootRef,
 }: {
   activeGroupId: ViewerToolGroupId | null;
   bcfTopicCount: number;
+  canReadBcf: boolean;
   onFitToView: () => void;
   onSelect: (
     panel: ViewerPanelId,
@@ -93,71 +95,73 @@ export function ViewerToolBar({
             </span>
           </Button>
         </li>
-        {primaryGroups.map((group) => {
-          const hasMenu = group.actions.length > 1;
-          const expanded = openGroup === group.id;
-          const isActive = group.id === activeGroupId;
-          return (
-            <li className={styles.item} key={group.id}>
-              <Button
-                className={styles.trigger}
-                iconId={group.icon}
-                nativeButtonProps={{
-                  "aria-label":
-                    group.id === "annotations" && bcfTopicCount > 0
-                      ? `${group.label} (${bcfTopicCount})`
-                      : group.label,
-                  "aria-controls": hasMenu
-                    ? `${menuPrefix}-viewer-tools-${group.id}`
-                    : undefined,
-                  "aria-expanded": hasMenu ? expanded : undefined,
-                  "data-active": isActive || undefined,
-                }}
-                onClick={() => {
-                  if (hasMenu) {
-                    setOpenGroup(expanded ? null : group.id);
-                  } else {
-                    select(group.actions[0].panel, group.id);
-                  }
-                }}
-                ref={(element) => {
-                  triggerRefs.current[group.id] = element;
-                }}
-                priority="tertiary no outline"
-                size="small"
-              >
-                <span aria-hidden="true" className={styles.tooltip}>
-                  {group.label}
-                </span>
-                {group.id === "annotations" && bcfTopicCount > 0 ? (
-                  <span className={styles.count}>{bcfTopicCount}</span>
-                ) : null}
-              </Button>
-              {hasMenu ? (
-                <div
-                  className={styles.menu}
-                  hidden={!expanded}
-                  id={`${menuPrefix}-viewer-tools-${group.id}`}
+        {primaryGroups
+          .filter((group) => canReadBcf || group.id !== "annotations")
+          .map((group) => {
+            const hasMenu = group.actions.length > 1;
+            const expanded = openGroup === group.id;
+            const isActive = group.id === activeGroupId;
+            return (
+              <li className={styles.item} key={group.id}>
+                <Button
+                  className={styles.trigger}
+                  iconId={group.icon}
+                  nativeButtonProps={{
+                    "aria-label":
+                      group.id === "annotations" && bcfTopicCount > 0
+                        ? `${group.label} (${bcfTopicCount})`
+                        : group.label,
+                    "aria-controls": hasMenu
+                      ? `${menuPrefix}-viewer-tools-${group.id}`
+                      : undefined,
+                    "aria-expanded": hasMenu ? expanded : undefined,
+                    "data-active": isActive || undefined,
+                  }}
+                  onClick={() => {
+                    if (hasMenu) {
+                      setOpenGroup(expanded ? null : group.id);
+                    } else {
+                      select(group.actions[0].panel, group.id);
+                    }
+                  }}
+                  ref={(element) => {
+                    triggerRefs.current[group.id] = element;
+                  }}
+                  priority="tertiary no outline"
+                  size="small"
                 >
-                  <ul>
-                    {group.actions.map((action) => (
-                      <li key={action.panel}>
-                        <Button
-                          className={styles.menuAction}
-                          onClick={() => select(action.panel, group.id)}
-                          priority="tertiary no outline"
-                          size="small"
-                        >
-                          {action.label}
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-            </li>
-          );
-        })}
+                  <span aria-hidden="true" className={styles.tooltip}>
+                    {group.label}
+                  </span>
+                  {group.id === "annotations" && bcfTopicCount > 0 ? (
+                    <span className={styles.count}>{bcfTopicCount}</span>
+                  ) : null}
+                </Button>
+                {hasMenu ? (
+                  <div
+                    className={styles.menu}
+                    hidden={!expanded}
+                    id={`${menuPrefix}-viewer-tools-${group.id}`}
+                  >
+                    <ul>
+                      {group.actions.map((action) => (
+                        <li key={action.panel}>
+                          <Button
+                            className={styles.menuAction}
+                            onClick={() => select(action.panel, group.id)}
+                            priority="tertiary no outline"
+                            size="small"
+                          >
+                            {action.label}
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </li>
+            );
+          })}
         <li className={styles.item}>
           <Button
             className={styles.trigger}
@@ -189,25 +193,31 @@ export function ViewerToolBar({
             id={`${menuPrefix}-viewer-tools-more`}
           >
             <ul>
-              {otherGroups.map((group) => (
-                <li key={group.id}>
-                  <p className={styles.menuGroupTitle}>{group.label}</p>
-                  <ul>
-                    {group.actions.map((action) => (
-                      <li key={action.panel}>
-                        <Button
-                          className={styles.menuAction}
-                          onClick={() => select(action.panel, group.id)}
-                          priority="tertiary no outline"
-                          size="small"
-                        >
-                          {action.label}
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
-                </li>
-              ))}
+              {otherGroups
+                .filter(
+                  (group) =>
+                    canReadBcf ||
+                    group.actions.some((action) => action.panel !== "bcf"),
+                )
+                .map((group) => (
+                  <li key={group.id}>
+                    <p className={styles.menuGroupTitle}>{group.label}</p>
+                    <ul>
+                      {group.actions.map((action) => (
+                        <li key={action.panel}>
+                          <Button
+                            className={styles.menuAction}
+                            onClick={() => select(action.panel, group.id)}
+                            priority="tertiary no outline"
+                            size="small"
+                          >
+                            {action.label}
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                ))}
             </ul>
           </div>
         </li>

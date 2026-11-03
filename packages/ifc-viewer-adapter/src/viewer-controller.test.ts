@@ -10,7 +10,7 @@ import type {
   ParquetStreamResult,
 } from "@ifc-lite/server-client";
 import { ServerEntityIndex } from "@ifc-lite/server-client";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createIfcBimIndex } from "./bim-index";
 import {
@@ -263,6 +263,11 @@ function createHarness({
     setPointCloudOptions: () => {
       calls.pointCloudOptions += 1;
     },
+    captureColorFrame: async () => ({
+      width: 1,
+      height: 1,
+      rgba: new Uint8ClampedArray([1, 2, 3, 255]),
+    }),
     captureScreenshot: async () => "data:image/png;base64,iVBORw0KGgo=",
     destroy: () => {
       calls.rendererDestroyed += 1;
@@ -634,6 +639,8 @@ function createHarness({
     },
   };
 }
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe("IfcViewerController", () => {
   it("updates the scene background without recreating or reframing the renderer", async () => {
@@ -1492,6 +1499,20 @@ describe("IfcViewerController", () => {
   });
 
   it("round-trips a BCF viewpoint without recreating or reframing the renderer", async () => {
+    vi.stubGlobal(
+      "OffscreenCanvas",
+      class {
+        getContext() {
+          return {
+            drawImage() {},
+            getImageData() {
+              return { data: new Uint8ClampedArray([1, 2, 3, 255]) };
+            },
+          };
+        }
+      },
+    );
+    vi.stubGlobal("createImageBitmap", async () => ({ close() {} }));
     const { calls, controller } = createHarness();
     await controller.loadIfc({
       assetId: "model-a",
@@ -1501,11 +1522,13 @@ describe("IfcViewerController", () => {
     controller.selectEntity(42);
     controller.applyVisualPlan({
       focusIds: [42],
+      showContext: false,
       colors: [{ ids: [84], color: [0.5, 0.1, 0.8, 1] }],
       label: "Capture BCF",
     });
 
     const capture = await controller.captureBcfViewpoint();
+    vi.unstubAllGlobals();
 
     expect(capture.targetDistance).toBe(20);
     expect(capture.snapshot).toMatchObject({ type: "image/png" });

@@ -5,9 +5,15 @@ import type {
   BcfViewpoint,
   BcfViewpointPayload,
   CreateBcfTopicInput,
+  UpdateBcfTopicInput,
+  BcfProjectOptions,
+  BcfTopicSummary,
+  BcfMarkerTopic,
+  BcfExchangeMetadata,
 } from "@mnemo/contracts/bcf";
 
 export type StoredBcfComment = BcfComment & {
+  authorEmail: string;
   bcfGuid: string;
   viewpointBcfGuid: string | null;
 };
@@ -22,6 +28,7 @@ export type StoredBcfViewpoint = Omit<BcfViewpoint, "snapshotUrl"> & {
 
 export type StoredBcfTopic = Omit<BcfTopic, "comments" | "viewpoints"> & {
   bcfGuid: string;
+  exchangeMetadata?: BcfExchangeMetadata;
   comments: StoredBcfComment[];
   viewpoints: StoredBcfViewpoint[];
 };
@@ -31,6 +38,7 @@ export type CreateBcfTopicRecord = Omit<CreateBcfTopicInput, "projectId"> & {
   projectId: string;
   createdBy: string;
   createdAt: Date;
+  preparedViewpoint?: PreparedBcfViewpoint;
 };
 
 export type ImportBcfTopicRecord = {
@@ -44,8 +52,13 @@ export type ImportBcfTopicRecord = {
   priority: BcfTopic["priority"];
   createdBy: string;
   externalAuthor: string;
+  exchangeMetadata?: BcfExchangeMetadata;
   createdAt: Date;
   updatedAt: Date;
+  assignedTo?: string | null;
+  dueDate?: string | null;
+  labels?: string[];
+  modifiedAuthor?: string | null;
   components: Array<{
     id: string;
     globalId: string;
@@ -72,7 +85,47 @@ export type ImportBcfTopicRecord = {
   }>;
 };
 
+export type PreparedBcfViewpoint = Omit<
+  Parameters<BcfTopicRepository["createViewpoint"]>[0],
+  "projectId" | "topicId"
+> & { uploadId?: string };
+export type BcfSnapshotUpload = {
+  id: string;
+  projectId: string;
+  actorId: string;
+  objectKey: string;
+  mediaType: string;
+  sizeBytes: number;
+  expiresAt: Date;
+};
 export interface BcfTopicRepository {
+  markers(projectId: string): Promise<BcfMarkerTopic[]>;
+  summaries(projectId: string): Promise<BcfTopicSummary[]>;
+  find(projectId: string, topicId: string): Promise<StoredBcfTopic | null>;
+  members(
+    projectId: string,
+  ): Promise<Array<{ id: string; name: string; email: string }>>;
+  options(projectId: string): Promise<BcfProjectOptions>;
+  findSnapshot(
+    projectId: string,
+    topicId: string,
+    viewpointId: string,
+  ): Promise<{ objectKey: string } | null>;
+  update(
+    input: UpdateBcfTopicInput & { modifiedAuthor: string; updatedAt: Date },
+  ): Promise<StoredBcfTopic | null>;
+  protectSnapshot(
+    id: string,
+    objectKey: string,
+    expiresAt: Date,
+  ): Promise<void>;
+  prepareUpload(input: BcfSnapshotUpload): Promise<void>;
+  findUpload(
+    projectId: string,
+    actorId: string,
+    uploadId: string,
+  ): Promise<BcfSnapshotUpload | null>;
+
   list(projectId: string): Promise<StoredBcfTopic[]>;
   create(input: CreateBcfTopicRecord): Promise<StoredBcfTopic>;
   importTopics(input: ImportBcfTopicRecord[]): Promise<{
@@ -86,6 +139,7 @@ export interface BcfTopicRepository {
     authorId: string;
     comment: string;
     createdAt: Date;
+    preparedViewpoint?: PreparedBcfViewpoint;
   }): Promise<StoredBcfTopic | null>;
   updateStatus(input: {
     projectId: string;
@@ -104,16 +158,6 @@ export interface BcfTopicRepository {
     snapshotExpectedSize: number | null;
     createdBy: string;
     createdAt: Date;
-  }): Promise<StoredBcfTopic | null>;
-  findViewpoint(
-    projectId: string,
-    topicId: string,
-    viewpointId: string,
-  ): Promise<StoredBcfViewpoint | null>;
-  markViewpointSnapshotUploaded(input: {
-    projectId: string;
-    topicId: string;
-    viewpointId: string;
-    uploadedAt: Date;
+    uploadId?: string;
   }): Promise<StoredBcfTopic | null>;
 }

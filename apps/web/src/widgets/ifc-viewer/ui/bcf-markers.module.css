@@ -1,0 +1,27 @@
+.overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.marker.marker {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  padding: 0.25rem;
+  min-width: 2rem;
+  min-height: 2rem;
+  border: 2px solid var(--background-default-grey);
+  border-radius: 50% 50% 50% 0;
+  transform: translate(-50%, -100%);
+  pointer-events: auto;
+  box-shadow: 0 2px 6px #0004;
+  font-size: 0.75rem;
+}
+.active.active {
+  outline: 3px solid var(--border-action-high-blue-france);
+  outline-offset: 3px;
+}
+.marker[hidden] {
+  display: none;
+}

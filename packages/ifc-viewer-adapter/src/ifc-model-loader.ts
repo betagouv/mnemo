@@ -72,6 +72,10 @@ export class IfcModelLoader {
     this.parser = host.runtime.createParser();
   }
 
+  get renderOrigin() {
+    return this.sharedRtcOffset ?? { x: 0, y: 0, z: 0 };
+  }
+
   get generation() {
     return this.loadGeneration;
   }

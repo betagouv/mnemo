@@ -1,3 +1,7 @@
+import {
+  sectionPlaneToClippingPlane,
+  type BCFClippingPlane,
+} from "@ifc-lite/bcf";
 import { QUANT_STEP } from "@ifc-lite/renderer";
 import type {
   ClipBox,
@@ -116,6 +120,102 @@ export class SectionController {
           : {}),
       },
     };
+  }
+
+  captureBcfPlanes(): BCFClippingPlane[] {
+    const toBcf = (p: Point) => ({ x: p.x, y: -p.z, z: p.y });
+    if (this.state.active === "box" && this.state.box) {
+      const { min, max } = this.state.box;
+      return ([0, 1, 2] as const).flatMap((axis) =>
+        [0, 1].map((side) => {
+          const point = { x: 0, y: 0, z: 0 };
+          const direction = { x: 0, y: 0, z: 0 };
+          const key = (["x", "y", "z"] as const)[axis];
+          point[key] = (side === 0 ? min : max)[axis];
+          direction[key] = side === 0 ? 1 : -1;
+          return { location: toBcf(point), direction: toBcf(direction) };
+        }),
+      );
+    }
+    if (this.state.active !== "plane") return [];
+    const plane = this.state.plane;
+    if (plane.normal && plane.distance !== null) {
+      const [x, y, z] = plane.normal;
+      const sign = plane.flipped ? 1 : -1;
+      return [
+        {
+          location: toBcf({
+            x: x * plane.distance,
+            y: y * plane.distance,
+            z: z * plane.distance,
+          }),
+          direction: toBcf({ x: x * sign, y: y * sign, z: z * sign }),
+        },
+      ];
+    }
+    const bounds = this.bounds;
+    if (!bounds) return [];
+    const result = sectionPlaneToClippingPlane(
+      { ...plane, enabled: true },
+      bounds,
+    );
+    return result ? [result] : [];
+  }
+  applyBcfPlanes(planes: BCFClippingPlane[]) {
+    const fromBcf = (p: Point) => ({ x: p.x, y: p.z, z: -p.y });
+    if (!planes.length) {
+      this.reset();
+      return;
+    }
+    if (planes.length === 1) {
+      const p = planes[0]!;
+      const direction = fromBcf(p.direction);
+      const normal = normalized({
+        x: -direction.x,
+        y: -direction.y,
+        z: -direction.z,
+      });
+      if (!normal) throw new Error("Le plan de coupe BCF est invalide.");
+      this.activateCustomPlane("two-point", normal, fromBcf(p.location));
+      return;
+    }
+    if (planes.length === 6) {
+      const min: [number, number, number] = [-Infinity, -Infinity, -Infinity];
+      const max: [number, number, number] = [Infinity, Infinity, Infinity];
+      for (const plane of planes) {
+        const p = fromBcf(plane.location);
+        const n = fromBcf(plane.direction);
+        const direction = [n.x, n.y, n.z];
+        const axes = direction.flatMap((v, i) =>
+          Math.abs(v) > 1e-6 ? [i] : [],
+        );
+        if (axes.length !== 1)
+          throw new Error(
+            "Cette vue contient plusieurs coupes obliques non prises en charge par le moteur. Sa capture reste disponible.",
+          );
+        const axis = axes[0] as AxisIndex;
+        const value = [p.x, p.y, p.z][axis]!;
+        if (direction[axis]! > 0) min[axis] = Math.max(min[axis], value);
+        else max[axis] = Math.min(max[axis], value);
+      }
+      if (
+        min.every(
+          (v, i) =>
+            Number.isFinite(v) && Number.isFinite(max[i]) && v < max[i]!,
+        )
+      ) {
+        this.invalidatePick();
+        this.commit({
+          ...createEmptySectionSnapshot(),
+          active: "box",
+          box: { min, max },
+        });
+        return;
+      }
+    }
+    throw new Error(
+      "Cette vue contient une combinaison de coupes non prise en charge par le moteur. Sa capture reste disponible.",
+    );
   }
 
   setAxis(axis: SectionPlaneAxis) {

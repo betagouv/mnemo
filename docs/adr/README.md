@@ -54,3 +54,5 @@ same change as a new record.
 | [0015](0015-s3-native-ifc-and-oneoff-processing.md) | S3-native IFC and on-demand conversion     | Accepted; COPC format in [0016](0016-copc-only-point-clouds.md)   |
 | [0016](0016-copc-only-point-clouds.md)              | COPC-only tiled point clouds               | Accepted                                                          |
 | [0017](0017-better-auth-project-access.md)          | Better Auth and per-project permissions    | Proposed                                                          |
+
+| [0018](0018-bcf-workspace.md) | BCF workspace and loss-aware exchange | Accepted |

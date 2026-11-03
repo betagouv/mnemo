@@ -1,37 +1,36 @@
+import { randomUUID } from "node:crypto";
+import { describe, it, expect, vi } from "vitest";
+import { bcfDefaults, createBcfTopicInputSchema } from "@mnemo/contracts/bcf";
 import type { ObjectStorage } from "@mnemo/storage";
-import { describe, expect, it, vi } from "vitest";
-
 import type { ProjectRepository } from "@/server/projects/application/project-repository";
-
-import {
-  BcfSnapshotVerificationError,
-  BcfTopicAccessDeniedError,
-  BcfTopicNotFoundError,
-} from "./bcf-topic-errors";
-import type { BcfArchiveCodec } from "./bcf-archive-codec";
 import type {
   BcfTopicRepository,
-  ImportBcfTopicRecord,
   StoredBcfTopic,
 } from "./bcf-topic-repository";
+import type { BcfArchiveCodec } from "./bcf-archive-codec";
 import { BcfTopicService } from "./bcf-topic-service";
-
-const projectId = "d14ccec4-b8c9-437e-89af-0690c9c9682b";
-const topicId = "a805b627-40b3-45c1-9d13-91042c67f025";
-const viewpointId = "9f313504-b442-4df1-97d5-c6451f5d8c80";
-const now = new Date("2026-09-09T19:00:00.000Z");
-
+const projectId = randomUUID(),
+  topicId = randomUUID(),
+  viewId = randomUUID(),
+  uploadId = randomUUID();
+const now = new Date("2026-11-03T12:00:00Z");
 function topic(): StoredBcfTopic {
   return {
     id: topicId,
     bcfGuid: topicId,
     projectId,
-    title: "Porte à vérifier",
+    number: 1,
+    title: "Porte",
     description: null,
-    type: "issue",
-    status: "open",
-    priority: "normal",
+    type: "Issue",
+    status: "Open",
+    priority: "Normal",
     authorName: "Erwan",
+    authorEmail: "author@example.fr",
+    modifiedAuthor: null,
+    assignedTo: null,
+    dueDate: null,
+    labels: [],
     components: [],
     comments: [],
     viewpoints: [],
@@ -39,379 +38,298 @@ function topic(): StoredBcfTopic {
     updatedAt: now.toISOString(),
   };
 }
-
-function projects(role: "owner" | "editor" | "viewer"): ProjectRepository {
-  return {
-    listForActor: async () => [],
-    findForActor: async () => ({
-      id: projectId,
-      title: "Projet",
-      address: null,
-      description: null,
-      role,
-      createdAt: now,
-      updatedAt: now,
-    }),
-    createForActor: async () => {
-      throw new Error("not used");
-    },
-    updateForActor: async () => {
-      throw new Error("not used");
-    },
-    requestDeletion: async () => [],
-  };
-}
-
-function repository(): BcfTopicRepository {
-  return {
+function setup(role: "owner" | "editor" | "viewer" = "editor") {
+  const topics: BcfTopicRepository = {
     list: vi.fn(async () => [topic()]),
-    create: vi.fn(async () => topic()),
-    importTopics: vi.fn(async (input: ImportBcfTopicRecord[]) => ({
-      insertedTopicIds: input.map((item) => item.id),
-      skippedBcfGuids: [],
+    find: vi.fn(async () => topic()),
+    summaries: vi.fn(async () => []),
+    markers: vi.fn(async () => []),
+    members: vi.fn(async () => []),
+    options: vi.fn(async () => ({
+      statuses: [...bcfDefaults.statuses],
+      types: [...bcfDefaults.types],
+      priorities: [...bcfDefaults.priorities],
     })),
+    findSnapshot: vi.fn(async () => null),
+    update: vi.fn(async () => topic()),
+    protectSnapshot: vi.fn(async () => {}),
+    prepareUpload: vi.fn(async () => {}),
+    findUpload: vi.fn(async () => null),
+    create: vi.fn(async () => topic()),
+    importTopics: vi.fn(
+      async (input: Parameters<BcfTopicRepository["importTopics"]>[0]) => ({
+        insertedTopicIds: input.map((topic) => topic.id),
+        skippedBcfGuids: [],
+      }),
+    ),
     addComment: vi.fn(async () => topic()),
     updateStatus: vi.fn(async () => topic()),
     createViewpoint: vi.fn(async () => topic()),
-    findViewpoint: vi.fn(async () => null),
-    markViewpointSnapshotUploaded: vi.fn(async () => topic()),
   };
-}
-
-function archives(): BcfArchiveCodec {
-  return {
-    decode: vi.fn(async (): ReturnType<BcfArchiveCodec["decode"]> => ({
-      version: "3.0",
-      projectName: "Coordination",
+  const projects = {
+    findForActor: vi.fn(async () => ({
+      id: projectId,
+      title: "Projet",
+      role,
+      createdAt: now,
+      updatedAt: now,
+      address: null,
+      description: null,
+    })),
+  } as unknown as ProjectRepository;
+  const storage = {
+    createUploadUrl: vi.fn(async () => "http://storage.local/upload"),
+    createDownloadUrl: vi.fn(async () => "http://storage.local/read"),
+    statObject: vi.fn(async () => null),
+    readObject: vi.fn(async () => new Uint8Array()),
+    writeObject: vi.fn(async () => {}),
+    deleteObject: vi.fn(async () => {}),
+  } as unknown as ObjectStorage;
+  const archives: BcfArchiveCodec = {
+    decode: vi.fn(async () => ({
+      version: "3.0" as const,
+      projectName: null,
       topics: [],
       warnings: [],
     })),
     encode: vi.fn(async () => new Uint8Array([80, 75])),
   };
-}
-
-function storage(): ObjectStorage {
   return {
-    createUploadUrl: vi.fn(async () => "http://storage.local/upload"),
-    createDownloadUrl: vi.fn(async () => "http://storage.local/download"),
-    createInternalDownloadUrl: vi.fn(
-      async () => "http://storage.local/download",
-    ),
-    statObject: vi.fn(async () => null),
-    readObject: vi.fn(async () => new Uint8Array()),
-    readObjectStream: vi.fn(async () =>
-      (async function* () {
-        yield new Uint8Array();
-      })(),
-    ),
-    writeObject: vi.fn(async () => undefined),
-    writeObjectStream: vi.fn(async () => undefined),
-    deleteObject: vi.fn(async () => undefined),
+    topics,
+    projects,
+    storage,
+    archives,
+    service: new BcfTopicService(topics, projects, storage, archives, {
+      now: () => now,
+      createId: () => viewId,
+    }),
   };
 }
-
-describe("BcfTopicService", () => {
-  it("creates a component-linked topic for an editor", async () => {
-    const topics = repository();
-    const service = new BcfTopicService(
-      topics,
-      projects("editor"),
-      storage(),
-      archives(),
-      {
-        createId: () => topicId,
-        now: () => now,
-      },
-    );
-
-    await expect(
-      service.create("actor", {
-        projectId,
-        title: "Porte à vérifier",
-        type: "issue",
-        priority: "normal",
-        component: {
-          assetId: "ab64313e-7774-4294-a09d-f693d3cc68b8",
-          expressId: 42,
+const draft = {
+  data: {
+    guid: viewId,
+    perspectiveCamera: {
+      cameraViewPoint: { x: 1, y: 2, z: 3 },
+      cameraDirection: { x: 0, y: 1, z: 0 },
+      cameraUpVector: { x: 0, y: 0, z: 1 },
+      fieldOfView: 60,
+      aspectRatio: 1.5,
+    },
+  },
+  targetDistance: 20,
+  uploadId,
+};
+describe("BCF workspace service", () => {
+  it("creates an editor's topic with explicit multi-object associations", async () => {
+    const { service, topics } = setup();
+    const input = createBcfTopicInputSchema.parse({
+      projectId,
+      title: "Porte",
+      components: [
+        {
+          assetId: randomUUID(),
           globalId: "0YvctA6Hn0pgmBdv0cPwH6",
+          expressId: 42,
         },
-      }),
-    ).resolves.toMatchObject({ id: topicId });
+        {
+          assetId: randomUUID(),
+          globalId: "1YvctA6Hn0pgmBdv0cPwH6",
+          expressId: 43,
+        },
+      ],
+    });
+    await service.create("actor", input);
     expect(topics.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        id: topicId,
+        components: input.components,
         createdBy: "actor",
-        createdAt: now,
       }),
     );
   });
-
-  it("allows viewers to read but not write topics", async () => {
-    const service = new BcfTopicService(
-      repository(),
-      projects("viewer"),
-      storage(),
-      archives(),
-    );
-
-    await expect(service.list("actor", projectId)).resolves.toHaveLength(1);
+  it("denies readers every mutation and snapshot preparation", async () => {
+    const { service, topics } = setup("viewer");
     await expect(
-      service.create("actor", {
-        projectId,
-        title: "Interdit",
-        type: "issue",
-        priority: "normal",
-      }),
-    ).rejects.toBeInstanceOf(BcfTopicAccessDeniedError);
-  });
-
-  it("does not add a comment to a topic outside the project", async () => {
-    const topics = repository();
-    topics.addComment = async () => null;
-    const service = new BcfTopicService(
-      topics,
-      projects("owner"),
-      storage(),
-      archives(),
-    );
-
+      service.create(
+        "actor",
+        createBcfTopicInputSchema.parse({ projectId, title: "Porte" }),
+      ),
+    ).rejects.toThrow();
     await expect(
-      service.addComment("actor", {
+      service.addComment("actor", { projectId, topicId, comment: "test" }),
+    ).rejects.toThrow();
+    await expect(
+      service.saveViewpoint("actor", { projectId, topicId, viewpoint: draft }),
+    ).rejects.toThrow();
+    await expect(
+      service.prepareSnapshot("actor", {
         projectId,
-        topicId,
-        comment: "À contrôler",
+        mediaType: "image/png",
+        sizeBytes: 8,
       }),
-    ).rejects.toBeInstanceOf(BcfTopicNotFoundError);
+    ).rejects.toThrow();
+    expect(topics.create).not.toHaveBeenCalled();
   });
-
-  it("prepares a direct snapshot upload with a server-owned viewpoint GUID", async () => {
-    const topics = repository();
-    const objectStorage = storage();
-    const service = new BcfTopicService(
-      topics,
-      projects("owner"),
-      objectStorage,
-      archives(),
-      { createId: () => viewpointId, now: () => now },
-    );
-
-    const result = await service.beginViewpointCapture("actor", {
+  it("does not expose another project's detail", async () => {
+    const { service, projects, topics } = setup();
+    vi.mocked(projects.findForActor).mockResolvedValue(undefined);
+    await expect(
+      service.detail("outsider", projectId, topicId),
+    ).rejects.toThrow();
+    expect(topics.find).not.toHaveBeenCalled();
+  });
+  it("rejects foreign, expired or missing upload receipts before creating a topic", async () => {
+    const { service, topics } = setup();
+    await expect(
+      service.create(
+        "actor",
+        createBcfTopicInputSchema.parse({
+          projectId,
+          title: "Porte",
+          viewpoint: draft,
+        }),
+      ),
+    ).rejects.toThrow("expiré");
+    expect(topics.findUpload).toHaveBeenCalledWith(
       projectId,
-      topicId,
-      data: {
-        guid: "02609803-f2a6-4a1a-971c-bc579e28ea98",
-        perspectiveCamera: {
-          cameraViewPoint: { x: 1, y: 2, z: 3 },
-          cameraDirection: { x: 0, y: 0, z: -1 },
-          cameraUpVector: { x: 0, y: 1, z: 0 },
-          fieldOfView: 50,
-          aspectRatio: 16 / 9,
-        },
-      },
-      targetDistance: 12,
-      snapshot: { mediaType: "image/png", sizeBytes: 42 },
-    });
-
-    expect(result).toMatchObject({
-      viewpointId,
-      snapshotUpload: {
-        uploadUrl: "http://storage.local/upload",
-        requiredHeaders: { "content-type": "image/png" },
-      },
-    });
-    expect(topics.createViewpoint).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: viewpointId,
-        data: expect.objectContaining({ guid: viewpointId }),
-        snapshotObjectKey: `projects/${projectId}/bcf/${topicId}/viewpoints/${viewpointId}/snapshot.png`,
-      }),
-    );
-  });
-
-  it("rejects completion when the uploaded snapshot does not match", async () => {
-    const topics = repository();
-    topics.findViewpoint = vi.fn(async () => ({
-      id: viewpointId,
-      bcfGuid: viewpointId,
-      topicId,
-      data: {
-        guid: viewpointId,
-        perspectiveCamera: {
-          cameraViewPoint: { x: 1, y: 2, z: 3 },
-          cameraDirection: { x: 0, y: 0, z: -1 },
-          cameraUpVector: { x: 0, y: 1, z: 0 },
-          fieldOfView: 50,
-        },
-      },
-      targetDistance: 12,
-      snapshotObjectKey: "snapshot.png",
-      snapshotMediaType: "image/png",
-      snapshotExpectedSize: 42,
-      snapshotUploadedAt: null,
-      authorName: "Erwan",
-      createdAt: now.toISOString(),
-    }));
-    const service = new BcfTopicService(
-      topics,
-      projects("owner"),
-      storage(),
-      archives(),
-    );
-
-    await expect(
-      service.completeViewpointCapture("actor", {
-        projectId,
-        topicId,
-        viewpointId,
-      }),
-    ).rejects.toBeInstanceOf(BcfSnapshotVerificationError);
-  });
-
-  it("exports the durable BCF GUIDs and snapshot bytes through the codec", async () => {
-    const topics = repository();
-    const stored = topic();
-    stored.viewpoints.push({
-      id: viewpointId,
-      bcfGuid: viewpointId,
-      topicId,
-      data: {
-        guid: viewpointId,
-        perspectiveCamera: {
-          cameraViewPoint: { x: 1, y: 2, z: 3 },
-          cameraDirection: { x: 0, y: 0, z: -1 },
-          cameraUpVector: { x: 0, y: 1, z: 0 },
-          fieldOfView: 50,
-        },
-      },
-      targetDistance: 12,
-      snapshotObjectKey: "snapshot.png",
-      snapshotMediaType: "image/png",
-      snapshotExpectedSize: 2,
-      snapshotUploadedAt: now.toISOString(),
-      authorName: "Erwan",
-      createdAt: now.toISOString(),
-    });
-    topics.list = vi.fn(async () => [stored]);
-    const objectStorage = storage();
-    objectStorage.readObject = vi.fn(async () => new Uint8Array([1, 2]));
-    const archiveCodec = archives();
-    const service = new BcfTopicService(
-      topics,
-      projects("owner"),
-      objectStorage,
-      archiveCodec,
-    );
-
-    await expect(service.exportArchive("actor", projectId)).resolves.toEqual({
-      bytes: new Uint8Array([80, 75]),
-      fileName: "Projet.bcfzip",
-    });
-    expect(archiveCodec.encode).toHaveBeenCalledWith(
-      expect.objectContaining({
-        topics: [
-          expect.objectContaining({
-            guid: topicId,
-            viewpoints: [
-              expect.objectContaining({
-                guid: viewpointId,
-                snapshot: {
-                  bytes: new Uint8Array([1, 2]),
-                  mediaType: "image/png",
-                },
-              }),
-            ],
-          }),
-        ],
-      }),
-    );
-  });
-
-  it("imports snapshots before one atomic topic write", async () => {
-    const ids = [
-      topicId,
-      "610bf973-0e03-41bd-a098-87f2fc9f8b15",
-      "69dc0daf-a573-483b-bde2-32d4ac20f704",
-      viewpointId,
-    ];
-    const topics = repository();
-    topics.list = vi.fn(async () => []);
-    const archiveCodec = archives();
-    archiveCodec.decode = vi.fn(
-      async (): ReturnType<BcfArchiveCodec["decode"]> => ({
-        version: "3.0",
-        projectName: "Coordination",
-        warnings: [],
-        topics: [
-          {
-            guid: "b65f3c96-608f-45fd-a2c6-20a6310102e7",
-            title: "Porte à vérifier",
-            description: null,
-            type: "issue",
-            status: "open",
-            priority: "normal",
-            authorName: "architecte@example.fr",
-            createdAt: now.toISOString(),
-            updatedAt: now.toISOString(),
-            componentGlobalIds: ["0YvctA6Hn0pgmBdv0cPwH6"],
-            comments: [
-              {
-                guid: "818a8233-bc87-4208-9d8f-58aa548ea57e",
-                authorName: "controle@example.fr",
-                comment: "À reprendre",
-                createdAt: now.toISOString(),
-                viewpointGuid: viewpointId,
-              },
-            ],
-            viewpoints: [
-              {
-                guid: viewpointId,
-                data: {
-                  guid: viewpointId,
-                  perspectiveCamera: {
-                    cameraViewPoint: { x: 1, y: 2, z: 3 },
-                    cameraDirection: { x: 0, y: 0, z: -1 },
-                    cameraUpVector: { x: 0, y: 1, z: 0 },
-                    fieldOfView: 50,
-                  },
-                },
-                targetDistance: 10,
-                snapshot: {
-                  bytes: new Uint8Array([1, 2]),
-                  mediaType: "image/png",
-                },
-              },
-            ],
-          },
-        ],
-      }),
-    );
-    const objectStorage = storage();
-    const service = new BcfTopicService(
-      topics,
-      projects("owner"),
-      objectStorage,
-      archiveCodec,
-      { createId: () => ids.shift() ?? crypto.randomUUID(), now: () => now },
-    );
-
-    const result = await service.importArchive(
       "actor",
-      projectId,
-      new Uint8Array([80, 75]),
+      uploadId,
     );
-
-    expect(result.imported).toEqual({
-      topics: 1,
-      comments: 1,
-      viewpoints: 1,
-      snapshots: 1,
+    expect(topics.create).not.toHaveBeenCalled();
+  });
+  it("verifies image bytes and finalizes the topic with its viewpoint", async () => {
+    const { service, topics, storage } = setup();
+    vi.mocked(topics.findUpload).mockResolvedValue({
+      id: uploadId,
+      projectId,
+      actorId: "actor",
+      objectKey: "pending",
+      mediaType: "image/png",
+      sizeBytes: 8,
+      expiresAt: new Date(now.getTime() + 10000),
     });
-    expect(objectStorage.writeObject).toHaveBeenCalledWith(
-      expect.objectContaining({
-        contentType: "image/png",
-        body: new Uint8Array([1, 2]),
+    vi.mocked(storage.statObject).mockResolvedValue({
+      contentLength: 8,
+      contentType: "image/png",
+      etag: null,
+    });
+    vi.mocked(storage.readObject).mockResolvedValue(
+      new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]),
+    );
+    await service.create(
+      "actor",
+      createBcfTopicInputSchema.parse({
+        projectId,
+        title: "Porte",
+        viewpoint: draft,
       }),
     );
-    expect(topics.importTopics).toHaveBeenCalledTimes(1);
+    expect(topics.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        preparedViewpoint: expect.objectContaining({
+          uploadId,
+          snapshotExpectedSize: 8,
+        }),
+      }),
+    );
+  });
+  it("cleans the final snapshot when the transaction fails", async () => {
+    const { service, topics, storage } = setup();
+    vi.mocked(topics.findUpload).mockResolvedValue({
+      id: uploadId,
+      projectId,
+      actorId: "actor",
+      objectKey: "pending",
+      mediaType: "image/png",
+      sizeBytes: 8,
+      expiresAt: new Date(now.getTime() + 10000),
+    });
+    vi.mocked(storage.statObject).mockResolvedValue({
+      contentLength: 8,
+      contentType: "image/png",
+      etag: null,
+    });
+    vi.mocked(storage.readObject).mockResolvedValue(
+      new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]),
+    );
+    vi.mocked(topics.create).mockRejectedValue(new Error("rollback"));
+    await expect(
+      service.create(
+        "actor",
+        createBcfTopicInputSchema.parse({
+          projectId,
+          title: "Porte",
+          viewpoint: draft,
+        }),
+      ),
+    ).rejects.toThrow("rollback");
+    expect(storage.deleteObject).toHaveBeenCalled();
+  });
+  it("rejects renamed non-images despite matching S3 metadata", async () => {
+    const { service, topics, storage } = setup();
+    vi.mocked(topics.findUpload).mockResolvedValue({
+      id: uploadId,
+      projectId,
+      actorId: "actor",
+      objectKey: "pending",
+      mediaType: "image/png",
+      sizeBytes: 8,
+      expiresAt: new Date(now.getTime() + 10000),
+    });
+    vi.mocked(storage.statObject).mockResolvedValue({
+      contentLength: 8,
+      contentType: "image/png",
+      etag: null,
+    });
+    vi.mocked(storage.readObject).mockResolvedValue(new Uint8Array(8));
+    await expect(
+      service.create(
+        "actor",
+        createBcfTopicInputSchema.parse({
+          projectId,
+          title: "Porte",
+          viewpoint: draft,
+        }),
+      ),
+    ).rejects.toThrow("image valide");
+    expect(topics.create).not.toHaveBeenCalled();
+  });
+  it("uses summaries without signing all screenshots", async () => {
+    const { service, storage, topics } = setup();
+    await service.summaries("actor", projectId);
+    expect(topics.summaries).toHaveBeenCalledWith(projectId);
+    expect(storage.createDownloadUrl).not.toHaveBeenCalled();
+  });
+});
+
+describe("BCF snapshot access", () => {
+  it("checks project permissions before looking up any image", async () => {
+    const { service, projects, topics, storage } = setup();
+    vi.mocked(projects.findForActor).mockResolvedValue(undefined);
+    await expect(
+      service.snapshotUrl("outsider", projectId, topicId, viewId),
+    ).rejects.toThrow();
+    expect(topics.findSnapshot).not.toHaveBeenCalled();
+    expect(storage.createDownloadUrl).not.toHaveBeenCalled();
+  });
+  it("issues a fresh link for each authorized image request", async () => {
+    const { service, topics, storage } = setup();
+    vi.mocked(topics.findSnapshot).mockResolvedValue({
+      objectKey: "private/capture.png",
+    });
+    await service.snapshotUrl("actor", projectId, topicId, viewId);
+    await service.snapshotUrl("actor", projectId, topicId, viewId);
+    expect(topics.findSnapshot).toHaveBeenCalledWith(
+      projectId,
+      topicId,
+      viewId,
+    );
+    expect(storage.createDownloadUrl).toHaveBeenCalledTimes(2);
+  });
+  it("does not sign a missing or unrelated viewpoint", async () => {
+    const { service, storage } = setup();
+    await expect(
+      service.snapshotUrl("actor", projectId, topicId, viewId),
+    ).rejects.toThrow("introuvable");
+    expect(storage.createDownloadUrl).not.toHaveBeenCalled();
   });
 });

@@ -43,6 +43,7 @@ describe("Prisma database contract", () => {
       "failed",
     ]);
     expect(Object.values(deletion_job_type)).toEqual([
+      "delete_bcf_upload",
       "delete_asset",
       "delete_project",
     ]);

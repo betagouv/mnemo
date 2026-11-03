@@ -70,18 +70,23 @@ describe("PrismaBcfTopicRepository", () => {
       description: "Contrôler le sens d’ouverture",
       type: "issue",
       priority: "high",
-      component: {
-        assetId,
-        expressId: 42,
-        globalId: "0YvctA6Hn0pgmBdv0cPwH6",
-      },
+      assignedTo: null,
+      dueDate: null,
+      labels: [],
+      components: [
+        {
+          assetId,
+          expressId: 42,
+          globalId: "0YvctA6Hn0pgmBdv0cPwH6",
+        },
+      ],
       createdBy: actorId,
       createdAt,
     });
     expect(created).toMatchObject({
       id: topicId,
       authorName: "BCF author",
-      status: "open",
+      status: "Open",
       components: [
         {
           assetId,
@@ -148,24 +153,8 @@ describe("PrismaBcfTopicRepository", () => {
       viewpoints: [
         {
           id: viewpointId,
-          snapshotUploadedAt: null,
+          snapshotUploadedAt: "2026-09-09T19:33:00.000Z",
           targetDistance: 12,
-        },
-      ],
-    });
-
-    await expect(
-      repository.markViewpointSnapshotUploaded({
-        projectId,
-        topicId,
-        viewpointId,
-        uploadedAt: new Date("2026-09-09T19:34:00.000Z"),
-      }),
-    ).resolves.toMatchObject({
-      viewpoints: [
-        {
-          id: viewpointId,
-          snapshotUploadedAt: "2026-09-09T19:34:00.000Z",
         },
       ],
     });
@@ -198,7 +187,7 @@ describe("PrismaBcfTopicRepository", () => {
       title: "Remarque importée",
       description: null,
       type: "issue" as const,
-      status: "open" as const,
+      status: "Open" as const,
       priority: "normal" as const,
       createdBy: actorId,
       externalAuthor: "architecte@example.fr",
@@ -271,5 +260,116 @@ describe("PrismaBcfTopicRepository", () => {
         }),
       ]),
     );
+  });
+});
+
+describe("BCF upload transactions", () => {
+  const database = createPrismaDatabase({
+    connectionString: databaseUrl ?? "",
+    maxConnections: 1,
+  });
+  afterAll(async () => database.close());
+  it("consumes actor-scoped receipts once and cancels only the final copy's cleanup", async () => {
+    const repository = new PrismaBcfTopicRepository(database.db);
+    // This suite's user/project have their own lifecycle: no dependency on previous tests.
+    const actor = randomUUID(),
+      project = randomUUID(),
+      receipt = randomUUID(),
+      view = randomUUID(),
+      id = randomUUID();
+    await database.db.users.create({
+      data: {
+        id: actor,
+        email: `${actor}@test.mnemo.local`,
+        display_name: "Capture test",
+      },
+    });
+    await database.db.projects.create({
+      data: {
+        id: project,
+        title: "Captures",
+        created_by: actor,
+        project_members: { create: { user_id: actor, role: "owner" } },
+      },
+    });
+    try {
+      const future = new Date("2030-01-01T00:00:00Z");
+      await repository.prepareUpload({
+        id: receipt,
+        projectId: project,
+        actorId: actor,
+        objectKey: `test-bcf/${receipt}`,
+        mediaType: "image/png",
+        sizeBytes: 8,
+        expiresAt: future,
+      });
+      await repository.protectSnapshot(view, `test-bcf/${view}`, future);
+      const input = {
+        id,
+        projectId: project,
+        title: "Capture atomique",
+        type: "Issue",
+        priority: "Normal",
+        assignedTo: null,
+        dueDate: null,
+        labels: [],
+        components: [],
+        createdBy: actor,
+        createdAt,
+        preparedViewpoint: {
+          id: view,
+          data: { guid: view },
+          targetDistance: 10,
+          snapshotObjectKey: `test-bcf/${view}`,
+          snapshotMediaType: "image/png",
+          snapshotExpectedSize: 8,
+          createdBy: actor,
+          createdAt,
+          uploadId: receipt,
+        },
+      };
+      const saved = await repository.create(input);
+      expect(saved.viewpoints).toHaveLength(1);
+      expect(await repository.findSnapshot(project, id, view)).toEqual({
+        objectKey: `test-bcf/${view}`,
+      });
+      expect(await repository.findSnapshot(randomUUID(), id, view)).toBeNull();
+      expect(
+        await repository.findSnapshot(project, randomUUID(), view),
+      ).toBeNull();
+      expect(
+        await database.db.bcf_snapshot_uploads.count({
+          where: { id: receipt },
+        }),
+      ).toBe(0);
+      expect(
+        await database.db.deletion_jobs.count({ where: { id: view } }),
+      ).toBe(0);
+      expect(
+        await database.db.deletion_jobs.count({
+          where: { resource_id: receipt },
+        }),
+      ).toBe(1);
+      const duplicate = randomUUID();
+      await expect(
+        repository.create({ ...input, id: duplicate }),
+      ).rejects.toThrow("déjà été utilisée");
+      expect(await repository.find(project, duplicate)).toBeNull();
+      expect(await repository.find(randomUUID(), id)).toBeNull();
+      await expect(
+        repository.create({
+          ...input,
+          id: randomUUID(),
+          preparedViewpoint: undefined,
+          assignedTo: "outsider@example.fr",
+        }),
+      ).rejects.toThrow("membre du dossier");
+    } finally {
+      await database.db.deletion_jobs.deleteMany({
+        where: { resource_id: { in: [receipt, view] } },
+      });
+      await database.db.projects.delete({ where: { id: project } });
+      await database.db.users.delete({ where: { id: actor } });
+    }
   });
 });

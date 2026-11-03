@@ -1,6 +1,10 @@
 import type { BackgroundJobLease } from "./processing-worker";
 
-export const deletionJobTypes = ["delete_asset", "delete_project"] as const;
+export const deletionJobTypes = [
+  "delete_asset",
+  "delete_project",
+  "delete_bcf_upload",
+] as const;
 export type DeletionJobType = (typeof deletionJobTypes)[number];
 
 export type DeletionJobLease = BackgroundJobLease<DeletionJobType> & {
