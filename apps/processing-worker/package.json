@@ -19,14 +19,14 @@
   "devDependencies": {
     "@types/node": "^22.19.15",
     "tsup": "8.5.1",
-    "tsx": "^4.21.0",
+    "tsx": "^4.23.13",
     "typescript": "^5.9.3",
-    "vitest": "5.0.0"
+    "vitest": "5.1.0"
   },
   "dependencies": {
     "@mnemo/database": "workspace:*",
     "@mnemo/domain": "workspace:*",
     "@mnemo/storage": "workspace:*",
-    "zod": "4.5.4"
+    "zod": "4.6.6"
   }
 }
