@@ -6,6 +6,13 @@ export type SectionBounds = { min: WorldPoint; max: WorldPoint };
 
 const axisNames = { down: "y", front: "z", side: "x" } as const;
 
+/** Oblique cuts use the color of their dominant normal component. */
+export function sectionGizmoAxis(plane: IfcSectionSnapshot["plane"]) {
+  if (plane.source === "axis" || !plane.normal) return axisNames[plane.axis];
+  const normal = plane.normal.map(Math.abs);
+  return (["x", "y", "z"] as const)[normal.indexOf(Math.max(...normal))]!;
+}
+
 export function sectionPlanePosition(
   plane: IfcSectionSnapshot["plane"],
   bounds: SectionBounds | null,

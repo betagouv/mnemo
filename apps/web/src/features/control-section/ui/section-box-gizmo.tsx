@@ -7,6 +7,7 @@ import type {
 import {
   useEffect,
   useRef,
+  useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 
@@ -15,7 +16,8 @@ import {
   sectionBoxFaces,
 } from "../model/section-box-geometry";
 
-import styles from "./section-box-gizmo.module.css";
+import { SectionArrow } from "./section-arrow";
+import styles from "./section-gizmo.module.css";
 
 type Box = NonNullable<IfcSectionSnapshot["box"]>;
 type Projection = {
@@ -42,6 +44,7 @@ export function SectionBoxGizmo({
   getViewer: () => IfcViewerController | null;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const [activeFace, setActiveFace] = useState<number | null>(null);
   const boxRef = useRef(box);
   const projectedRef = useRef<Projection[]>([]);
   const dragRef = useRef<Drag | null>(null);
@@ -52,6 +55,7 @@ export function SectionBoxGizmo({
 
   useEffect(() => {
     let frame = 0;
+    let lastProjection = "";
     const update = () => {
       const viewer = getViewer();
       const root = rootRef.current;
@@ -63,6 +67,12 @@ export function SectionBoxGizmo({
           ...face.corners,
         ]);
         const projected = viewer.projectWorldPoints(points);
+        const signature = JSON.stringify(projected);
+        if (signature === lastProjection) {
+          frame = requestAnimationFrame(update);
+          return;
+        }
+        lastProjection = signature;
         const outlines =
           root.querySelectorAll<SVGPolygonElement>("[data-box-outline]");
         const handles =
@@ -92,8 +102,9 @@ export function SectionBoxGizmo({
           const pixelsPerMeter = Math.hypot(dx, dy);
           handle.style.visibility =
             pixelsPerMeter > 1e-3 ? "visible" : "hidden";
-          handle.style.left = `${center.x - 14}px`;
-          handle.style.top = `${center.y - 14}px`;
+          handle.style.left = `${center.x - 16}px`;
+          handle.style.top = `${center.y - 22}px`;
+          handle.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
           return pixelsPerMeter > 1e-3
             ? {
                 screenNormal: {
@@ -114,6 +125,7 @@ export function SectionBoxGizmo({
   const stopDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (dragRef.current?.pointerId !== event.pointerId) return;
     dragRef.current = null;
+    setActiveFace(null);
     if (event.currentTarget.hasPointerCapture(event.pointerId))
       event.currentTarget.releasePointerCapture(event.pointerId);
   };
@@ -121,16 +133,28 @@ export function SectionBoxGizmo({
   return (
     <div className={styles.root} ref={rootRef}>
       <svg aria-hidden="true" className={styles.outlines}>
-        {faceNames.map((name) => (
-          <polygon data-box-outline key={name} />
+        {faceNames.map((name, index) => (
+          <polygon
+            data-box-outline
+            data-axis={["x", "y", "z"][Math.floor(index / 2)]}
+            data-active={activeFace === index}
+            key={name}
+          />
         ))}
       </svg>
       {faceNames.map((name, index) => (
-        <button
+        <SectionArrow
           aria-label={`Déplacer la face ${name} de la boîte de coupe`}
-          className={styles.handle}
           data-box-handle
+          data-axis={["x", "y", "z"][Math.floor(index / 2)]}
+          data-active={activeFace === index}
           key={name}
+          onFocus={() => setActiveFace(index)}
+          onBlur={() => setActiveFace(null)}
+          onPointerEnter={() => setActiveFace(index)}
+          onPointerLeave={() => {
+            if (!dragRef.current) setActiveFace(null);
+          }}
           onKeyDown={(event) => {
             if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
             event.preventDefault();
@@ -145,11 +169,13 @@ export function SectionBoxGizmo({
           }}
           onPointerCancel={stopDrag}
           onPointerDown={(event) => {
+            if (event.button !== 0) return;
             const face = sectionBoxFaces(boxRef.current)[index];
             const projection = projectedRef.current[index];
             if (!face || !projection) return;
             event.preventDefault();
             event.stopPropagation();
+            setActiveFace(index);
             event.currentTarget.setPointerCapture(event.pointerId);
             dragRef.current = {
               pointerId: event.pointerId,
@@ -188,12 +214,11 @@ export function SectionBoxGizmo({
           onPointerUp={stopDrag}
           onLostPointerCapture={() => {
             dragRef.current = null;
+            setActiveFace(null);
           }}
           title={`Glisser la face ${name} · flèches haut/bas au clavier`}
           type="button"
-        >
-          <span aria-hidden="true">↔</span>
-        </button>
+        />
       ))}
     </div>
   );
