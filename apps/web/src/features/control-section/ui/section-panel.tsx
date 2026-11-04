@@ -1,16 +1,96 @@
 "use client";
 
 import Button from "@codegouvfr/react-dsfr/Button";
+import Input from "@codegouvfr/react-dsfr/Input";
 import { SegmentedControl } from "@codegouvfr/react-dsfr/SegmentedControl";
 import type {
   IfcSectionSnapshot,
   IfcViewerController,
 } from "@mnemo/ifc-viewer-adapter";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import styles from "./section-panel.module.css";
 
 type SectionMode = "plane" | "box";
+type Box = NonNullable<IfcSectionSnapshot["box"]>;
+type BoxAxis = 0 | 1 | 2;
+
+const boxFields = [
+  { label: "Gauche", axis: 0, side: "min" },
+  { label: "Droite", axis: 0, side: "max" },
+  { label: "Bas", axis: 1, side: "min" },
+  { label: "Haut", axis: 1, side: "max" },
+  { label: "Arrière", axis: 2, side: "min" },
+  { label: "Avant", axis: 2, side: "max" },
+] as const;
+
+function BoxFaceInput({
+  axis,
+  box,
+  getViewer,
+  label,
+  side,
+}: {
+  axis: BoxAxis;
+  box: Box;
+  getViewer: () => IfcViewerController | null;
+  label: string;
+  side: "min" | "max";
+}) {
+  const value = box[side][axis];
+  const [draft, setDraft] = useState<string | null>(null);
+  const cancelRef = useRef(false);
+
+  const commit = () => {
+    if (draft === null) return;
+    const text = draft;
+    const parsed = Number(text.replace(",", "."));
+    if (text.trim() && Number.isFinite(parsed))
+      getViewer()?.moveSectionBoxFace(axis, side, parsed);
+    setDraft(null);
+  };
+
+  return (
+    <Input
+      label={`${label} (m)`}
+      nativeInputProps={{
+        inputMode: "decimal",
+        type: "text",
+        value: draft ?? String(Number(value.toFixed(3))),
+        onChange: (event) => setDraft(event.target.value),
+        onBlur: () => {
+          if (cancelRef.current) {
+            cancelRef.current = false;
+            setDraft(null);
+          } else {
+            commit();
+          }
+        },
+        onKeyDown: (event) => {
+          if (event.key === "Enter") {
+            event.currentTarget.blur();
+            return;
+          }
+          if (event.key === "Escape") {
+            cancelRef.current = true;
+            event.currentTarget.blur();
+            return;
+          }
+          if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+          event.preventDefault();
+          const step = event.shiftKey ? 1 : 0.1;
+          const current =
+            getViewer()?.getSnapshot().section.box?.[side][axis] ?? value;
+          const next = Number(
+            (current + (event.key === "ArrowUp" ? step : -step)).toFixed(3),
+          );
+          getViewer()?.moveSectionBoxFace(axis, side, next);
+          setDraft(null);
+        },
+      }}
+    />
+  );
+}
 
 export function SectionPanel({
   getViewer,
@@ -98,7 +178,7 @@ export function SectionPanel({
             </h3>
             <p className={`${styles.muted} mb-4 text-sm`}>
               Choisissez une orientation. Dans la scène, faites glisser la
-              poignée bleue pour déplacer le plan.
+              flèche colorée pour déplacer le plan.
             </p>
             <SegmentedControl
               className={styles.axisControl}
@@ -236,8 +316,9 @@ export function SectionPanel({
             Boîte de coupe
           </h3>
           <p className={`${styles.muted} mb-4 text-sm`}>
-            Faites glisser les poignées sur les faces de la boîte dans la scène
-            pour cadrer la zone conservée.
+            Faites glisser les flèches colorées perpendiculaires aux faces pour
+            cadrer la zone conservée. Vous pouvez aussi saisir une position
+            ci-dessous.
           </p>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -258,6 +339,27 @@ export function SectionPanel({
               </Button>
             ) : null}
           </div>
+          {section.active === "box" && section.box ? (
+            <div className="mt-5">
+              <h4 className="mb-2 text-sm">Position des faces</h4>
+              <p className="fr-hint-text mb-3">
+                Valeurs en mètres. Utilisez les flèches du clavier pour ajuster
+                de 10 cm, ou Maj + flèche pour 1 m.
+              </p>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                {boxFields.map((field) => (
+                  <BoxFaceInput
+                    axis={field.axis}
+                    box={section.box!}
+                    getViewer={getViewer}
+                    key={`${field.axis}-${field.side}`}
+                    label={field.label}
+                    side={field.side}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : null}
           {hasPointCloud ? (
             <p className={`${styles.muted} mb-0 mt-4 text-xs`}>
               La boîte découpe la maquette IFC ; le relevé 3D reste visible.

@@ -7,6 +7,7 @@ import type {
 import {
   useEffect,
   useRef,
+  useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 
@@ -14,9 +15,12 @@ import {
   draggedSectionDistance,
   sectionPlaneCorners,
   projectSectionGizmo,
+  sectionGizmoAxis,
 } from "../model/section-gizmo-geometry";
 
-import styles from "./section-plane-gizmo.module.css";
+import { SectionArrow } from "./section-arrow";
+import styles from "./section-gizmo.module.css";
+import planeStyles from "./section-plane-gizmo.module.css";
 
 type Drag = {
   pointerId: number;
@@ -36,7 +40,8 @@ export function SectionPlaneGizmo({
   getViewer: () => IfcViewerController | null;
   plane: IfcSectionSnapshot["plane"];
 }) {
-  const arrowRef = useRef<SVGSVGElement>(null);
+  const [active, setActive] = useState(false);
+  const axis = sectionGizmoAxis(plane);
   const outlineRef = useRef<SVGPolygonElement>(null);
   const handleRef = useRef<HTMLButtonElement>(null);
   const labelRef = useRef<HTMLOutputElement>(null);
@@ -75,24 +80,21 @@ export function SectionPlaneGizmo({
             projected.map((point) => `${point!.x},${point!.y}`).join(" "),
           );
       }
-      const arrow = arrowRef.current;
       const handle = handleRef.current;
       const label = labelRef.current;
-      if (arrow && handle) {
+      if (handle) {
         const visible = projection !== null;
-        arrow.style.visibility =
-          visible && projection.screenNormal ? "visible" : "hidden";
-        handle.style.visibility = visible ? "visible" : "hidden";
+        handle.style.visibility = projection?.screenNormal
+          ? "visible"
+          : "hidden";
         if (label) label.style.visibility = visible ? "visible" : "hidden";
         if (projection) {
-          arrow.style.left = `${projection.foot.x - 8}px`;
-          arrow.style.top = `${projection.foot.y - 10}px`;
-          arrow.style.transform = `rotate(${projection.angle}rad)`;
-          handle.style.left = `${projection.foot.x - 12}px`;
-          handle.style.top = `${projection.foot.y - 12}px`;
+          handle.style.left = `${projection.foot.x - 16}px`;
+          handle.style.top = `${projection.foot.y - 22}px`;
+          handle.style.transform = `rotate(${projection.angle}rad)`;
           if (label) {
-            label.style.left = `${projection.foot.x + 26}px`;
-            label.style.top = `${projection.foot.y - 14}px`;
+            label.style.left = `${projection.foot.x - Math.sin(projection.angle) * 32}px`;
+            label.style.top = `${projection.foot.y + Math.cos(projection.angle) * 32}px`;
             label.textContent = `${projection.distance.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} m`;
           }
         }
@@ -106,6 +108,7 @@ export function SectionPlaneGizmo({
   const stopDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (dragRef.current?.pointerId !== event.pointerId) return;
     dragRef.current = null;
+    setActive(false);
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
@@ -113,28 +116,19 @@ export function SectionPlaneGizmo({
 
   return (
     <div className={styles.root}>
-      <svg aria-hidden="true" className={styles.outline}>
-        <polygon ref={outlineRef} />
+      <svg aria-hidden="true" className={styles.outlines}>
+        <polygon ref={outlineRef} data-axis={axis} data-active={active} />
       </svg>
-      <svg
-        aria-hidden="true"
-        className={styles.arrow}
-        ref={arrowRef}
-        viewBox="0 0 72 20"
-      >
-        <line
-          x1="8"
-          x2="60"
-          y1="10"
-          y2="10"
-          stroke="currentColor"
-          strokeWidth="3"
-        />
-        <path d="M56 4 L69 10 L56 16 Z" fill="currentColor" />
-      </svg>
-      <button
+      <SectionArrow
         aria-label="Déplacer le plan de coupe"
-        className={styles.handle}
+        data-axis={axis}
+        data-active={active}
+        onFocus={() => setActive(true)}
+        onBlur={() => setActive(false)}
+        onPointerEnter={() => setActive(true)}
+        onPointerLeave={() => {
+          if (!dragRef.current) setActive(false);
+        }}
         onKeyDown={(event) => {
           if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
           event.preventDefault();
@@ -156,10 +150,12 @@ export function SectionPlaneGizmo({
         }}
         onPointerCancel={stopDrag}
         onPointerDown={(event) => {
+          if (event.button !== 0) return;
           const projection = projectionRef.current;
           if (!projection?.screenNormal) return;
           event.preventDefault();
           event.stopPropagation();
+          setActive(true);
           event.currentTarget.setPointerCapture(event.pointerId);
           dragRef.current = {
             pointerId: event.pointerId,
@@ -199,6 +195,7 @@ export function SectionPlaneGizmo({
         onPointerUp={stopDrag}
         onLostPointerCapture={() => {
           dragRef.current = null;
+          setActive(false);
         }}
         ref={handleRef}
         title="Glisser pour déplacer le plan · flèches haut/bas au clavier"
@@ -206,7 +203,7 @@ export function SectionPlaneGizmo({
       />
       <output
         aria-label="Position du plan de coupe"
-        className={styles.label}
+        className={planeStyles.label}
         ref={labelRef}
       />
     </div>

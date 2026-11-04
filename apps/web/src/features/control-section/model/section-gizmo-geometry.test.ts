@@ -5,6 +5,7 @@ import {
   draggedSectionDistance,
   projectSectionGizmo,
   sectionPlaneCorners,
+  sectionGizmoAxis,
 } from "./section-gizmo-geometry";
 
 const plane: IfcSectionSnapshot["plane"] = {
@@ -18,6 +19,12 @@ const plane: IfcSectionSnapshot["plane"] = {
 };
 
 describe("projectSectionGizmo", () => {
+  it("colors oblique planes by their dominant normal axis", () => {
+    expect(sectionGizmoAxis({ ...plane, normal: [-0.9, 0.3, 0.1] })).toBe("x");
+    expect(sectionGizmoAxis({ ...plane, normal: [0.1, -0.9, 0.3] })).toBe("y");
+    expect(sectionGizmoAxis({ ...plane, normal: [0.1, 0.3, -0.9] })).toBe("z");
+  });
+
   it("keeps the handle on the live plane after a distance change", () => {
     const project = (point: { x: number; y: number }) => ({
       x: point.x * 2,
