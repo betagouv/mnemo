@@ -1,7 +1,7 @@
 import { fileURLToPath } from "node:url";
 
 import { expect, test } from "./fixtures";
-import { gotoHydrated } from "./hydration";
+import { gotoHydrated, waitForHydration } from "./hydration";
 
 const fixture = fileURLToPath(
   new URL("../fixtures/Ifc4_SampleHouse.ifc", import.meta.url),
@@ -39,6 +39,7 @@ test("moves box faces and section planes with projected axis arrows", async ({
     .getByRole("link", { name, exact: true })
     .getAttribute("href");
   if (!href) throw new Error("Missing project URL");
+  let scenarioFailed = false;
   try {
     await gotoHydrated(page, href);
     await page.locator('input[type="file"]').setInputFiles(fixture);
@@ -203,14 +204,38 @@ test("moves box faces and section planes with projected axis arrows", async ({
       ),
     ).toBe(true);
   } catch (error) {
-    await page.screenshot({
-      path: test.info().outputPath("failure-before-cleanup.png"),
-    });
+    scenarioFailed = true;
+    console.error(error);
+    await page
+      .screenshot({
+        path: test.info().outputPath("failure-before-cleanup.png"),
+      })
+      .catch((screenshotError: unknown) => console.error(screenshotError));
     throw error;
   } finally {
-    await gotoHydrated(page, href);
-    page.once("dialog", (dialog) => void dialog.accept());
-    await page.getByRole("button", { name: "Supprimer le projet" }).click();
-    await expect(page).toHaveURL(/\/projets$/);
+    try {
+      // Dispose the WebGPU page before navigating to the project for cleanup.
+      await page.close();
+      const cleanup = await page.context().newPage();
+      cleanup.setDefaultTimeout(15_000);
+      cleanup.setDefaultNavigationTimeout(30_000);
+      try {
+        await cleanup.goto(href, { waitUntil: "domcontentloaded" });
+        await waitForHydration(cleanup);
+        cleanup.once("dialog", (dialog) => void dialog.accept());
+        await cleanup
+          .getByRole("button", { name: "Supprimer le projet" })
+          .click();
+        await expect(cleanup).toHaveURL(/\/projets$/);
+      } finally {
+        await cleanup.close();
+      }
+    } catch (cleanupError) {
+      if (!scenarioFailed) throw cleanupError;
+      console.error(
+        "Project cleanup failed after the scenario error",
+        cleanupError,
+      );
+    }
   }
 });
