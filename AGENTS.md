@@ -6,7 +6,7 @@ These instructions apply to the whole repository.
 
 - Mnemo is a web BIM workspace for IFC models, large point clouds, BCF topics, and an AI assistant.
 - Keep original user files in S3-compatible object storage. IFC-Lite servers and local MCP model copies are disposable processing caches, never permanent storage.
-- Use a modular monolith. The only separate runtimes are the Next.js application, background processing workers, IFC-Lite Rust server, and IFC MCP server.
+- Use a modular monolith. The application runtimes are Next.js, the IFC-Lite Rust service, and the IFC MCP service. Next.js orchestrates durable conversion and deletion queues outside HTTP request lifecycles when `MNEMO_BACKGROUND_JOBS=1`. Point-cloud conversions run in disposable local processes/containers or Scalingo one-offs, not a permanent worker service (ADR 0015).
 - Prefer explicit domain boundaries and small vertical slices over framework-level abstractions.
 - Do not reproduce functionality already provided by current IFC-Lite packages. Verify the current documentation and installed TypeScript declarations before integrating an IFC-Lite API.
 - For implementation examples, coding agents may inspect the sibling `../ifc-lite/apps/viewer/` application, especially its viewer components. Treat it as a reference, not an API contract: verify Mnemo's installed IFC-Lite types and adapt the behavior rather than copying code blindly.
@@ -14,13 +14,16 @@ These instructions apply to the whole repository.
 ## Repository layout
 
 - `apps/web`: Next.js application, including UI, server components, and typed route handlers.
-- `apps/processing-worker`: asynchronous jobs that must not run in an HTTP request lifecycle.
+- `apps/processing-worker`: one-off point-cloud conversion entry points, executed outside HTTP request lifecycles.
 - `packages/domain`: framework-free domain types and invariants.
 - `packages/contracts`: shared Zod schemas, DTOs, and event contracts.
 - `packages/database`: Prisma schema, migrations, and PostgreSQL client.
 - `packages/storage`: object-storage ports and S3/MinIO adapters.
 - `packages/*-adapter`: shared vendor-specific integrations behind application-owned interfaces. Keep single-consumer adapters in the consuming app's `infrastructure` folder.
-- `infra`: local infrastructure and container configuration.
+- `infra`: local MinIO bootstrap configuration.
+- `infrastructure`: IFC/MCP container runtimes and Scalingo deployment wrappers.
+- `apps/web/src/server`: server application services, ports, infrastructure adapters, authentication, and Server Actions. Keep browser-only dependencies out of this tree.
+- `docs/architecture`: the LikeC4 architecture model, available through `make architecture`.
 - `docs/adr`: durable architecture decisions.
 
 ## Frontend boundaries
@@ -46,6 +49,7 @@ app -> screens -> widgets -> features -> entities -> shared
 - Use DSFR components for controls and established design patterns.
 - For DSFR component work, consult the repository skill at `.agents/skills/react-dsfr/SKILL.md`; adapt its examples to Mnemo's installed package version and the styling rules below.
 - Use Tailwind utilities for application layout: grid/flex composition, sizing, spacing, positioning, and responsive behavior. Keep component-specific rendering, DSFR overrides, and 3D controls in scoped CSS when clearer.
+- Use DSFR semantic color tokens for surfaces, text, borders, and interaction states. Verify affected UI in both light and dark themes, including overlays and viewer controls.
 - Tailwind Preflight is disabled to avoid resetting DSFR. Do not add a second global reset or duplicate layout rules in utilities and CSS modules.
 
 ## Server boundaries
@@ -75,6 +79,8 @@ app -> screens -> widgets -> features -> entities -> shared
 - PostgreSQL is the source of truth for projects, memberships, assets, scene state, jobs, BCF metadata, and chat metadata.
 - Object storage is the source of truth for original files and derived binary artifacts.
 - Project access is many-to-many through `project_members`; do not put a single owner foreign key in place of membership authorization.
+- Public registration uses Better Auth email/password with mandatory email verification. Brevo sends verification, password-reset, and invitation emails through the server-only SDK integration. Password reset revokes existing sessions.
+- Pending project invitations grant no access until accepted by a signed-in account with the matching verified email. Keep invitation tokens hashed, expiring, and revocable.
 - Authenticate users with Better Auth email/password sessions. There is no development actor or alternate authentication mode.
 - Authentication identifies the actor. Project permissions authorize each operation. Enforce authorization in server use cases, not only in pages or components.
 - Generate storage object keys on the server. Never trust a client-provided object key or prefix.
@@ -90,21 +96,32 @@ app -> screens -> widgets -> features -> entities -> shared
 - Do not commit `.env` files, credentials, generated uploads, database volumes, or model files.
 - Add an ADR when changing a durable architecture boundary or selecting a foundational vendor. Follow the [ADR guide](docs/adr/README.md) and its template.
 
+## Local development
+
+- Use `make dev` for Next.js hot reload with supporting Docker services. `ENV_FILE` defaults to `.env.local`; select another profile explicitly, for example `make dev ENV_FILE=.env.s3`.
+- Use `make db-studio` to open Prisma Studio with the selected environment profile.
+- Use `make test-e2e` for visible browser tests against the running development server. Run targeted Playwright files for affected workflows; load the same environment profile with `scripts/with-env-profile.mjs`.
+- The root package declares the supported Node.js and pnpm versions. Keep local tooling aligned with `package.json` and CI.
+
 ## Tests and validation
 
 Every branch must pass the relevant subset of:
 
 ```text
+pnpm format:check
 pnpm lint
 pnpm typecheck
 pnpm test
+pnpm test:integration
+pnpm test:e2e
 pnpm build
-docker compose config
+docker compose --env-file .env.local.example config
 ```
 
 - Add unit tests for domain rules and viewer commands.
 - Add integration tests for PostgreSQL, MinIO, workers, and destructive cleanup.
-- Add Playwright tests for user-visible workflows.
+- Add targeted Playwright tests for important user-visible workflows. Use representative real fixtures and observable readiness conditions rather than fixed sleeps. CI runs the full browser suite against a production build.
+- Use `make config` to validate Compose with the selected local environment profile. The example profile above is the CI configuration check.
 - Viewer work is not complete after a build alone. Validate it with the repository's real IFC and point-cloud fixtures.
 - Test explicitly that ordinary React state changes do not recreate the renderer, reset the camera, or duplicate point-cloud nodes.
 
