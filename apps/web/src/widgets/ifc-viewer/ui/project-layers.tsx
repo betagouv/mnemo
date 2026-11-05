@@ -7,7 +7,13 @@ import {
   type IfcViewerController,
   type IfcViewerSnapshot,
 } from "@mnemo/ifc-viewer-adapter";
-import { useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps,
+} from "react";
 
 import { BimExplorer } from "@/features/filter-bim-model";
 import {
@@ -16,6 +22,8 @@ import {
 } from "@/features/configure-point-cloud";
 import { VisibilityCheckbox } from "@/shared/ui/visibility-checkbox";
 import { InlineDisclosure } from "@/shared/ui/inline-disclosure";
+
+import { useSelectionExpansion } from "../model/use-selection-expansion";
 
 import styles from "./project-layers.module.css";
 
@@ -38,22 +46,42 @@ function ClassTree({
   getViewer,
   ifcClass,
   storeyId,
+  selection,
+  selectedElements,
 }: {
   assetId: string;
   count: number;
   getViewer: () => IfcViewerController | null;
   ifcClass: string;
   storeyId: number | null;
+  selection: IfcElementSummary | null;
+  selectedElements: IfcElementSummary[];
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useSelectionExpansion(selection);
+  const selectedRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (expanded && selection)
+      selectedRef.current?.scrollIntoView({
+        block: "nearest",
+        inline: "nearest",
+      });
+  }, [expanded, selection]);
   const [limit, setLimit] = useState(50);
   const viewer = getViewer();
   const target: BimLayerTarget = { kind: "class", storeyId, ifcClass };
   const mode = viewer?.getLayerVisibility(assetId, target) ?? "show";
   const exceptions = viewer?.getLayerExceptionCount(assetId, target) ?? 0;
-  const elements: IfcElementSummary[] = expanded
+  const page: IfcElementSummary[] = expanded
     ? (viewer?.getBimElements(assetId, storeyId, 0, limit, ifcClass) ?? [])
     : [];
+  const selectedIds = new Set(
+    selectedElements.map((element) => element.expressId),
+  );
+  const pageIds = new Set(page.map((element) => element.expressId));
+  const elements = [
+    ...page,
+    ...selectedElements.filter((element) => !pageIds.has(element.expressId)),
+  ];
 
   return (
     <div
@@ -90,7 +118,11 @@ function ClassTree({
             const label =
               element.name || `${element.ifcClass} #${element.expressId}`;
             return (
-              <div className={styles.element} key={element.expressId}>
+              <div
+                className={styles.element}
+                data-selected={selectedIds.has(element.expressId)}
+                key={element.expressId}
+              >
                 <VisibilityCheckbox
                   label={label}
                   mode={
@@ -102,10 +134,24 @@ function ClassTree({
                 />
                 <button
                   className={styles.elementName}
-                  onClick={() => {
-                    viewer?.setActiveModel(assetId);
-                    viewer?.selectEntity(element.expressId);
-                  }}
+                  aria-pressed={selectedIds.has(element.expressId)}
+                  aria-current={
+                    element.expressId === selection?.expressId
+                      ? "true"
+                      : undefined
+                  }
+                  ref={
+                    element.expressId === selection?.expressId
+                      ? selectedRef
+                      : undefined
+                  }
+                  onClick={(event) =>
+                    viewer?.selectModelEntity(
+                      assetId,
+                      element.expressId,
+                      event.ctrlKey || event.metaKey,
+                    )
+                  }
                   title={`${label} · ${element.ifcClass} · #${element.expressId}`}
                   type="button"
                 >
@@ -114,7 +160,7 @@ function ClassTree({
               </div>
             );
           })}
-          {elements.length < count ? (
+          {page.length < count ? (
             <button
               className={styles.more}
               onClick={() => setLimit(limit + 50)}
@@ -135,14 +181,18 @@ function StoreyTree({
   count,
   storeyId,
   getViewer,
+  selection,
+  selectedElements,
 }: {
   assetId: string;
   name: string;
   count: number;
   storeyId: number | null;
   getViewer: () => IfcViewerController | null;
+  selection: IfcElementSummary | null;
+  selectedElements: IfcElementSummary[];
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useSelectionExpansion(selection);
   const viewer = getViewer();
   const target: BimLayerTarget =
     storeyId === null
@@ -189,11 +239,37 @@ function StoreyTree({
               ifcClass={entry.ifcClass}
               key={entry.ifcClass}
               storeyId={storeyId}
+              selection={
+                selection?.ifcClass === entry.ifcClass ? selection : null
+              }
+              selectedElements={selectedElements.filter(
+                (element) => element.ifcClass === entry.ifcClass,
+              )}
             />
           ))}
         </div>
       ) : null}
     </div>
+  );
+}
+
+function ModelDisclosure({
+  selection,
+  defaultExpanded,
+  ...props
+}: ComponentProps<typeof InlineDisclosure> & {
+  selection: IfcElementSummary | null;
+}) {
+  const [expanded, setExpanded] = useSelectionExpansion(
+    selection,
+    defaultExpanded,
+  );
+  return (
+    <InlineDisclosure
+      {...props}
+      expanded={expanded}
+      onExpandedChange={setExpanded}
+    />
   );
 }
 
@@ -229,6 +305,38 @@ export function ProjectLayers({
   onPointBudgetChange: (budget: number) => void;
 }) {
   const [tab, setTab] = useState("bim");
+  const [revealedSelection, setRevealedSelection] = useState(
+    snapshot.selection,
+  );
+  if (snapshot.selection && snapshot.selection !== revealedSelection) {
+    setRevealedSelection(snapshot.selection);
+    setTab("bim");
+  }
+  const selection = useMemo(
+    () =>
+      snapshot.selection && snapshot.activeModelId
+        ? (getViewer()?.getBimElement(
+            snapshot.activeModelId,
+            snapshot.selection.expressId,
+          ) ?? null)
+        : null,
+    [snapshot.selection, snapshot.activeModelId, getViewer],
+  );
+
+  const selectedByModel = useMemo(() => {
+    const groups = new Map<string, IfcElementSummary[]>();
+    for (const target of snapshot.selectedElements) {
+      const element = getViewer()?.getBimElement(
+        target.assetId,
+        target.expressId,
+      );
+      if (!element) continue;
+      const elements = groups.get(target.assetId) ?? [];
+      elements.push(element);
+      groups.set(target.assetId, elements);
+    }
+    return groups;
+  }, [snapshot.selectedElements, getViewer]);
 
   return (
     <div className={styles.panel}>
@@ -265,7 +373,12 @@ export function ProjectLayers({
                   data-exceptions={modelExceptions > 0}
                   key={source.assetId}
                 >
-                  <InlineDisclosure
+                  <ModelDisclosure
+                    selection={
+                      snapshot.activeModelId === source.assetId
+                        ? selection
+                        : null
+                    }
                     defaultExpanded={index === 0}
                     label={source.fileName}
                     visibilityControl={
@@ -307,6 +420,18 @@ export function ProjectLayers({
                             key={storey.expressId}
                             name={storey.name}
                             storeyId={storey.expressId}
+                            selectedElements={(
+                              selectedByModel.get(source.assetId) ?? []
+                            ).filter(
+                              (element) =>
+                                element.storeyId === storey.expressId,
+                            )}
+                            selection={
+                              snapshot.activeModelId === source.assetId &&
+                              selection?.storeyId === storey.expressId
+                                ? selection
+                                : null
+                            }
                           />
                         ))}
                         {model.catalog?.unassignedCount ? (
@@ -316,6 +441,15 @@ export function ProjectLayers({
                             getViewer={getViewer}
                             name="Éléments sans niveau"
                             storeyId={null}
+                            selectedElements={(
+                              selectedByModel.get(source.assetId) ?? []
+                            ).filter((element) => element.storeyId === null)}
+                            selection={
+                              snapshot.activeModelId === source.assetId &&
+                              selection?.storeyId === null
+                                ? selection
+                                : null
+                            }
                           />
                         ) : null}
                       </>
@@ -324,7 +458,7 @@ export function ProjectLayers({
                         {model?.message ?? "Chargement en cours…"}
                       </p>
                     )}
-                  </InlineDisclosure>
+                  </ModelDisclosure>
                 </div>
               );
             })}

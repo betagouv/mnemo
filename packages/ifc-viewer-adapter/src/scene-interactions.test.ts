@@ -4,6 +4,48 @@ import { describe, expect, it } from "vitest";
 import { SceneInteractions } from "./scene-interactions";
 
 describe("SceneInteractions", () => {
+  it("passes Ctrl and Meta clicks to picking as additive selections", () => {
+    const listeners = new Map<string, EventListener>();
+    const picks: { x: number; y: number; additive: boolean }[] = [];
+    const canvas = {
+      style: {},
+      addEventListener: (name: string, listener: EventListener) =>
+        listeners.set(name, listener),
+      removeEventListener: (name: string) => listeners.delete(name),
+      setPointerCapture: () => undefined,
+      hasPointerCapture: () => false,
+      getBoundingClientRect: () => ({ left: 10, top: 20 }),
+    } as unknown as HTMLCanvasElement;
+    const interactions = new SceneInteractions({
+      canvas,
+      renderer: { requestRender: () => undefined } as unknown as Renderer,
+      onPick: (x, y, additive) => picks.push({ x, y, additive }),
+    });
+    interactions.attach();
+    for (const [ctrlKey, metaKey] of [
+      [false, false],
+      [true, false],
+      [false, true],
+    ]) {
+      const event = {
+        button: 0,
+        pointerId: 1,
+        clientX: 100,
+        clientY: 120,
+        ctrlKey,
+        metaKey,
+      };
+      listeners.get("pointerdown")?.(event as PointerEvent);
+      listeners.get("pointerup")?.({
+        ...event,
+        type: "pointerup",
+      } as PointerEvent);
+    }
+    expect(picks).toEqual(
+      [false, true, true].map((additive) => ({ x: 90, y: 100, additive })),
+    );
+    interactions.detach();
+  });
   it.each(["perspective", "orthographic"] as const)(
     "anchors %s wheel zoom in CSS pixels regardless of drawing-buffer scale",
     (projection) => {

@@ -190,7 +190,7 @@ export class IfcViewerController {
     this.interactions = new SceneInteractions({
       canvas,
       renderer: this.renderer,
-      onPick: (x, y) => this.pickEntity(x, y),
+      onPick: (x, y, additive) => this.pickEntity(x, y, additive),
     });
   }
 
@@ -357,6 +357,10 @@ export class IfcViewerController {
     return model.bimIndex.queryPage(storeyId, offset, limit, ifcClass);
   }
 
+  getBimElement(assetId: string, expressId: number) {
+    return this.models.get(assetId)?.bimIndex.getElement(expressId) ?? null;
+  }
+
   getBimClasses(assetId: string, storeyId: number | null) {
     return this.models.get(assetId)?.bimIndex.classesForStorey(storeyId) ?? [];
   }
@@ -484,16 +488,7 @@ export class IfcViewerController {
         selectedGuids: components
           ? components.map((component) => component.globalId)
           : references
-              .encode(
-                this.snapshot.selection && this.snapshot.activeModelId
-                  ? [
-                      this.federation.toGlobalId(
-                        this.snapshot.activeModelId,
-                        this.snapshot.selection.expressId,
-                      ),
-                    ]
-                  : [],
-              )
+              .encode([...this.selectedEntityIds])
               .flatMap((ref) => (ref.ifcGuid ? [ref.ifcGuid] : [])),
         hiddenGuids: references
           .encode(hidden)
@@ -521,16 +516,7 @@ export class IfcViewerController {
                 })
               : { ifcGuid: component.globalId },
           )
-        : references.encode(
-            this.snapshot.selection && this.snapshot.activeModelId
-              ? [
-                  this.federation.toGlobalId(
-                    this.snapshot.activeModelId,
-                    this.snapshot.selection.expressId,
-                  ),
-                ]
-              : [],
-          );
+        : references.encode([...this.selectedEntityIds]);
       if (created.components.visibility)
         created.components.visibility.exceptions = references.encode(
           visibleIds ? [...visibleIds].filter((id) => !hidden.has(id)) : hidden,
@@ -629,7 +615,8 @@ export class IfcViewerController {
       this.setActiveModel(selected.modelId);
     }
     this.selectEntity(selected?.expressId ?? null);
-    this.bcfSelectedIds = new Set(selectedIds);
+    this.selectedEntityIds = new Set(selectedIds);
+    this.updateSnapshot({ selectedElements: this.selectedElements() });
     this.renderer.requestRender();
     return [...unresolved];
   }
@@ -700,14 +687,75 @@ export class IfcViewerController {
   selectEntity(
     expressId: number | null,
     orbitCenter?: { x: number; y: number; z: number },
+    additive = false,
   ) {
-    this.bcfSelectedIds.clear();
+    if (expressId === null) {
+      if (additive) return;
+      this.selectedEntityIds.clear();
+      this.bcfPreviewIds.clear();
+      this.focusEntity(null);
+    } else if (this.snapshot.activeModelId) {
+      this.selectModelEntity(
+        this.snapshot.activeModelId,
+        expressId,
+        additive,
+        orbitCenter,
+      );
+    }
+  }
+
+  selectModelEntity(
+    assetId: string,
+    expressId: number,
+    additive = false,
+    orbitCenter?: { x: number; y: number; z: number },
+  ) {
+    if (!this.models.has(assetId)) return;
+    this.bcfPreviewIds.clear();
+    const id = this.federation.toGlobalId(assetId, expressId);
+    if (!additive) this.selectedEntityIds.clear();
+    if (additive && this.selectedEntityIds.has(id))
+      this.selectedEntityIds.delete(id);
+    else this.selectedEntityIds.add(id);
+    const focusId = this.selectedEntityIds.has(id)
+      ? id
+      : [...this.selectedEntityIds].at(-1);
+    const focus =
+      focusId === undefined ? null : this.federation.fromGlobalId(focusId);
+    if (focus && focus.modelId !== this.snapshot.activeModelId) {
+      const model = this.models.get(focus.modelId)!;
+      this.updateSnapshot({
+        activeModelId: focus.modelId,
+        catalog: model.bimIndex.catalog,
+        processing: model.processing,
+      });
+    }
+    this.focusEntity(
+      focus?.expressId ?? null,
+      this.selectedEntityIds.has(id) ? orbitCenter : undefined,
+    );
+  }
+
+  private selectedElements() {
+    return [...this.selectedEntityIds].flatMap((id) => {
+      const target = this.federation.fromGlobalId(id);
+      return target
+        ? [{ assetId: target.modelId, expressId: target.expressId }]
+        : [];
+    });
+  }
+
+  private focusEntity(
+    expressId: number | null,
+    orbitCenter?: { x: number; y: number; z: number },
+  ) {
     const generation = ++this.selectionGeneration;
 
     if (expressId === null) {
       this.renderer.getCamera().setOrbitCenter(null);
       this.updateSnapshot({
         selection: null,
+        selectedElements: [],
         selectionPhase: "idle",
         selectionMessage: null,
       });
@@ -748,14 +796,17 @@ export class IfcViewerController {
       this.renderer.getCamera().setOrbitCenter(center ?? null);
       this.updateSnapshot({
         selection,
+        selectedElements: this.selectedElements(),
         selectionPhase: "ready",
         selectionMessage: null,
       });
       this.renderer.requestRender();
     } catch (error) {
       if (generation !== this.selectionGeneration || this.disposed) return;
+      this.selectedEntityIds.clear();
       this.updateSnapshot({
         selection: null,
+        selectedElements: [],
         selectionPhase: "error",
         selectionMessage: errorMessage(error),
       });
@@ -1001,7 +1052,7 @@ export class IfcViewerController {
               this.snapshot.selection.expressId,
             )
           : null,
-      selectedIds: this.bcfSelectedIds,
+      selectedIds: new Set([...this.selectedEntityIds, ...this.bcfPreviewIds]),
       hiddenIds: new Set([
         ...this.hiddenIds,
         ...this.layerVisibility.hiddenIds,
@@ -1035,7 +1086,7 @@ export class IfcViewerController {
     );
   }
 
-  private pickEntity(x: number, y: number) {
+  private pickEntity(x: number, y: number, additive = false) {
     if (this.sections.pick(x, y)) return;
     const generation = this.modelLoader.generation;
     void this.renderer
@@ -1049,10 +1100,14 @@ export class IfcViewerController {
       .then((hit) => {
         if (!this.modelLoader.isCurrentLoad(generation)) return;
         const model = hit ? this.federation.fromGlobalId(hit.expressId) : null;
-        if (model && model.modelId !== this.snapshot.activeModelId) {
-          this.setActiveModel(model.modelId);
-        }
-        this.selectEntity(model?.expressId ?? null, hit?.worldXYZ);
+        if (model)
+          this.selectModelEntity(
+            model.modelId,
+            model.expressId,
+            additive,
+            hit?.worldXYZ,
+          );
+        else this.selectEntity(null, undefined, additive);
       })
       .catch(() => undefined);
   }
@@ -1071,9 +1126,10 @@ export class IfcViewerController {
     }
   }
 
-  private bcfSelectedIds = new Set<number>();
+  private bcfPreviewIds = new Set<number>();
+  private selectedEntityIds = new Set<number>();
   setBcfSelection(components: CreateBcfTopicInput["components"]) {
-    this.bcfSelectedIds = new Set(
+    this.bcfPreviewIds = new Set(
       components.flatMap((component) =>
         component.assetId && component.expressId
           ? [this.federation.toGlobalId(component.assetId, component.expressId)]

@@ -32,6 +32,7 @@ export type IfcViewerSnapshot = {
   entityCount: number | null;
   message: string | null;
   selection: IfcElementDetails | null;
+  selectedElements: { assetId: string; expressId: number }[];
   selectionPhase: "idle" | "loading" | "ready" | "error";
   selectionMessage: string | null;
   catalog: IfcBimCatalog | null;

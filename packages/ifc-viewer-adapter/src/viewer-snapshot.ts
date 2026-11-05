@@ -9,6 +9,7 @@ export function createEmptyViewerSnapshot(): IfcViewerSnapshot {
     entityCount: null,
     message: null,
     selection: null,
+    selectedElements: [],
     selectionPhase: "idle",
     selectionMessage: null,
     catalog: null,

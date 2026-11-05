@@ -49,6 +49,32 @@ function createStore() {
 }
 
 describe("createIfcBimIndex", () => {
+  it("locates a selected element without enumerating its class or changing a page", () => {
+    const index = createIfcBimIndex(createStore(), [1, 2, 3]);
+    expect(index.getElement(3)).toEqual({
+      expressId: 3,
+      globalId: "global-3",
+      ifcClass: "IfcWall",
+      name: "Mur N2",
+      storeyId: 200,
+    });
+    expect(index.getElement(100)).toBeNull();
+    expect(index.getElement(999)).toBeNull();
+  });
+
+  it("can locate an element outside the first page, including one without a storey", () => {
+    const index = createIfcBimIndex(
+      createStore(),
+      Array.from({ length: 80 }, (_, i) => i + 300),
+    );
+    expect(index.queryPage(null, 0, 50)).toHaveLength(50);
+    expect(index.getElement(379)).toMatchObject({
+      expressId: 379,
+      storeyId: null,
+    });
+    expect(index.queryPage(null, 0, 50)).toHaveLength(50);
+  });
+
   it("lists renderable classes and storeys", () => {
     const index = createIfcBimIndex(createStore(), [1, 2, 3]);
 
