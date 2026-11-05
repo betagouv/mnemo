@@ -161,12 +161,13 @@ test("moves box faces and section planes with projected axis arrows", async ({
       .getByRole("group", { name: "Orientation du plan" })
       .getByText("Horizontal", { exact: true })
       .click();
-    const position = page.getByLabel("Position du plan de coupe", {
-      exact: true,
-    });
-    const initialPosition = await position.textContent();
+    const planeArrowPosition = () =>
+      planeArrow.evaluate((element) =>
+        [element.style.left, element.style.top].join(","),
+      );
+    const initialArrowPosition = await planeArrowPosition();
     await planeArrow.press("ArrowUp");
-    await expect(position).not.toHaveText(initialPosition!);
+    await expect.poll(planeArrowPosition).not.toBe(initialArrowPosition);
     const planeDrag = await planeArrow.evaluate((element) => {
       const rect = element.getBoundingClientRect();
       const matrix = new DOMMatrix(getComputedStyle(element).transform);
@@ -177,7 +178,7 @@ test("moves box faces and section planes with projected axis arrows", async ({
         dy: matrix.b * 15,
       };
     });
-    const beforePlaneDrag = await position.textContent();
+    const beforePlaneDrag = await planeArrowPosition();
     await page.mouse.move(planeDrag.x, planeDrag.y);
     await page.mouse.down();
     await page.mouse.move(
@@ -186,7 +187,7 @@ test("moves box faces and section planes with projected axis arrows", async ({
       { steps: 8 },
     );
     await page.mouse.up();
-    await expect(position).not.toHaveText(beforePlaneDrag!);
+    await expect.poll(planeArrowPosition).not.toBe(beforePlaneDrag);
     await page.screenshot({
       path: test.info().outputPath("section-plane-dark.png"),
     });
