@@ -20,7 +20,6 @@ import {
 
 import { SectionArrow } from "./section-arrow";
 import styles from "./section-gizmo.module.css";
-import planeStyles from "./section-plane-gizmo.module.css";
 
 type Drag = {
   pointerId: number;
@@ -44,7 +43,6 @@ export function SectionPlaneGizmo({
   const axis = sectionGizmoAxis(plane);
   const outlineRef = useRef<SVGPolygonElement>(null);
   const handleRef = useRef<HTMLButtonElement>(null);
-  const labelRef = useRef<HTMLOutputElement>(null);
   const planeRef = useRef(plane);
   const projectionRef = useRef<ReturnType<typeof projectSectionGizmo>>(null);
   const dragRef = useRef<Drag | null>(null);
@@ -81,22 +79,14 @@ export function SectionPlaneGizmo({
           );
       }
       const handle = handleRef.current;
-      const label = labelRef.current;
       if (handle) {
-        const visible = projection !== null;
         handle.style.visibility = projection?.screenNormal
           ? "visible"
           : "hidden";
-        if (label) label.style.visibility = visible ? "visible" : "hidden";
         if (projection) {
           handle.style.left = `${projection.foot.x - 16}px`;
           handle.style.top = `${projection.foot.y - 22}px`;
           handle.style.transform = `rotate(${projection.angle}rad)`;
-          if (label) {
-            label.style.left = `${projection.foot.x - Math.sin(projection.angle) * 32}px`;
-            label.style.top = `${projection.foot.y + Math.cos(projection.angle) * 32}px`;
-            label.textContent = `${projection.distance.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} m`;
-          }
         }
       }
       frame = requestAnimationFrame(update);
@@ -200,11 +190,6 @@ export function SectionPlaneGizmo({
         ref={handleRef}
         title="Glisser pour déplacer le plan · flèches haut/bas au clavier"
         type="button"
-      />
-      <output
-        aria-label="Position du plan de coupe"
-        className={planeStyles.label}
-        ref={labelRef}
       />
     </div>
   );
