@@ -64,10 +64,9 @@ test("reveals the object picked in the scene inside the collapsed model tree", a
     let pickedPoint: { x: number; y: number } | null = null;
     for (const y of [0.5, 0.45, 0.55, 0.4, 0.6]) {
       for (const x of [0.5, 0.45, 0.55, 0.4, 0.6]) {
-        await page.mouse.click(
-          bounds.x + bounds.width * x,
-          bounds.y + bounds.height * y,
-        );
+        await canvas.click({
+          position: { x: bounds.width * x, y: bounds.height * y },
+        });
         const picked = await expect
           .poll(() => selected.count(), {
             timeout: 300,
@@ -80,8 +79,8 @@ test("reveals the object picked in the scene inside the collapsed model tree", a
           );
         if (picked) {
           pickedPoint = {
-            x: bounds.x + bounds.width * x,
-            y: bounds.y + bounds.height * y,
+            x: bounds.width * x,
+            y: bounds.height * y,
           };
           break;
         }
@@ -105,7 +104,7 @@ test("reveals the object picked in the scene inside the collapsed model tree", a
       .toBe("false");
     await tree.getByRole("tab", { name: "Relevé 3D" }).click();
     if (!pickedPoint) throw new Error("No scene element was picked");
-    await page.mouse.click(pickedPoint.x, pickedPoint.y);
+    await canvas.click({ position: pickedPoint });
     await expect(
       tree.getByRole("tab", { name: "BIM", exact: true }),
     ).toHaveAttribute("aria-selected", "true");
@@ -126,7 +125,10 @@ test("reveals the object picked in the scene inside the collapsed model tree", a
       .locator('[data-selected] > button[aria-pressed="false"]')
       .first();
     const otherTitle = await other.getAttribute("title");
-    await other.click({ modifiers: ["Control"] });
+    const otherButton = tree.getByTitle(otherTitle!, { exact: true });
+    await otherButton.click({ modifiers: ["Control"] });
+    await expect(otherButton).toHaveAttribute("aria-current", "true");
+    await expect(otherButton).toBeInViewport();
     const selectedRows = tree.locator(
       '[data-selected] > button[aria-pressed="true"]',
     );
@@ -139,17 +141,20 @@ test("reveals the object picked in the scene inside the collapsed model tree", a
     const third = tree
       .locator('[data-selected] > button[aria-pressed="false"]:visible')
       .first();
-    await third.click({ modifiers: ["Control"] });
+    const thirdTitle = await third.getAttribute("title");
+    const thirdButton = tree.getByTitle(thirdTitle!, { exact: true });
+    await thirdButton.click({ modifiers: ["Control"] });
+    await expect(thirdButton).toHaveAttribute("aria-pressed", "true");
+    await expect(thirdButton).toBeInViewport();
     await expect(selectedRows).toHaveCount(3);
-    await page.keyboard.down("Control");
-    await page.mouse.click(pickedPoint.x, pickedPoint.y);
-    await page.keyboard.up("Control");
+    // Resolve the canvas target again after tree scrolling and await actionability.
+    await canvas.click({ position: pickedPoint, modifiers: ["Control"] });
     // The sample contains overlapping surfaces: whichever surface is hit,
     // Ctrl-click changes membership by one rather than replacing all three.
     await expect
       .poll(async () => [2, 4].includes(await selectedRows.count()))
       .toBe(true);
-    await page.mouse.click(pickedPoint.x, pickedPoint.y);
+    await canvas.click({ position: pickedPoint });
     await expect(selectedRows).toHaveCount(1);
     const treeTarget = tree
       .locator('[data-selected] > button[aria-pressed="false"]')
