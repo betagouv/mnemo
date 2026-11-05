@@ -14,7 +14,7 @@ These instructions apply to the whole repository.
 ## Repository layout
 
 - `apps/web`: Next.js application, including UI, server components, and typed route handlers.
-- `apps/processing-worker`: one-off point-cloud conversion entry points, executed outside HTTP request lifecycles.
+- `apps/processing-worker`: durable background job orchestration imported by Next.js, plus one-off point-cloud conversion entry points executed outside HTTP request lifecycles.
 - `packages/domain`: framework-free domain types and invariants.
 - `packages/contracts`: shared Zod schemas, DTOs, and event contracts.
 - `packages/database`: Prisma schema, migrations, and PostgreSQL client.
