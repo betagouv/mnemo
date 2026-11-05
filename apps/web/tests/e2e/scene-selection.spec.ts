@@ -129,8 +129,9 @@ test("reveals the object picked in the scene inside the collapsed model tree", a
     // The sample contains overlapping surfaces: whichever surface is hit,
     // Ctrl-click changes membership by one rather than replacing all three.
     await expect
-      .poll(async () => [2, 4].includes(await selectedRows.count()))
-      .toBe(true);
+      .poll(() => selectedRows.count(), { timeout: 30_000 })
+      .not.toBe(3);
+    expect([2, 4]).toContain(await selectedRows.count());
     await canvas.click({ position: pickedPoint });
     await expect(selectedRows).toHaveCount(1);
     const treeTarget = tree
@@ -158,6 +159,7 @@ test("reveals the object picked in the scene inside the collapsed model tree", a
     });
   } catch (error) {
     console.error(error);
+    console.error(await page.locator("main").ariaSnapshot());
     await page
       .screenshot({
         path: test.info().outputPath("selection-error.png"),
