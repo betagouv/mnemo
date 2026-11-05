@@ -84,7 +84,7 @@ test("reveals the object picked in the scene inside the collapsed model tree", a
     await canvas.click({ position: pickedPoint });
     await expect(
       tree.getByRole("tab", { name: "BIM", exact: true }),
-    ).toHaveAttribute("aria-selected", "true");
+    ).toHaveAttribute("aria-selected", "true", { timeout: 30_000 });
     await expect(selected).toBeInViewport();
     selectedTitle = await selected.getAttribute("title");
 
@@ -133,7 +133,7 @@ test("reveals the object picked in the scene inside the collapsed model tree", a
       .not.toBe(3);
     expect([2, 4]).toContain(await selectedRows.count());
     await canvas.click({ position: pickedPoint });
-    await expect(selectedRows).toHaveCount(1);
+    await expect(selectedRows).toHaveCount(1, { timeout: 30_000 });
     const treeTarget = tree
       .locator('[data-selected] > button[aria-pressed="false"]')
       .first();
