@@ -61,33 +61,11 @@ test("reveals the object picked in the scene inside the collapsed model tree", a
     const bounds = await canvas.boundingBox();
     if (!bounds) throw new Error("Missing viewer viewport");
     const selected = tree.locator('button[aria-current="true"]');
-    let pickedPoint: { x: number; y: number } | null = null;
-    for (const y of [0.5, 0.45, 0.55, 0.4, 0.6]) {
-      for (const x of [0.5, 0.45, 0.55, 0.4, 0.6]) {
-        await canvas.click({
-          position: { x: bounds.width * x, y: bounds.height * y },
-        });
-        const picked = await expect
-          .poll(() => selected.count(), {
-            timeout: 300,
-            intervals: [25, 50, 100],
-          })
-          .toBe(1)
-          .then(
-            () => true,
-            () => false,
-          );
-        if (picked) {
-          pickedPoint = {
-            x: bounds.width * x,
-            y: bounds.height * y,
-          };
-          break;
-        }
-      }
-      if (await selected.count()) break;
-    }
-    await expect(selected).toHaveCount(1);
+    // The sample house is initially framed around its roof. Issue one pick and
+    // await its result before any other selection, including on slow software GPUs.
+    const pickedPoint = { x: bounds.width * 0.5, y: bounds.height * 0.5 };
+    await canvas.click({ position: pickedPoint });
+    await expect(selected).toHaveCount(1, { timeout: 30_000 });
     await expect(selected).toBeInViewport();
     await expect(model).toHaveAttribute("aria-expanded", "true");
     await expect(selected).toBeVisible();
@@ -103,7 +81,6 @@ test("reveals the object picked in the scene inside the collapsed model tree", a
       .poll(() => selectedClass.getAttribute("aria-expanded"))
       .toBe("false");
     await tree.getByRole("tab", { name: "Relevé 3D" }).click();
-    if (!pickedPoint) throw new Error("No scene element was picked");
     await canvas.click({ position: pickedPoint });
     await expect(
       tree.getByRole("tab", { name: "BIM", exact: true }),
