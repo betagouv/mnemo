@@ -442,6 +442,22 @@ function createHarness({
       calls.bimIndexIds.push([...renderableIds]);
       if (store.source?.byteLength === 0)
         return createIfcBimIndex(store, renderableIds);
+      const elements = [
+        {
+          expressId: 42,
+          globalId: "3vB1mExampleGlobalId",
+          ifcClass: "IfcWall",
+          name: "Mur test",
+          storeyId: 10,
+        },
+        {
+          expressId: 84,
+          globalId: "0YvctA6Hn0pgmBdv0cPwH6",
+          ifcClass: "IfcDoor",
+          name: "Porte test",
+          storeyId: 10,
+        },
+      ];
       return {
         catalog: {
           unassignedCount: 0,
@@ -464,22 +480,9 @@ function createHarness({
             : query.ifcClass === "IfcWall"
               ? [42]
               : [42, 84],
-        query: () => [
-          {
-            expressId: 42,
-            globalId: "3vB1mExampleGlobalId",
-            ifcClass: "IfcWall",
-            name: "Mur test",
-            storeyId: 10,
-          },
-          {
-            expressId: 84,
-            globalId: "0YvctA6Hn0pgmBdv0cPwH6",
-            ifcClass: "IfcDoor",
-            name: "Porte test",
-            storeyId: 10,
-          },
-        ],
+        getElement: (expressId) =>
+          elements.find((element) => element.expressId === expressId) ?? null,
+        query: () => elements,
         queryPage: () => [],
         classesForStorey: () => [
           { ifcClass: "IfcWall", elementCount: 1 },
@@ -1498,6 +1501,54 @@ describe("IfcViewerController", () => {
     controller.dispose();
   });
 
+  it("shares single and additive selections across models without reframing", async () => {
+    const { controller, calls, advanceFrame, getCameraPose } = createHarness();
+    await controller.loadIfc({
+      assetId: "model-a",
+      fileName: "a.ifc",
+      downloadUrl: "http://storage.local/a.ifc",
+    });
+    await controller.loadIfc({
+      assetId: "model-b",
+      fileName: "b.ifc",
+      downloadUrl: "http://storage.local/b.ifc",
+    });
+    const camera = getCameraPose();
+    const framed = calls.fitToView;
+    controller.selectModelEntity("model-a", 42);
+    controller.selectModelEntity("model-b", 42, true);
+    expect(controller.getSnapshot().selectedElements).toEqual([
+      { assetId: "model-a", expressId: 42 },
+      { assetId: "model-b", expressId: 42 },
+    ]);
+    advanceFrame();
+    expect(calls.lastRenderOptions?.selectedIds?.size).toBe(2);
+    expect(controller.getSnapshot().activeModelId).toBe("model-b");
+    controller.selectModelEntity("model-b", 42, true);
+    expect(controller.getSnapshot().selectedElements).toEqual([
+      { assetId: "model-a", expressId: 42 },
+    ]);
+    expect(controller.getSnapshot().activeModelId).toBe("model-a");
+    expect(controller.getSnapshot().selection?.expressId).toBe(42);
+    controller.selectEntity(null, undefined, true);
+    expect(controller.getSnapshot().selectedElements).toHaveLength(1);
+    controller.selectModelEntity("model-b", 84);
+    expect(controller.getSnapshot().selectedElements).toEqual([
+      { assetId: "model-b", expressId: 84 },
+    ]);
+    advanceFrame();
+    expect(calls.lastRenderOptions?.selectedIds?.size).toBe(1);
+    expect(getCameraPose()).toEqual(camera);
+    expect(calls.fitToView).toBe(framed);
+    expect(calls.rendererCreated).toBe(1);
+    controller.selectEntity(null);
+    advanceFrame();
+    expect(controller.getSnapshot().selectedElements).toEqual([]);
+    expect(controller.getSnapshot().selection).toBeNull();
+    expect(calls.lastRenderOptions?.selectedIds?.size).toBe(0);
+    controller.dispose();
+  });
+
   it("round-trips a BCF viewpoint without recreating or reframing the renderer", async () => {
     vi.stubGlobal(
       "OffscreenCanvas",
@@ -1520,6 +1571,7 @@ describe("IfcViewerController", () => {
       downloadUrl: "http://storage.local/model.ifc",
     });
     controller.selectEntity(42);
+    controller.selectEntity(84, undefined, true);
     controller.applyVisualPlan({
       focusIds: [42],
       showContext: false,
@@ -1535,7 +1587,10 @@ describe("IfcViewerController", () => {
     expect(capture.data).toMatchObject({
       perspectiveCamera: { aspectRatio: 16 / 9 },
       components: {
-        selection: [{ ifcGuid: "3vB1mExampleGlobalId" }],
+        selection: [
+          { ifcGuid: "3vB1mExampleGlobalId" },
+          { ifcGuid: "0YvctA6Hn0pgmBdv0cPwH6" },
+        ],
         visibility: {
           defaultVisibility: false,
           exceptions: [{ ifcGuid: "3vB1mExampleGlobalId" }],
@@ -1551,6 +1606,7 @@ describe("IfcViewerController", () => {
       selection: { expressId: 42 },
       visual: { mode: "isolate", label: "Viewpoint BCF" },
     });
+    expect(controller.getSnapshot().selectedElements).toHaveLength(2);
     expect(calls.cameraPosesApplied).toBeGreaterThanOrEqual(5);
     expect(calls.rendererCreated).toBe(1);
     controller.fitToView();

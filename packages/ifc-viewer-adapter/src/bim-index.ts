@@ -34,6 +34,7 @@ export type IfcElementSummary = {
 
 export type IfcBimIndex = {
   catalog: IfcBimCatalog;
+  getElement(expressId: number): IfcElementSummary | null;
   findIds(query: IfcBimQuery): number[];
   query(query: IfcBimQuery): IfcElementSummary[];
   classesForStorey(storeyId: number | null): IfcBimType[];
@@ -120,6 +121,8 @@ export function createIfcBimIndex(
   });
 
   return {
+    getElement: (expressId) =>
+      renderable.has(expressId) ? summarize(expressId) : null,
     catalog: {
       unassignedCount: [...renderable].filter(
         (expressId) => !store.spatialHierarchy?.elementToStorey.has(expressId),

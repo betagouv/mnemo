@@ -7,15 +7,20 @@ import styles from "./inline-disclosure.module.css";
 export function InlineDisclosure({
   children,
   defaultExpanded = false,
+  expanded: controlledExpanded,
+  onExpandedChange,
   label,
   visibilityControl,
 }: {
   children: ReactNode;
   defaultExpanded?: boolean;
+  expanded?: boolean;
+  onExpandedChange?: (expanded: boolean) => void;
   label: string;
   visibilityControl?: ReactNode;
 }) {
-  const [expanded, setExpanded] = useState(defaultExpanded);
+  const [localExpanded, setExpanded] = useState(defaultExpanded);
+  const expanded = controlledExpanded ?? localExpanded;
   const contentId = useId();
 
   return (
@@ -27,7 +32,10 @@ export function InlineDisclosure({
             aria-controls={contentId}
             aria-expanded={expanded}
             className={styles.toggle}
-            onClick={() => setExpanded(!expanded)}
+            onClick={() => {
+              if (controlledExpanded === undefined) setExpanded(!expanded);
+              onExpandedChange?.(!expanded);
+            }}
             title={label}
             type="button"
           >

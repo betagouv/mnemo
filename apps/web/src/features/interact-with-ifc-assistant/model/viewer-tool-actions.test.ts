@@ -15,6 +15,7 @@ function createSnapshot(): IfcViewerSnapshot {
     entityCount: 4,
     message: null,
     selection: null,
+    selectedElements: [],
     selectionPhase: "idle",
     selectionMessage: null,
     catalog: {

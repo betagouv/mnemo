@@ -3,7 +3,7 @@ import type { Renderer } from "@ifc-lite/renderer";
 type SceneInteractionsHost = {
   canvas: HTMLCanvasElement;
   renderer: Renderer;
-  onPick: (x: number, y: number) => void;
+  onPick: (x: number, y: number, additive: boolean) => void;
 };
 
 /** Owns canvas gestures; BIM selection is delegated to the scene controller. */
@@ -110,7 +110,11 @@ export class SceneInteractions {
 
     if (shouldPick) {
       const bounds = this.host.canvas.getBoundingClientRect();
-      this.host.onPick(event.clientX - bounds.left, event.clientY - bounds.top);
+      this.host.onPick(
+        event.clientX - bounds.left,
+        event.clientY - bounds.top,
+        event.ctrlKey || event.metaKey,
+      );
     }
   };
 
