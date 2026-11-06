@@ -5,9 +5,9 @@ import { FloorPlanPdfButton } from "./floor-plan-pdf-button";
 import Button from "@codegouvfr/react-dsfr/Button";
 import type {
   FloorPlanDrawing,
-  FloorPlanPdfInfo,
   FloorPlanPresetId,
 } from "@mnemo/ifc-viewer-adapter";
+import type { FloorPlanPdfInfo } from "../infrastructure/pdf/floor-plan-pdf-sheet";
 import { useState } from "react";
 import { useFloorPlanCanvas } from "../model/use-floor-plan-canvas";
 

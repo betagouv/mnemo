@@ -1,5 +1,6 @@
 "use client";
 
+import type { AssistantViewer } from "../model/viewer-target";
 import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
 import {
   AssistantRuntimeProvider,
@@ -16,7 +17,6 @@ import type {
   AssistantThreadSummary,
 } from "@mnemo/contracts/assistant";
 import { assistantThreadHistorySchema } from "@mnemo/contracts/assistant";
-import type { IfcViewerController } from "@mnemo/ifc-viewer-adapter";
 import type { UIMessage } from "ai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import remarkGfm from "remark-gfm";
@@ -198,7 +198,7 @@ export function IfcAssistantPanel({
 }: {
   assetId: string;
   configured: boolean;
-  getViewer: () => IfcViewerController | null;
+  getViewer: () => AssistantViewer | null;
   hidden: boolean;
   initialHistory: AssistantThreadHistory | null;
   initialThreads: AssistantThreadSummary[];

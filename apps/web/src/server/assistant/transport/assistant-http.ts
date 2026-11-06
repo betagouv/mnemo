@@ -1,29 +1,28 @@
-import type { FrontendTools } from "@assistant-ui/ai-sdk";
+import { startRuntimeAssistantSession } from "../assistant-session-factory";
 import {
-  assistantMessageSchema,
-  assistantThreadIdSchema,
-} from "@mnemo/contracts/assistant";
+  AssistantNotConfiguredError,
+  AssistantMcpUnavailableError,
+} from "../application/assistant-session-errors";
+import type { FrontendTools } from "@assistant-ui/ai-sdk";
+import { assistantThreadIdSchema } from "@mnemo/contracts/assistant";
 import { assetIdSchema } from "@mnemo/contracts/assets";
 import type { AssetKind, AssetStatus } from "@mnemo/domain";
 import { projectIdSchema } from "@mnemo/contracts/projects";
 import { safeValidateUIMessages, type UIMessage } from "ai";
 import { z } from "zod";
-
 import { getAssetService } from "@/server/assets/asset-service-factory";
 import { AssetAccessDeniedError } from "@/server/assets/application/asset-errors";
 import {
   AuthenticationRequiredError,
   resolveActor,
 } from "@/server/auth/resolve-actor";
-import { getAssistantConfiguration } from "@/shared/config/assistant/server-only";
-import { getIfcMcpTools } from "@/server/assistant/infrastructure/ifc-mcp-runtime";
 import { AssistantThreadAccessDeniedError } from "@/server/assistant/application/assistant-thread-errors";
 import { getAssistantThreadService } from "@/server/assistant/assistant-thread-service-factory";
 
-import { streamAssistantChat } from "../application/assistant-chat";
-
 const maxRequestBytes = 1 * 1_024 * 1_024;
+
 const maxMessages = 100;
+
 const maxFrontendTools = 32;
 
 const requestEnvelopeSchema = z.looseObject({
@@ -34,9 +33,8 @@ const requestEnvelopeSchema = z.looseObject({
 });
 
 export class InvalidAssistantRequestError extends Error {}
+
 export class AssistantRequestTooLargeError extends Error {}
-export class AssistantNotConfiguredError extends Error {}
-export class AssistantMcpUnavailableError extends Error {}
 
 export type AuthorizedAssistantAsset = {
   id: string;
@@ -181,52 +179,7 @@ const defaultDependencies: AssistantHttpDependencies = {
   resolveActorId: async () => (await resolveActor()).id,
   requireThread: (actorId, input) =>
     getAssistantThreadService().requireForChat(actorId, input),
-  stream: async (input) => {
-    let configuration;
-    try {
-      configuration = getAssistantConfiguration();
-    } catch {
-      throw new AssistantNotConfiguredError(
-        "OPENROUTER_API_KEY is not configured",
-      );
-    }
-    let mcpSession;
-    try {
-      mcpSession = await getIfcMcpTools(input.source);
-    } catch (error) {
-      console.error("IFC MCP session could not be prepared", {
-        assetId: input.assetId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      throw new AssistantMcpUnavailableError(
-        "IFC-Lite MCP is unavailable for this model",
-      );
-    }
-    return streamAssistantChat({
-      configuration,
-      messages: input.messages,
-      tools: input.tools,
-      mcpTools: mcpSession.tools,
-      persistMessages: async (messages) => {
-        try {
-          await getAssistantThreadService().save(input.actorId, {
-            projectId: input.projectId,
-            assetId: input.assetId,
-            threadId: input.threadId,
-            messages: messages.map((message) =>
-              assistantMessageSchema.parse(message),
-            ),
-          });
-        } catch (error) {
-          console.error("Assistant conversation could not be persisted", {
-            assetId: input.assetId,
-            threadId: input.threadId,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
-      },
-    });
-  },
+  stream: startRuntimeAssistantSession,
 };
 
 export async function handleAssistantHttpRequest(

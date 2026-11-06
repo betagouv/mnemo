@@ -1,11 +1,10 @@
 "use client";
-import type { SavedFloorPlan } from "@mnemo/contracts/floor-plans";
 
-import type {
-  BcfTopicSummary,
-  BcfMarkerTopic,
-  CreateBcfTopicInput,
-} from "@mnemo/contracts/bcf";
+import { useViewerPanels } from "../model/use-viewer-panels";
+import { useBcfViewer } from "@/features/manage-bcf-topics";
+import { ViewerLoadStatus } from "./viewer-load-status";
+import type { SavedFloorPlan } from "@mnemo/contracts/floor-plans";
+import type { BcfTopicSummary } from "@mnemo/contracts/bcf";
 import type {
   AssistantThreadHistory,
   AssistantThreadSummary,
@@ -16,29 +15,21 @@ import {
   useFloorPlans,
 } from "@/features/view-floor-plans";
 import { ViewerPanelContent } from "./viewer-panel-content";
-import { useCallback, useRef, useState } from "react";
-
 import {
   SectionBoxGizmo,
   SectionPlaneGizmo,
   SectionSketchOverlay,
 } from "@/features/control-section";
 import { IfcAssistantPanel } from "@/features/interact-with-ifc-assistant";
-import { BcfPanel } from "./bcf-panel";
-import { BcfMarkers } from "./bcf-markers";
+import { BcfPanel, BcfMarkers } from "@/features/manage-bcf-topics";
 import { useProjectScene } from "../model/use-project-scene";
 import { getActiveViewerModifiers } from "../model/viewer-active-modifiers";
-import {
-  viewerPanels,
-  type ViewerPanelId,
-  type ViewerToolGroupId,
-} from "../model/viewer-tool-catalog";
+import { viewerPanels } from "../model/viewer-tool-catalog";
 import type {
   ViewerIfcSource,
   ViewerPointCloudFailure,
   ViewerPointCloudSource,
-} from "../model/viewer-sources";
-
+} from "@/entities/viewer";
 import styles from "./ifc-viewer.module.css";
 import { IfcPropertiesPane } from "./ifc-properties-pane";
 import { ProjectLayers } from "./project-layers";
@@ -53,18 +44,9 @@ type AssistantSession = {
   history: AssistantThreadHistory | null;
 };
 
-const phaseLabels = {
-  idle: "En attente",
-  initializing: "Préparation de la vue 3D",
-  downloading: "Téléchargement de l’IFC",
-  processing: "Construction de la scène",
-  ready: "Projet prêt",
-  error: "Chargement impossible",
-  device_lost: "Affichage 3D interrompu",
-} as const;
-
 const shellLayout =
   "relative grid h-full w-full min-h-0 min-w-0 overflow-hidden grid-cols-[minmax(0,1fr)] min-[769px]:grid-cols-[15.5rem_minmax(0,1fr)] min-[1201px]:grid-cols-[17.5rem_minmax(0,1fr)]";
+
 const openPanelLayout =
   "min-[769px]:max-[897px]:grid-cols-[minmax(0,1fr)] min-[1025px]:grid-cols-[15.5rem_minmax(0,1fr)_20rem] min-[1201px]:grid-cols-[17.5rem_minmax(0,1fr)_22rem]";
 
@@ -119,36 +101,29 @@ export function ProjectViewer({
   } = useProjectScene({ ifcSources, pointCloudSources, projectId });
   const floorPlans = useFloorPlans(getViewer, projectId, initialFloorPlans);
 
-  const [activePanel, setActivePanel] = useState<ViewerPanelId | null>(null);
-  const [activeToolGroup, setActiveToolGroup] =
-    useState<ViewerToolGroupId | null>(null);
-  const [panelFocusRequest, setPanelFocusRequest] = useState(0);
-  const [bcfTopicCount, setBcfTopicCount] = useState(initialBcfTopics.length);
-  const [markerTopics, setMarkerTopics] = useState<BcfMarkerTopic[]>([]);
-  const [activeBcfTopicId, setActiveBcfTopicId] = useState<string | null>(null);
-  const captureBcf = useCallback(
-    (objects?: CreateBcfTopicInput["components"]) => {
-      const controller = controllerRef.current;
-      if (!controller)
-        return Promise.reject(new Error("La visionneuse n’est pas prête."));
-      return controller.captureBcfViewpoint(objects);
-    },
-    [controllerRef],
-  );
-  const previewBcfObjects = useCallback(
-    (objects: CreateBcfTopicInput["components"]) =>
-      controllerRef.current?.setBcfSelection(
-        activePanel === "bcf" ? objects : [],
-      ),
-    [controllerRef, activePanel],
-  );
-  const queryBcfObjects = useCallback(
-    () => controllerRef.current?.bcfObjects() ?? [],
-    [controllerRef],
-  );
-  const bcfPanelRef = useRef<{ open: (id: string) => Promise<void> }>(null);
-  const toolBarRef = useRef<HTMLDivElement>(null);
-  const lastPanelTrigger = useRef<HTMLButtonElement | null>(null);
+  const {
+    activePanel,
+    setActivePanel,
+    activeToolGroup,
+    setActiveToolGroup,
+    panelFocusRequest,
+    setPanelFocusRequest,
+    toolBarRef,
+    openPanel,
+    closePanel,
+  } = useViewerPanels(getViewer);
+  const {
+    bcfTopicCount,
+    setBcfTopicCount,
+    markerTopics,
+    setMarkerTopics,
+    activeBcfTopicId,
+    setActiveBcfTopicId,
+    captureBcf,
+    previewBcfObjects,
+    queryBcfObjects,
+    bcfPanelRef,
+  } = useBcfViewer(getViewer, activePanel === "bcf", initialBcfTopics);
 
   const activeModelId = snapshot.activeModelId;
   const activeIfcSource = ifcSources.find(
@@ -164,30 +139,6 @@ export function ProjectViewer({
         (model) => model.assetId === source.assetId && model.phase === "error",
       ),
   );
-
-  const isBusy =
-    snapshot.phase === "initializing" ||
-    snapshot.phase === "downloading" ||
-    snapshot.phase === "processing";
-  const hasFailed =
-    snapshot.phase === "error" || snapshot.phase === "device_lost";
-
-  const openPanel = (
-    panel: ViewerPanelId,
-    groupId: ViewerToolGroupId,
-    trigger: HTMLButtonElement,
-  ) => {
-    if (
-      (activePanel === "cut-plane" || activePanel === "cut-box") &&
-      panel !== activePanel
-    ) {
-      controllerRef.current?.cancelSectionPick();
-    }
-    lastPanelTrigger.current = trigger;
-    setActivePanel(panel);
-    setActiveToolGroup(groupId);
-    setPanelFocusRequest((request) => request + 1);
-  };
 
   return (
     <main
@@ -325,22 +276,14 @@ export function ProjectViewer({
           />
         ) : null}
 
-        {isBusy ? (
-          <div className={styles.loadCard} role="status" aria-live="polite">
-            <span className={styles.spinner} aria-hidden="true" />
-            <div>
-              <strong>{phaseLabels[snapshot.phase]}</strong>
-              <p>
-                {snapshot.phase === "processing"
-                  ? `${snapshot.meshCount.toLocaleString("fr-FR")} maillages reçus`
-                  : "Préparation de la maquette…"}
-              </p>
-              {snapshot.parserPercent !== null ? (
-                <progress max={100} value={snapshot.parserPercent} />
-              ) : null}
-            </div>
-          </div>
-        ) : null}
+        <ViewerLoadStatus
+          snapshot={snapshot}
+          accessError={accessError}
+          pointCloudFailures={pointCloudFailures}
+          failedSource={failedSource}
+          retrying={retrying}
+          onRetry={retry}
+        />
 
         {snapshot.phase === "ready" ? (
           <div className={styles.modelStats} role="status">
@@ -371,40 +314,6 @@ export function ProjectViewer({
           }
         />
 
-        {hasFailed || accessError || pointCloudFailures.length ? (
-          <div className={styles.errorCard} role="alert">
-            <span className="fr-icon-error-warning-fill" aria-hidden="true" />
-            <div>
-              <strong>
-                {snapshot.phase === "ready"
-                  ? "Chargement partiel"
-                  : phaseLabels[snapshot.phase]}
-              </strong>
-              {hasFailed || accessError ? (
-                <p>{accessError ?? snapshot.message}</p>
-              ) : null}
-              {pointCloudFailures.length ? (
-                <p>
-                  Nuage indisponible :{" "}
-                  {pointCloudFailures
-                    .map((failure) => failure.fileName)
-                    .join(", ")}
-                  . Les autres couches restent disponibles.
-                </p>
-              ) : null}
-              {failedSource ? (
-                <button
-                  disabled={retrying}
-                  onClick={() => void retry(failedSource)}
-                  type="button"
-                >
-                  {retrying ? "Nouvel essai…" : "Réessayer"}
-                </button>
-              ) : null}
-            </div>
-          </div>
-        ) : null}
-
         <div className={styles.help}>
           <span>Clic : sélectionner</span>
           <span>Glisser : orbiter</span>
@@ -418,16 +327,7 @@ export function ProjectViewer({
         iconClass={activePanelConfig?.icon}
         isOpen={activePanel !== null}
         mode={activePanel ?? undefined}
-        onClose={() => {
-          setActivePanel(null);
-          setActiveToolGroup(null);
-          setPanelFocusRequest(0);
-          const returnTarget =
-            (lastPanelTrigger.current?.isConnected
-              ? lastPanelTrigger.current
-              : null) ?? toolBarRef.current?.querySelector("button");
-          returnTarget?.focus();
-        }}
+        onClose={closePanel}
         title={activePanelConfig?.title ?? "Panneau d’outils"}
       >
         {activeIfcSource ? (

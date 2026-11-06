@@ -1,13 +1,14 @@
 "use client";
+
 import Button from "@codegouvfr/react-dsfr/Button";
 import Alert from "@codegouvfr/react-dsfr/Alert";
 import type { FloorPlanRule } from "@mnemo/contracts/floor-plans";
 import {
-  createFloorPlanPdf,
   type FloorPlanDrawing,
-  type FloorPlanPdfInfo,
   type FloorPlanPresetId,
 } from "@mnemo/ifc-viewer-adapter";
+import { createFloorPlanPdf } from "../infrastructure/pdf/floor-plan-pdf";
+import type { FloorPlanPdfInfo } from "../infrastructure/pdf/floor-plan-pdf-sheet";
 import { useState } from "react";
 
 export function FloorPlanPdfButton({

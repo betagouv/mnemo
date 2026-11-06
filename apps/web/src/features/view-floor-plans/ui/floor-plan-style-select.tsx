@@ -1,4 +1,5 @@
 "use client";
+
 import Select from "@codegouvfr/react-dsfr/Select";
 import {
   floorPlanPresets,

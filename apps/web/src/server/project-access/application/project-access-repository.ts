@@ -3,35 +3,7 @@ import type {
   SetMemberAccessInput,
   UpdateProjectRoleInput,
 } from "@mnemo/contracts/project-access";
-import type { ProjectPermission, ProjectRole } from "@mnemo/domain/project";
-
-export type CustomProjectRole = {
-  id: string;
-  name: string;
-  permissions: ProjectPermission[];
-};
-
-export type ProjectMemberAccess = {
-  userId: string;
-  name: string;
-  email: string;
-  baseRole: ProjectRole;
-  roleIds: string[];
-  permissions: ProjectPermission[];
-};
-
-export type ProjectAccessOverview = {
-  roles: CustomProjectRole[];
-  members: ProjectMemberAccess[];
-  invitations: {
-    id: string;
-    email: string;
-    baseRole: ProjectRole;
-    roleIds: string[];
-    permissions: ProjectPermission[];
-    expiresAt: Date;
-  }[];
-};
+import type { ProjectAccessOverview } from "@mnemo/contracts/project-access";
 
 export interface ProjectAccessRepository {
   list(projectId: string): Promise<ProjectAccessOverview>;

@@ -5,7 +5,6 @@ import type { MeshData } from "@ifc-lite/geometry";
 import { GeometryProcessor } from "@ifc-lite/geometry";
 import { IfcParser } from "@ifc-lite/parser";
 import { expect, it } from "vitest";
-import { createFloorPlanPdf } from "./floor-plan-pdf";
 import { createIfcBimIndex } from "./bim-index";
 
 const sampleHouse = new URL(
@@ -55,26 +54,6 @@ it("parses the versioned SampleHouse fixture into 47,309 entities and 223 meshes
       includeProjection: true,
       includeHiddenLines: false,
     },
-  );
-  const pdf = await createFloorPlanPdf(
-    { ...drawing, getElementProperties: () => ({}) },
-    "architectural",
-    [],
-    {
-      title: "Rez-de-chaussée",
-      projectName: "Projet de test",
-      sourceName: "Ifc4_SampleHouse.ifc",
-      storeyName: level.name,
-      storeyElevation: level.elevation,
-      logo: await readFile(
-        new URL("../../../apps/web/public/mnemo-operator.png", import.meta.url),
-      ),
-      exportedAt: new Date("2026-11-05T19:00:00Z"),
-    },
-  );
-  expect(pdf.size).toBeGreaterThan(1000);
-  expect(new TextDecoder().decode((await pdf.arrayBuffer()).slice(0, 8))).toBe(
-    "%PDF-1.3",
   );
   expect(drawing.stats.cutLineCount).toBeGreaterThan(0);
   expect(

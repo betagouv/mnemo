@@ -1,24 +1,15 @@
 "use client";
 
+import type { PointCloudConfiguration } from "../model/point-cloud-configuration";
 import type {
   PointCloudSnapshot,
   PointCloudTransform,
 } from "@mnemo/ifc-viewer-adapter";
 import { useState } from "react";
-
 import { updatePointCloudSettings } from "@/server/point-clouds/actions";
 import { InlineDisclosure } from "@/shared/ui/inline-disclosure";
 import { VisibilityCheckbox } from "@/shared/ui/visibility-checkbox";
-
 import styles from "./point-cloud-panel.module.css";
-
-export type PointCloudConfiguration = {
-  assetId: string;
-  fileName: string;
-  transform: PointCloudTransform;
-  sourceCrs: string | null;
-  targetCrs: string | null;
-};
 
 function replaceVectorValue(
   vector: readonly [number, number, number],

@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useRef, useState } from "react";
 import Button from "@codegouvfr/react-dsfr/Button";
 import type { CapturedBcfViewpoint } from "@mnemo/ifc-viewer-adapter";

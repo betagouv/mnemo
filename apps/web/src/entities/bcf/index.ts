@@ -33,3 +33,5 @@ export function bcfDate(value: string) {
 
 export { ViewpointDraft } from "./viewpoint-draft";
 export { BcfSnapshot } from "./snapshot";
+
+export { readBcfWorkspace } from "./api/bcf-workspace";

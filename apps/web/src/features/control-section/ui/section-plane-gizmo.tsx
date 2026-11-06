@@ -1,9 +1,7 @@
 "use client";
 
-import type {
-  IfcSectionSnapshot,
-  IfcViewerController,
-} from "@mnemo/ifc-viewer-adapter";
+import type { SectionViewer } from "../model/viewer-target";
+import type { IfcSectionSnapshot } from "@mnemo/ifc-viewer-adapter";
 import {
   useEffect,
   useRef,
@@ -36,7 +34,7 @@ export function SectionPlaneGizmo({
   getViewer,
   plane,
 }: {
-  getViewer: () => IfcViewerController | null;
+  getViewer: () => SectionViewer | null;
   plane: IfcSectionSnapshot["plane"];
 }) {
   const [active, setActive] = useState(false);
