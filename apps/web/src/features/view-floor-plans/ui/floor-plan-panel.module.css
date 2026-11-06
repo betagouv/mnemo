@@ -1,0 +1,8 @@
+.fields > :global(.fr-select-group) {
+  margin-bottom: 0;
+}
+
+.saveButton:global(.fr-btn) {
+  width: 100%;
+  justify-content: center;
+}

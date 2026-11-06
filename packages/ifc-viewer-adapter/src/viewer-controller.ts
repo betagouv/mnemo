@@ -1,3 +1,4 @@
+import { createFloorPlanPropertyLookup } from "./floor-plan-drawing";
 import {
   createViewpoint,
   computeMarkerPositions,
@@ -642,6 +643,43 @@ export class IfcViewerController {
 
     camera.setPresetView(view, bounds);
     this.renderer.requestRender();
+  }
+
+  async generateFloorPlan(assetId: string, storeyId: number) {
+    const model = this.models.get(assetId);
+    const storey = model?.bimIndex.catalog.storeys.find(
+      (level) => level.expressId === storeyId,
+    );
+    if (this.disposed || !model || storey?.elevation == null) {
+      throw new Error("Ce niveau ne possède pas d'altitude disponible.");
+    }
+    const { generateFloorPlan } = await import("@ifc-lite/drawing-2d");
+    const scene = this.renderer.getScene();
+    const meshes = new Set<import("@ifc-lite/geometry").MeshData>();
+    for (const id of model.meshIds) {
+      const pieces =
+        scene.getMeshDataPieces(id, model.modelIndex) ??
+        scene.getInstancedMeshDataPieces(id) ??
+        [];
+      for (const mesh of pieces) meshes.add(mesh);
+    }
+    if (!meshes.size)
+      throw new Error("La géométrie de cette maquette n'est plus disponible.");
+    const drawing = await generateFloorPlan(
+      [...meshes],
+      storey.elevation + 1.2 - this.modelLoader.renderOrigin.z,
+      { includeProjection: true, includeHiddenLines: false },
+    );
+    if (!drawing.lines.length && !drawing.cutPolygons.length) {
+      throw new Error("Aucun contour disponible pour ce niveau.");
+    }
+    return {
+      ...drawing,
+      getElementProperties: createFloorPlanPropertyLookup(
+        model.store,
+        (id) => this.federation.fromGlobalId(id)?.expressId ?? id,
+      ),
+    };
   }
 
   orbitFromViewCube(deltaX: number, deltaY: number) {

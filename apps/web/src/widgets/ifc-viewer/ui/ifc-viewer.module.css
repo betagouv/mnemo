@@ -26,18 +26,6 @@
   gap: 0.5rem;
 }
 
-.panelState {
-  margin: 0;
-  padding: 1rem;
-  color: var(--viewer-muted);
-  font-size: 0.72rem;
-  line-height: 1.45;
-}
-
-.upcoming {
-  padding: 1rem;
-}
-
 .canvas {
   display: block;
   width: 100%;

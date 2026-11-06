@@ -32,9 +32,8 @@ export const viewerPanels = {
       "Les filtres et couleurs sont actuellement accessibles dans l’explorateur BIM à gauche.",
   },
   "floor-plan": {
-    title: "Vue en plan",
+    title: "Vues en plan",
     icon: "fr-icon-layout-grid-line",
-    upcoming: "La génération de vues en plan sera disponible ici.",
   },
   elevation: {
     title: "Élévation",
@@ -96,7 +95,7 @@ export const viewerToolGroups = [
     label: "Vues 2D",
     icon: "fr-icon-layout-grid-line",
     actions: [
-      { label: "Vue en plan", panel: "floor-plan" },
+      { label: "Vues en plan", panel: "floor-plan" },
       { label: "Élévation", panel: "elevation" },
     ],
   },
