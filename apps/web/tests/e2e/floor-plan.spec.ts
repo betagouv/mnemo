@@ -63,38 +63,45 @@ test("navigates and snaps measurements on a real storey plan", async ({
   const canvas = page.getByLabel("Dessin du niveau Ground Floor", {
     exact: true,
   });
-  // Use rendered ink, independent of GPU framing, to find a real snap target.
-  const ink = await canvas.evaluate((element) => {
-    const canvas = element as HTMLCanvasElement;
-    const { width, height } = canvas;
-    const data = canvas
-      .getContext("2d")!
-      .getImageData(0, 0, width, height).data;
-    const points: { x: number; y: number }[] = [];
-    const rect = canvas.getBoundingClientRect();
-    for (let y = 10; y < height - 10; y += 2) {
-      for (let x = 10; x < width - 10; x += 2) {
-        const i = (y * width + x) * 4;
-        if (data[i] < 50 && data[i + 1] < 50 && data[i + 2] < 50) {
-          const point = {
-            x: rect.left + (x * rect.width) / width,
-            y: rect.top + (y * rect.height) / height,
-          };
-          if (
-            !points.length ||
-            Math.hypot(point.x - points[0].x, point.y - points[0].y) > 150
-          )
-            points.push(point);
-          if (points.length === 2) return points;
+  await page.getByRole("button", { name: "Mesurer", exact: true }).click();
+  // Measurement help can resize the canvas. Read targets from the active layout.
+  const findInk = () =>
+    canvas.evaluate((element) => {
+      const canvas = element as HTMLCanvasElement;
+      const { width, height } = canvas;
+      const data = canvas
+        .getContext("2d")!
+        .getImageData(0, 0, width, height).data;
+      const points: { x: number; y: number }[] = [];
+      const rect = canvas.getBoundingClientRect();
+      for (let y = 10; y < height - 10; y += 2) {
+        for (let x = 10; x < width - 10; x += 2) {
+          const i = (y * width + x) * 4;
+          if (data[i] < 50 && data[i + 1] < 50 && data[i + 2] < 50) {
+            const point = {
+              x: rect.left + (x * rect.width) / width,
+              y: rect.top + (y * rect.height) / height,
+            };
+            if (
+              !points.length ||
+              Math.hypot(point.x - points[0].x, point.y - points[0].y) > 150
+            )
+              points.push(point);
+            if (points.length === 2) return points;
+          }
         }
       }
-    }
-    return points;
-  });
-  expect(ink).toHaveLength(2);
-  await page.getByRole("button", { name: "Mesurer", exact: true }).click();
-  await page.mouse.move(ink[0].x + 2, ink[0].y + 2);
-  await expect(page.getByText(/^(Sommet|Segment) accroché$/)).toBeVisible();
+      return points;
+    });
+  let ink: { x: number; y: number }[] = [];
+  await expect
+    .poll(async () => {
+      ink = await findInk();
+      if (ink.length !== 2) return false;
+      await page.mouse.move(ink[0].x + 2, ink[0].y + 2);
+      return page.getByText(/^(Sommet|Segment) accroché$/).isVisible();
+    })
+    .toBe(true);
   await page.mouse.click(ink[0].x + 2, ink[0].y + 2);
   await page.mouse.move(ink[1].x, ink[1].y);
   await expect(page.getByText(/^(Sommet|Segment) accroché$/)).toBeVisible();
