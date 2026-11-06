@@ -21,6 +21,8 @@ export async function generateFloorPlanDrawing(
       meshes,
       createSectionConfig("y", elevation, {
         projectionDepth: floorPlanProjectionDepth,
+        // The printable plan uses the below-cut band only.
+        projectionAboveDepth: 0,
         clipProjectionBands: true,
       }),
       {
@@ -29,7 +31,7 @@ export async function generateFloorPlanDrawing(
         outlineProvider: extractFloorPlanOutline,
       },
     );
-    // The SDK retains dashed overhead lines. Mnemo's printable plan displays visible lines only.
+    // Keep framing and export bounds limited to visible lines.
     drawing.lines = drawing.lines.filter(
       (line) => line.visibility !== "hidden",
     );

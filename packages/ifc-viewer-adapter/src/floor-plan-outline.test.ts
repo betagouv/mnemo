@@ -115,6 +115,52 @@ describe("floor plan footprints", () => {
     expect(drawing.bounds.max.x).toBeLessThanOrEqual(1);
   });
 
+  it("keeps above-cut ramp geometry out of the plan at a non-f32 cut height", async () => {
+    const elevation = 0.325;
+    const ramp = {
+      ...box(),
+      positions: new Float32Array([0, 0, 0, 0, 0, 1, 2, 2, 0]),
+      indices: new Uint32Array([0, 1, 2]),
+      normals: new Float32Array(9),
+    };
+    const frame = { ...box(2), origin: [5, 0, 0] as [number, number, number] };
+    const drawing = await generateFloorPlanDrawing([ramp, frame], elevation);
+    const rampLines = drawing.lines.filter(
+      (line) => line.entityId === ramp.expressId,
+    );
+    expect(rampLines.length).toBeGreaterThan(0);
+    // Along this ramp x = y. Every retained contour must stay at x <= elevation.
+    expect(
+      rampLines.every(
+        ({ line }) =>
+          line.start.x <= elevation + 1e-6 && line.end.x <= elevation + 1e-6,
+      ),
+    ).toBe(true);
+    const xs = rampLines.flatMap(({ line }) => [line.start.x, line.end.x]);
+    expect(Math.max(...xs)).toBeCloseTo(elevation, 6);
+  });
+
+  it("ignores a dense overhead mesh without exhausting its outline budget", async () => {
+    const low = box(1);
+    const indices = new Uint32Array(50_001 * 3);
+    for (let i = 0; i < indices.length; i++) indices[i] = i % 3;
+    const overhead = {
+      ...box(2),
+      positions: new Float32Array([3, 2, 0, 4, 2, 0, 3, 2, 1]),
+      indices,
+      normals: new Float32Array(9),
+    };
+    // This mesh exceeds the WASM budget if the overhead band is calculated.
+    expect(() => extractFloorPlanOutline(overhead, "y", false)).toThrow(
+      /50.*000 triangles projetés/,
+    );
+    const expected = await generateFloorPlanDrawing([low], 1.2);
+    const actual = await generateFloorPlanDrawing([low, overhead], 1.2);
+    expect(actual.lines).toEqual(expected.lines);
+    expect(actual.cutPolygons).toEqual(expected.cutPolygons);
+    expect(actual.bounds).toEqual(expected.bounds);
+  });
+
   it("fails explicitly when IFC-Lite cannot compute a complete outline", async () => {
     const indices = new Uint32Array(50_001 * 3);
     for (let i = 0; i < indices.length; i++) indices[i] = i % 3;
