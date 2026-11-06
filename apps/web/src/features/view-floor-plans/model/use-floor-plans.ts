@@ -1,5 +1,6 @@
 "use client";
 
+import type { FloorPlanViewer } from "./viewer-target";
 import type {
   FloorPlanRule,
   SavedFloorPlan,
@@ -9,11 +10,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   FloorPlanDrawing,
   FloorPlanPresetId,
-  IfcViewerController,
 } from "@mnemo/ifc-viewer-adapter";
 
 export function useFloorPlans(
-  getViewer: () => IfcViewerController | null,
+  getViewer: () => FloorPlanViewer | null,
   projectId: string,
   initialViews: SavedFloorPlan[],
 ) {

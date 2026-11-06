@@ -298,3 +298,11 @@ export const bcfMarkerTopicSchema = z.object({
   targetDistance: z.number().positive(),
 });
 export type BcfMarkerTopic = z.infer<typeof bcfMarkerTopicSchema>;
+
+export const bcfWorkspaceSchema = z.object({
+  topics: z.array(bcfTopicSummarySchema),
+  options: bcfProjectOptionsSchema,
+  members: z.array(
+    z.object({ id: z.uuid(), name: z.string(), email: z.string() }),
+  ),
+});

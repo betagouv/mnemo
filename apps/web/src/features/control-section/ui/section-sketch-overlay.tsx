@@ -1,9 +1,7 @@
 "use client";
 
-import type {
-  IfcSectionSnapshot,
-  IfcViewerController,
-} from "@mnemo/ifc-viewer-adapter";
+import type { SectionViewer } from "../model/viewer-target";
+import type { IfcSectionSnapshot } from "@mnemo/ifc-viewer-adapter";
 import { useEffect, useRef, type RefObject } from "react";
 
 import styles from "./section-sketch-overlay.module.css";
@@ -16,7 +14,7 @@ export function SectionSketchOverlay({
   section,
 }: {
   canvasRef: RefObject<HTMLCanvasElement | null>;
-  getViewer: () => IfcViewerController | null;
+  getViewer: () => SectionViewer | null;
   section: IfcSectionSnapshot;
 }) {
   const sectionRef = useRef(section);

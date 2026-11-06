@@ -1,12 +1,10 @@
 "use client";
 
+import type { SectionViewer } from "../model/viewer-target";
 import Button from "@codegouvfr/react-dsfr/Button";
 import Input from "@codegouvfr/react-dsfr/Input";
 import { SegmentedControl } from "@codegouvfr/react-dsfr/SegmentedControl";
-import type {
-  IfcSectionSnapshot,
-  IfcViewerController,
-} from "@mnemo/ifc-viewer-adapter";
+import type { IfcSectionSnapshot } from "@mnemo/ifc-viewer-adapter";
 import { useEffect, useRef, useState } from "react";
 
 import styles from "./section-panel.module.css";
@@ -33,7 +31,7 @@ function BoxFaceInput({
 }: {
   axis: BoxAxis;
   box: Box;
-  getViewer: () => IfcViewerController | null;
+  getViewer: () => SectionViewer | null;
   label: string;
   side: "min" | "max";
 }) {
@@ -100,7 +98,7 @@ export function SectionPanel({
   onModeChange,
   section,
 }: {
-  getViewer: () => IfcViewerController | null;
+  getViewer: () => SectionViewer | null;
   hasIfcGeometry: boolean;
   hasPointCloud: boolean;
   mode: SectionMode;

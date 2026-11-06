@@ -7,10 +7,8 @@ import { Prisma, type MnemoPrismaDatabase } from "@mnemo/database";
 import { isProjectPermission } from "@mnemo/domain/project";
 
 import { ProjectAccessDeniedError } from "../application/project-access-service";
-import type {
-  ProjectAccessOverview,
-  ProjectAccessRepository,
-} from "../application/project-access-repository";
+import type { ProjectAccessOverview } from "@mnemo/contracts/project-access";
+import type { ProjectAccessRepository } from "../application/project-access-repository";
 import { requireOwner, requireProjectRoles } from "./project-access-guards";
 
 async function replaceGrants(

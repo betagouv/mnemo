@@ -41,8 +41,34 @@ app -> screens -> widgets -> features -> entities -> shared
 - `entities` contains application business concepts.
 - `shared` contains domain-independent primitives.
 - A layer may import only layers to its right in the dependency rule above.
-- Slices expose a public API from `index.ts`; do not deep-import another slice.
+- Slices expose a public API from `index.ts`; do not deep-import another slice. Compose sibling slices in a higher layer, including when importing through public indexes.
+- Client modules access server code through Server Actions. Put public DTOs in `packages/contracts`, keeping repository ports server-side.
+- Architecture checks resolve both aliases and relative imports, follow client dependencies, and verify application-to-infrastructure boundaries.
 - Do not create empty layers or placeholder folders before a real slice needs them.
+
+## Feature ownership and reading order
+
+- Start at the route in `app`, then its `screens` composition and the relevant feature's `index.ts`.
+- Inside a feature, `ui` owns presentation, `model` owns state and calculations, `api` owns browser transport, and `infrastructure` owns single-consumer technical integrations. Create only the segments that are needed.
+
+| Feature under `apps/web/src/features` | Scope                                                                                                                                                                                              |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `view-floor-plans`                    | Storey selection, plan generation, canvas navigation, snapping, measurements, presets, custom rules, saved views and PDF export. PDF code and jsPDF belong in this feature's `infrastructure/pdf`. |
+| `manage-bcf-topics`                   | Topic list/detail/editing, comments, archive exchange, viewpoint uploads and scene markers. `use-bcf-workspace` owns workspace state; `use-bcf-viewer` owns scene integration.                     |
+| `explore-bim-model`                   | Model visibility and BIM trees by class/storey, including expansion to reveal scene selections.                                                                                                    |
+| `configure-point-cloud`               | Point-cloud loading, access renewal, point budgets, visibility, transforms and rendering settings.                                                                                                 |
+| `control-section`                     | Plane/box controls, scene picking, gizmos and their geometry calculations.                                                                                                                         |
+| `interact-with-ifc-assistant`         | Conversation UI, frontend tool schemas and translation of tool calls into viewer commands.                                                                                                         |
+| `manage-project-access`               | Member access, pending invitations, custom roles and permission editors.                                                                                                                           |
+| `manage-project-metadata`             | Project metadata editing.                                                                                                                                                                          |
+| `upload-asset`                        | File selection/drop, direct object-storage transfer and upload completion.                                                                                                                         |
+| `delete-asset`, `delete-project`      | User confirmation and server deletion commands. Durable cleanup belongs to server jobs.                                                                                                            |
+
+- `widgets/ifc-viewer` composes features. `use-project-scene` owns controller setup/disposal and IFC loading; `use-viewer-panels` owns panel navigation and focus. Keep feature-specific state inside its owning feature.
+- `entities/viewer` exposes shared IFC/point-cloud source DTOs. `entities/bcf` exposes BCF presentation helpers and the shared workspace read API.
+- Features consume narrow viewer contracts from their own `model/viewer-target.ts`. Keep renderer/camera/GPU ownership in `packages/ifc-viewer-adapter`; its controller delegates BCF viewpoint operations to `bcf-viewpoints.ts` and plan generation to `floor-plan-generator.ts`.
+- Saved plans persist their source asset, storey, name, style and version in PostgreSQL. Regenerate drawing geometry from the loaded IFC. Honor optimistic version checks on updates and deletion.
+- When moving a responsibility, migrate all callers and remove the old module and exports. Keep a single active implementation; add compatibility behavior only for an explicit product requirement.
 
 ## Frontend styling
 
@@ -56,6 +82,8 @@ app -> screens -> widgets -> features -> entities -> shared
 
 - Route handlers are transport adapters. They must not contain SQL, S3 calls, or substantial business rules.
 - Server flow is `transport -> application use case -> port -> infrastructure adapter`.
+- Each server domain lives under `apps/web/src/server/<domain>`. Keep use cases and ports in `application`, concrete adapters in `infrastructure`, and dependency wiring in domain factories. Application modules must depend on ports rather than concrete infrastructure.
+- BCF archive import/export lives in `server/bcf/application/bcf-archives.ts`; snapshot storage helpers live alongside it. Assistant session orchestration lives in `server/assistant/application/start-assistant-session.ts`, with runtime wiring in `assistant-session-factory.ts`.
 - Validate every external input at runtime with Zod even when TypeScript types are shared.
 - Use Server Components for initial reads and Server Actions for first-party mutations. Keep explicit Route Handlers for browser-driven reads, streaming, archives, authentication callbacks, and byte-range delivery when needed. Do not add a catch-all RPC dispatcher.
 - Server Components call server application services directly; they must not fetch the application's own HTTP API.
@@ -118,6 +146,7 @@ pnpm build
 docker compose --env-file .env.local.example config
 ```
 
+- `pnpm lint` includes `pnpm lint:architecture`. The checker in `scripts/architecture-boundaries.mjs` resolves local imports/re-exports, rejects cross-slice private imports and sibling dependencies, follows client runtime imports, and checks server application/infrastructure boundaries. Its regression tests run through `pnpm test`.
 - Add unit tests for domain rules and viewer commands.
 - Add integration tests for PostgreSQL, MinIO, workers, and destructive cleanup.
 - Add targeted Playwright tests for important user-visible workflows. Use representative real fixtures and observable readiness conditions rather than fixed sleeps. CI runs the full browser suite against a production build.

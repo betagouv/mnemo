@@ -1,3 +1,4 @@
+import type { ProjectPermission, ProjectRole } from "@mnemo/domain/project";
 import { assignableProjectPermissions } from "@mnemo/domain/project";
 import { z } from "zod";
 
@@ -77,3 +78,31 @@ export type IssueProjectInvitationInput = z.infer<
 export type RevokeProjectInvitationInput = z.infer<
   typeof revokeProjectInvitationInputSchema
 >;
+
+export type CustomProjectRole = {
+  id: string;
+  name: string;
+  permissions: ProjectPermission[];
+};
+
+export type ProjectMemberAccess = {
+  userId: string;
+  name: string;
+  email: string;
+  baseRole: ProjectRole;
+  roleIds: string[];
+  permissions: ProjectPermission[];
+};
+
+export type ProjectAccessOverview = {
+  roles: CustomProjectRole[];
+  members: ProjectMemberAccess[];
+  invitations: {
+    id: string;
+    email: string;
+    baseRole: ProjectRole;
+    roleIds: string[];
+    permissions: ProjectPermission[];
+    expiresAt: Date;
+  }[];
+};

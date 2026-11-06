@@ -1,25 +1,9 @@
-import type {
-  IfcBimCatalog,
-  IfcBimQuery,
-  IfcElementSummary,
-  IfcViewerSnapshot,
-  IfcVisualPlan,
-} from "@mnemo/ifc-viewer-adapter";
+import type { IfcBimCatalog, IfcBimQuery } from "@mnemo/ifc-viewer-adapter";
 
+import type { AssistantViewer } from "./viewer-target";
 import type { SceneStyleInput, ViewerFilterInput } from "./viewer-tool-schemas";
 
-type ViewerAssistantTarget = {
-  applyVisualPlan(plan: IfcVisualPlan): void;
-  fitToView(): void;
-  frameSelection(): void;
-  findBimIds(query: IfcBimQuery): number[];
-  getSnapshot(): IfcViewerSnapshot;
-  queryBim(query: IfcBimQuery): IfcElementSummary[];
-  resetVisuals(): void;
-  selectEntity(expressId: number | null): void;
-};
-
-type ViewerTargetGetter = () => ViewerAssistantTarget | null;
+type ViewerTargetGetter = () => AssistantViewer | null;
 
 const ifcClassAliases: Record<string, string> = {
   mur: "IfcWall",

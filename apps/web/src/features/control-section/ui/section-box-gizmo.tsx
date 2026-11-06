@@ -1,9 +1,7 @@
 "use client";
 
-import type {
-  IfcSectionSnapshot,
-  IfcViewerController,
-} from "@mnemo/ifc-viewer-adapter";
+import type { SectionViewer } from "../model/viewer-target";
+import type { IfcSectionSnapshot } from "@mnemo/ifc-viewer-adapter";
 import {
   useEffect,
   useRef,
@@ -41,7 +39,7 @@ export function SectionBoxGizmo({
   getViewer,
 }: {
   box: Box;
-  getViewer: () => IfcViewerController | null;
+  getViewer: () => SectionViewer | null;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [activeFace, setActiveFace] = useState<number | null>(null);

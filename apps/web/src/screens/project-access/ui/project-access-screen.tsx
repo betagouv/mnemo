@@ -7,7 +7,7 @@ import { ProjectAccessDeniedError } from "@/server/project-access/application/pr
 import { getProjectAccessService } from "@/server/project-access/project-access-service-factory";
 import { getProjectService } from "@/server/projects/project-service-factory";
 
-import { ProjectAccessManager } from "./project-access-manager";
+import { ProjectAccessManager } from "@/features/manage-project-access";
 
 export async function ProjectAccessScreen({
   projectId,

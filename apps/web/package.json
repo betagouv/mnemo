@@ -37,6 +37,7 @@
     "ai": "^7.0.96",
     "better-auth": "1.7.10",
     "client-only": "0.0.1",
+    "jspdf": "4.2.1",
     "next": "16.4.3",
     "react": "19.2.8",
     "react-dom": "19.2.8",
