@@ -45,3 +45,15 @@ export type {
   IfcVisualPlan,
   IfcVisualSnapshot,
 } from "./viewer-controller";
+
+export {
+  floorPlanPresets,
+  createFloorPlanStyleResolver,
+  floorPlanHatches,
+  type FloorPlanDrawing,
+  type FloorPlanPresetId,
+  type FloorPlanStyle,
+} from "./floor-plan-drawing";
+export { createFloorPlanPdf } from "./floor-plan-pdf";
+
+export type { FloorPlanPdfInfo } from "./floor-plan-pdf-sheet";

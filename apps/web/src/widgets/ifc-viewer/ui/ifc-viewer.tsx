@@ -1,4 +1,5 @@
 "use client";
+import type { SavedFloorPlan } from "@mnemo/contracts/floor-plans";
 
 import type {
   BcfTopicSummary,
@@ -9,12 +10,16 @@ import type {
   AssistantThreadHistory,
   AssistantThreadSummary,
 } from "@mnemo/contracts/assistant";
-import Alert from "@codegouvfr/react-dsfr/Alert";
+import {
+  FloorPlanView,
+  FloorPlanPanel,
+  useFloorPlans,
+} from "@/features/view-floor-plans";
+import { ViewerPanelContent } from "./viewer-panel-content";
 import { useCallback, useRef, useState } from "react";
 
 import {
   SectionBoxGizmo,
-  SectionPanel,
   SectionPlaneGizmo,
   SectionSketchOverlay,
 } from "@/features/control-section";
@@ -70,6 +75,8 @@ export function ProjectViewer({
   bcfPermissions,
   ifcSources,
   initialBcfTopics,
+  initialFloorPlans,
+  canManageFloorPlans,
   pointCloudFailures,
   pointCloudSources,
   projectId,
@@ -87,6 +94,8 @@ export function ProjectViewer({
   };
   ifcSources: ViewerIfcSource[];
   initialBcfTopics: BcfTopicSummary[];
+  initialFloorPlans: SavedFloorPlan[];
+  canManageFloorPlans: boolean;
   pointCloudFailures: ViewerPointCloudFailure[];
   pointCloudSources: ViewerPointCloudSource[];
   projectId: string;
@@ -108,6 +117,8 @@ export function ProjectViewer({
     reloadPointClouds,
     retry,
   } = useProjectScene({ ifcSources, pointCloudSources, projectId });
+  const floorPlans = useFloorPlans(getViewer, projectId, initialFloorPlans);
+
   const [activePanel, setActivePanel] = useState<ViewerPanelId | null>(null);
   const [activeToolGroup, setActiveToolGroup] =
     useState<ViewerToolGroupId | null>(null);
@@ -145,10 +156,6 @@ export function ProjectViewer({
   );
   const activePanelConfig = activePanel ? viewerPanels[activePanel] : null;
   const activeModifiers = getActiveViewerModifiers(snapshot);
-  const upcomingDescription =
-    activePanelConfig && "upcoming" in activePanelConfig
-      ? activePanelConfig.upcoming
-      : null;
 
   const failedSource = ifcSources.find(
     (source) =>
@@ -238,6 +245,34 @@ export function ProjectViewer({
           className={`${styles.canvas} ${snapshot.section.pickMode ? styles.pickingCanvas : ""}`}
           ref={canvasRef}
         />
+
+        {floorPlans.plan ? (
+          <FloorPlanView
+            key={floorPlans.plan.id}
+            title={floorPlans.plan.title}
+            exportTitle={
+              floorPlans.saved.selected?.name || floorPlans.plan.title
+            }
+            exportContext={{
+              projectName,
+              sourceName:
+                ifcSources.find(
+                  (source) => source.assetId === floorPlans.plan?.assetId,
+                )?.fileName ?? "Maquette IFC",
+              storeyName: floorPlans.plan.title,
+              storeyElevation:
+                snapshot.models
+                  .find((model) => model.assetId === floorPlans.plan?.assetId)
+                  ?.catalog?.storeys.find(
+                    (storey) => storey.expressId === floorPlans.plan?.storeyId,
+                  )?.elevation ?? null,
+            }}
+            drawing={floorPlans.plan.drawing}
+            preset={floorPlans.preset}
+            rules={floorPlans.rules}
+            onClose={floorPlans.close}
+          />
+        ) : null}
 
         <BcfMarkers
           topics={snapshot.phase === "ready" ? markerTopics : []}
@@ -449,36 +484,23 @@ export function ProjectViewer({
             />
           </div>
         ) : null}
-        {activePanel === "assistant" ? (
-          activeIfcSource ? null : (
-            <p className={styles.panelState}>
-              Ajoutez une maquette IFC pour utiliser l’assistant.
-            </p>
-          )
-        ) : activePanel === "cut-plane" || activePanel === "cut-box" ? (
-          <SectionPanel
-            getViewer={getViewer}
-            hasIfcGeometry={snapshot.meshCount > 0}
-            hasPointCloud={snapshot.pointClouds.some(
-              (cloud) => cloud.pointCount > 0,
-            )}
-            mode={activePanel === "cut-box" ? "box" : "plane"}
-            onModeChange={(mode) => {
-              controllerRef.current?.cancelSectionPick();
-              setActivePanel(mode === "box" ? "cut-box" : "cut-plane");
-            }}
-            section={snapshot.section}
-          />
-        ) : upcomingDescription ? (
-          <div className={styles.upcoming}>
-            <Alert
-              description={upcomingDescription}
-              role="status"
-              severity="info"
-              title="Outil en préparation"
+        <ViewerPanelContent
+          panel={activePanel}
+          snapshot={snapshot}
+          getViewer={getViewer}
+          hasActiveIfc={Boolean(activeIfcSource)}
+          onSectionModeChange={(mode) => {
+            controllerRef.current?.cancelSectionPick();
+            setActivePanel(mode === "box" ? "cut-box" : "cut-plane");
+          }}
+          floorPlans={
+            <FloorPlanPanel
+              models={snapshot.models}
+              controller={floorPlans}
+              canManage={canManageFloorPlans}
             />
-          </div>
-        ) : null}
+          }
+        />
       </ViewerSidePanel>
     </main>
   );

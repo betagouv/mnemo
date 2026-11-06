@@ -44,6 +44,7 @@ model assets {
   bcf_topic_components           bcf_topic_components[]
   point_cloud_processing_results point_cloud_processing_results?
   point_cloud_settings           point_cloud_settings?
+  floor_plans                    project_floor_plans[]
   processing_jobs                processing_jobs[]
 
   @@index([project_id])
@@ -287,6 +288,7 @@ model projects {
   project_invitations  project_invitations[]
   project_roles        project_roles[]
   users                users                  @relation(fields: [created_by], references: [id], onUpdate: NoAction, map: "projects_created_by_users_id_fk")
+  floor_plans          project_floor_plans[]
 
   @@index([created_by])
 }
@@ -455,4 +457,21 @@ model bcf_snapshot_uploads {
   users      users    @relation(fields: [actor_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([expires_at])
+}
+
+model project_floor_plans {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project_id  String   @db.Uuid
+  asset_id    String   @db.Uuid
+  name        String   @db.VarChar(160)
+  storey_id   Int
+  storey_name String   @db.VarChar(512)
+  style       Json
+  version     Int      @default(1)
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  project     projects @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  asset       assets   @relation(fields: [asset_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([project_id, updated_at])
 }

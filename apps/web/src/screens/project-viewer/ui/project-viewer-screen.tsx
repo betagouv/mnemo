@@ -1,3 +1,4 @@
+import { getFloorPlanService } from "@/server/floor-plans/floor-plan-service-factory";
 import { projectIdSchema } from "@mnemo/contracts/projects";
 import { hasProjectPermission } from "@mnemo/domain/project";
 import { notFound } from "next/navigation";
@@ -28,8 +29,9 @@ export async function ProjectViewerScreen({
   if (!project) notFound();
 
   const canReadBcf = hasProjectPermission(project, "bcf:read");
-  const [assets, bcfTopics] = await Promise.all([
+  const [assets, floorPlans, bcfTopics] = await Promise.all([
     getAssetService().list(actorId, project.id),
+    getFloorPlanService().list(actorId, project.id),
     canReadBcf
       ? getBcfTopicService().summaries(actorId, project.id)
       : Promise.resolve([]),
@@ -144,6 +146,8 @@ export async function ProjectViewerScreen({
           ifcSources={ifcSources}
           assistantSessions={assistantSessions}
           initialBcfTopics={bcfTopics}
+          initialFloorPlans={floorPlans}
+          canManageFloorPlans={hasProjectPermission(project, "project:update")}
           bcfPermissions={{
             read: canReadBcf,
             createTopic: hasProjectPermission(project, "bcf:topic:create"),
