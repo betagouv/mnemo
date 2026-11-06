@@ -4,51 +4,21 @@ import {
   type PlanSegment,
 } from "./floor-plan-navigation";
 
-type Node = {
-  minX: number;
-  minY: number;
-  maxX: number;
-  maxY: number;
-  segments?: PlanSegment[];
-  left?: Node;
-  right?: Node;
-};
+import { PlanSpatialIndex } from "./floor-plan-spatial-index";
+
 export type PlanSnap = { point: PlanPoint; kind: "vertex" | "edge" };
 
 /** A bounding-volume tree bounds the per-pointer search to nearby geometry. */
 export class PlanSnapIndex {
-  private root: Node | null;
+  private readonly index: PlanSpatialIndex<PlanSegment>;
 
   constructor(segments: PlanSegment[]) {
-    const build = (items: PlanSegment[]): Node => {
-      const node: Node = {
-        minX: Infinity,
-        minY: Infinity,
-        maxX: -Infinity,
-        maxY: -Infinity,
-      };
-      for (const { start, end } of items) {
-        node.minX = Math.min(node.minX, start.x, end.x);
-        node.minY = Math.min(node.minY, start.y, end.y);
-        node.maxX = Math.max(node.maxX, start.x, end.x);
-        node.maxY = Math.max(node.maxY, start.y, end.y);
-      }
-      if (items.length <= 12) node.segments = items;
-      else {
-        const axis = node.maxX - node.minX > node.maxY - node.minY ? "x" : "y";
-        items.sort(
-          (a, b) => a.start[axis] + a.end[axis] - b.start[axis] - b.end[axis],
-        );
-        const middle = Math.floor(items.length / 2);
-        node.left = build(items.slice(0, middle));
-        node.right = build(items.slice(middle));
-      }
-      return node;
-    };
-    const valid = segments.filter(({ start, end }) =>
-      [start.x, start.y, end.x, end.y].every(Number.isFinite),
-    );
-    this.root = valid.length ? build(valid) : null;
+    this.index = new PlanSpatialIndex(segments, ({ start, end }) => ({
+      minX: Math.min(start.x, end.x),
+      minY: Math.min(start.y, end.y),
+      maxX: Math.max(start.x, end.x),
+      maxY: Math.max(start.y, end.y),
+    }));
   }
 
   find(point: PlanPoint, pixelsPerMeter: number): PlanSnap | null {
@@ -58,15 +28,14 @@ export class PlanSnapIndex {
     let edge: PlanPoint | null = null;
     let vertexDistance = radius * 0.7;
     let edgeDistance = radius;
-    const visit = (node: Node) => {
-      if (
-        point.x < node.minX - radius ||
-        point.x > node.maxX + radius ||
-        point.y < node.minY - radius ||
-        point.y > node.maxY + radius
-      )
-        return;
-      for (const segment of node.segments ?? []) {
+    this.index.forEach(
+      {
+        minX: point.x - radius,
+        minY: point.y - radius,
+        maxX: point.x + radius,
+        maxY: point.y + radius,
+      },
+      (segment) => {
         for (const candidate of [segment.start, segment.end]) {
           const distance = planDistance(point, candidate);
           if (distance < vertexDistance) {
@@ -98,11 +67,8 @@ export class PlanSnapIndex {
           edge = candidate;
           edgeDistance = distance;
         }
-      }
-      if (node.left) visit(node.left);
-      if (node.right) visit(node.right);
-    };
-    if (this.root) visit(this.root);
+      },
+    );
     return vertex
       ? { point: vertex, kind: "vertex" }
       : edge

@@ -3,7 +3,7 @@ import {
   applySceneBcfViewpoint,
   computeSceneBcfMarkers,
 } from "./bcf-viewpoints";
-import { generateSceneFloorPlan } from "./floor-plan-generator";
+import { FloorPlanGenerator } from "./floor-plan-generator";
 import {
   FederationRegistry,
   type Renderer,
@@ -98,6 +98,7 @@ function errorMessage(error: unknown) {
 
 export class IfcViewerController {
   private readonly renderer: Renderer;
+  private readonly floorPlans = new FloorPlanGenerator();
   private readonly modelLoader: IfcModelLoader;
   private readonly listeners = new Set<(snapshot: IfcViewerSnapshot) => void>();
   private readonly cameraRotationListeners = new Set<
@@ -387,6 +388,7 @@ export class IfcViewerController {
   }
 
   loadIfc(input: LoadIfcInput) {
+    this.floorPlans.clear();
     return this.modelLoader.load(input);
   }
 
@@ -451,7 +453,7 @@ export class IfcViewerController {
   }
 
   generateFloorPlan(assetId: string, storeyId: number) {
-    return generateSceneFloorPlan(
+    return this.floorPlans.generate(
       {
         disposed: this.disposed,
         models: this.models,
@@ -462,6 +464,10 @@ export class IfcViewerController {
       assetId,
       storeyId,
     );
+  }
+
+  cancelFloorPlan() {
+    this.floorPlans.cancel();
   }
 
   orbitFromViewCube(deltaX: number, deltaY: number) {
@@ -750,6 +756,7 @@ export class IfcViewerController {
     if (this.disposed) return;
 
     this.disposed = true;
+    this.floorPlans.clear();
     this.modelLoader.dispose();
     this.selectionGeneration += 1;
     this.pointCloudLayers.dispose();

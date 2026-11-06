@@ -280,6 +280,9 @@ importers:
       '@ifc-lite/server-client':
         specifier: 4.0.1
         version: 4.0.1(apache-arrow@21.2.0)(parquet-wasm@0.9.0)
+      '@ifc-lite/wasm':
+        specifier: 10.4.0
+        version: 10.4.0
       '@mnemo/contracts':
         specifier: workspace:*
         version: link:../contracts

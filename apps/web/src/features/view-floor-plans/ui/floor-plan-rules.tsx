@@ -5,6 +5,8 @@ import Button from "@codegouvfr/react-dsfr/Button";
 import Checkbox from "@codegouvfr/react-dsfr/Checkbox";
 import Input from "@codegouvfr/react-dsfr/Input";
 import Select from "@codegouvfr/react-dsfr/Select";
+import { useState } from "react";
+import { FloorPlanColors } from "./floor-plan-colors";
 import type { FloorPlanRule } from "@mnemo/contracts/floor-plans";
 
 export function FloorPlanRules({
@@ -16,6 +18,10 @@ export function FloorPlanRules({
   classes: string[];
   onChange: (rules: FloorPlanRule[]) => void;
 }) {
+  const [customColors, setCustomColors] = useState<string[]>([]);
+  function addColor(color: string) {
+    setCustomColors((colors) => [...new Set([...colors, color])]);
+  }
   function update(id: string, patch: Partial<FloorPlanRule>) {
     onChange(
       rules.map((rule) => (rule.id === id ? { ...rule, ...patch } : rule)),
@@ -53,25 +59,15 @@ export function FloorPlanRules({
                 </option>
               ))}
           </Select>
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Remplissage"
-              nativeInputProps={{
-                type: "color",
-                value: rule.fillColor,
-                onChange: (e) => update(rule.id, { fillColor: e.target.value }),
-              }}
-            />
-            <Input
-              label="Contour"
-              nativeInputProps={{
-                type: "color",
-                value: rule.strokeColor,
-                onChange: (e) =>
-                  update(rule.id, { strokeColor: e.target.value }),
-              }}
-            />
-          </div>
+          <FloorPlanColors
+            values={{
+              fillColor: rule.fillColor,
+              strokeColor: rule.strokeColor,
+            }}
+            customColors={customColors}
+            onAddColor={addColor}
+            onChange={(patch) => update(rule.id, patch)}
+          />
           <Select
             label="Épaisseur du trait"
             nativeSelectProps={{
