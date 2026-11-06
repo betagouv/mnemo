@@ -21,6 +21,7 @@
     "@ifc-lite/query": "2.5.2",
     "@ifc-lite/renderer": "6.4.0",
     "@ifc-lite/server-client": "4.0.1",
+    "@ifc-lite/wasm": "10.4.0",
     "@mnemo/contracts": "workspace:*",
     "@mnemo/point-cloud-viewer-adapter": "workspace:*",
     "apache-arrow": "21.2.0",

@@ -6,3 +6,40 @@
   width: 100%;
   justify-content: center;
 }
+
+.loading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--background-alt-blue-france);
+  border-inline-start: 2px solid var(--border-action-high-blue-france);
+}
+
+.loadingStatus {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-action-high-blue-france);
+  font-size: 0.875rem;
+}
+
+.spinner {
+  display: inline-flex;
+  flex: none;
+  animation: spin 1.2s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}

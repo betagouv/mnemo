@@ -20,9 +20,10 @@ import { type PlanSnap } from "./floor-plan-snap";
 import {
   prepareFloorPlan,
   styleFloorPlan,
-  drawFloorPlan,
   drawPlanMarks,
 } from "./floor-plan-renderer";
+
+import { FloorPlanRaster } from "./floor-plan-raster";
 
 type Measurement = PlanSegment;
 type Commands = {
@@ -45,6 +46,7 @@ export function useFloorPlanCanvas(
   const statusRef = useRef<HTMLSpanElement>(null);
   const commands = useRef<Commands | null>(null);
   const modeRef = useRef(measuring);
+  const styledDrawing = useRef<FloorPlanDrawing | null>(null);
   const [count, setCount] = useState(0);
 
   useEffect(() => {
@@ -57,7 +59,13 @@ export function useFloorPlanCanvas(
 
     const geometry = prepareFloorPlan(drawing);
     const snapping = geometry.snapping;
-    let styledPaths = styleFloorPlan(geometry, drawing, "default");
+    const raster = new FloorPlanRaster(
+      ctx,
+      drawing.bounds,
+      styleFloorPlan(geometry, drawing, "default"),
+    );
+    let settleTimer: ReturnType<typeof setTimeout> | undefined;
+    let navigating = false;
     let view: PlanTransform = { x: 0, y: 0, scale: 1 };
     let width = 0,
       height = 0,
@@ -98,7 +106,7 @@ export function useFloorPlanCanvas(
     function render() {
       frame = 0;
       if (geometryDirty) {
-        drawFloorPlan(ctx!, styledPaths, view, width, height, dpr);
+        raster.draw(view, navigating);
         geometryDirty = false;
       }
       resolvePointer();
@@ -131,9 +139,22 @@ export function useFloorPlanCanvas(
       geometryDirty ||= base;
       if (!frame) frame = requestAnimationFrame(render);
     }
+    function settle() {
+      clearTimeout(settleTimer);
+      settleTimer = undefined;
+      navigating = false;
+      schedule(true);
+    }
+    function navigate() {
+      navigating = true;
+      clearTimeout(settleTimer);
+      // A held pan stays in preview until release. Wheel bursts settle after a pause.
+      if (!down?.pan) settleTimer = setTimeout(settle, 120);
+      schedule(true);
+    }
     function fit() {
       view = fitPlan(drawing.bounds, width, height);
-      schedule(true);
+      settle();
     }
     function cancel() {
       start = null;
@@ -143,8 +164,8 @@ export function useFloorPlanCanvas(
     }
     commands.current = {
       style: (preset, rules) => {
-        styledPaths = styleFloorPlan(geometry, drawing, preset, rules);
-        schedule(true);
+        raster.style(styleFloorPlan(geometry, drawing, preset, rules));
+        settle();
       },
       fit,
       cancel,
@@ -185,7 +206,7 @@ export function useFloorPlanCanvas(
       );
       // zoomPlan's factor increases pixels per metre, anchoring the pointer.
       view = zoomPlan(view, hover!, factor);
-      schedule(true);
+      navigate();
     }
     function pointerDown(event: PointerEvent) {
       if (event.button !== 0 && event.button !== 1) return;
@@ -202,6 +223,7 @@ export function useFloorPlanCanvas(
         view: { ...view },
         hadStart: Boolean(start),
       };
+      if (pan) clearTimeout(settleTimer);
       container!.setPointerCapture(event.pointerId);
       if (!pan) {
         resolvePointer();
@@ -217,7 +239,7 @@ export function useFloorPlanCanvas(
           x: down.view.x + event.clientX - down.x,
           y: down.view.y + event.clientY - down.y,
         };
-        schedule(true);
+        navigate();
       } else schedule();
     }
     function pointerUp(event: PointerEvent) {
@@ -241,14 +263,17 @@ export function useFloorPlanCanvas(
         }
       }
       down = null;
+      if (completed.pan) settle();
       container!.releasePointerCapture(event.pointerId);
       schedule();
     }
     function cancelPointer() {
+      settle();
       down = null;
       cancel();
     }
     function lostCapture() {
+      if (down?.pan) settle();
       down = null;
       schedule();
     }
@@ -291,6 +316,7 @@ export function useFloorPlanCanvas(
       }
     }
     function blur() {
+      settle();
       space = false;
       down = null;
       cancel();
@@ -311,8 +337,9 @@ export function useFloorPlanCanvas(
         target.width = Math.round(width * dpr);
         target.height = Math.round(height * dpr);
       }
+      raster.resize(width, height, dpr);
       if (first) fit();
-      else schedule(true);
+      else settle();
     });
     observer.observe(container);
     container.addEventListener("wheel", wheel, { passive: false });
@@ -328,8 +355,11 @@ export function useFloorPlanCanvas(
     container.addEventListener("dblclick", doubleClick);
     return () => {
       if (frame) cancelAnimationFrame(frame);
+      clearTimeout(settleTimer);
+      raster.clear();
       observer.disconnect();
       commands.current = null;
+      styledDrawing.current = null;
       container.removeEventListener("wheel", wheel);
       container.removeEventListener("pointerdown", pointerDown);
       container.removeEventListener("pointermove", pointerMove);
@@ -345,8 +375,18 @@ export function useFloorPlanCanvas(
   }, [drawing]);
 
   useEffect(() => {
-    commands.current?.style(preset, rules);
-  }, [preset, rules]);
+    if (styledDrawing.current !== drawing) {
+      styledDrawing.current = drawing;
+      commands.current?.style(preset, rules);
+      return;
+    }
+    // Keep editing responsive. Saving and exporting still use the latest rules.
+    const timer = setTimeout(
+      () => commands.current?.style(preset, rules),
+      1000,
+    );
+    return () => clearTimeout(timer);
+  }, [drawing, preset, rules]);
 
   useEffect(() => {
     modeRef.current = measuring;

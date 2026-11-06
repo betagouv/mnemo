@@ -1,6 +1,7 @@
 "use client";
 
 import Accordion from "@codegouvfr/react-dsfr/Accordion";
+import Button from "@codegouvfr/react-dsfr/Button";
 import Alert from "@codegouvfr/react-dsfr/Alert";
 import Select from "@codegouvfr/react-dsfr/Select";
 import type { IfcViewerSnapshot } from "@mnemo/ifc-viewer-adapter";
@@ -64,7 +65,6 @@ export function FloorPlanPanel({
           nativeSelectProps={{
             "aria-label": "Niveau",
             value: selection,
-            disabled: pending,
             onChange: (event) => selectLevel(event.target.value),
           }}
         >
@@ -86,6 +86,29 @@ export function FloorPlanPanel({
             </optgroup>
           ))}
         </Select>
+        {pending ? (
+          <div className={styles.loading}>
+            <div className={styles.loadingStatus} role="status">
+              <span
+                className={`fr-icon-refresh-line ${styles.spinner}`}
+                aria-hidden="true"
+              />
+              <span>Préparation du plan…</span>
+            </div>
+            <Button
+              size="small"
+              priority="tertiary no outline"
+              iconId="fr-icon-close-line"
+              title="Annuler la génération du plan"
+              onClick={controller.cancel}
+            >
+              Annuler
+            </Button>
+          </div>
+        ) : null}
+        {error ? (
+          <Alert severity="error" title="Plan non généré" description={error} />
+        ) : null}
         <FloorPlanStyleSelect value={preset} onChange={onPresetChange} />
         <Accordion label={`Règles personnalisées (${controller.rules.length})`}>
           <FloorPlanRules
@@ -94,14 +117,6 @@ export function FloorPlanPanel({
             onChange={controller.setRules}
           />
         </Accordion>
-        {pending ? (
-          <p className="mb-0 mt-4 text-sm" role="status">
-            Génération du plan…
-          </p>
-        ) : null}
-        {error ? (
-          <Alert className="mt-4" small severity="error" description={error} />
-        ) : null}
       </div>
       {canManage && controller.plan ? (
         <FloorPlanSaveActions

@@ -24,6 +24,14 @@ test.use({
 test("navigates and snaps measurements on a real storey plan", async ({
   page,
 }) => {
+  const browserErrors: string[] = [];
+  page.on("pageerror", (error) =>
+    browserErrors.push(error.stack ?? error.message),
+  );
+  let workerCount = 0;
+  page.on("worker", () => {
+    workerCount++;
+  });
   test.setTimeout(180_000);
   page.setDefaultTimeout(15_000);
   await gotoHydrated(page, "/projets");
@@ -63,6 +71,82 @@ test("navigates and snaps measurements on a real storey plan", async ({
   const canvas = page.getByLabel("Dessin du niveau Ground Floor", {
     exact: true,
   });
+  await expect
+    .poll(() =>
+      canvas.evaluate(
+        (element) =>
+          (element as HTMLCanvasElement)
+            .getContext("2d")!
+            .getImageData(0, 0, 1, 1).data[3],
+      ),
+    )
+    .toBe(255);
+  // Scope runtime-error assertions to plan navigation, after project setup.
+  browserErrors.length = 0;
+  // Count actual vector strokes, excluding the independent measurement overlay.
+  await page.evaluate(() => {
+    const state = { strokes: 0 };
+    (
+      window as typeof window & { planRasterTest: typeof state }
+    ).planRasterTest = state;
+    const stroke = CanvasRenderingContext2D.prototype.stroke;
+    CanvasRenderingContext2D.prototype.stroke = function (path?: Path2D) {
+      if (path) {
+        state.strokes++;
+        stroke.call(this, path);
+      } else Reflect.apply(stroke, this, []);
+    };
+  });
+  const vectorStrokes = () =>
+    page.evaluate(
+      () =>
+        (window as typeof window & { planRasterTest: { strokes: number } })
+          .planRasterTest.strokes,
+    );
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error("Missing plan canvas bounds");
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(
+    box.x + box.width / 2 + 80,
+    box.y + box.height / 2 + 40,
+    { steps: 8 },
+  );
+  expect(await vectorStrokes()).toBe(0);
+  await page.mouse.up();
+  await expect.poll(vectorStrokes).toBeGreaterThan(0);
+  const wheelPreview = await canvas.evaluate(async (element) => {
+    const state = (
+      window as typeof window & { planRasterTest: { strokes: number } }
+    ).planRasterTest;
+    const before = state.strokes;
+    const rect = element.getBoundingClientRect();
+    element.dispatchEvent(
+      new WheelEvent("wheel", {
+        bubbles: true,
+        cancelable: true,
+        deltaY: -120,
+        clientX: rect.x + rect.width / 2,
+        clientY: rect.y + rect.height / 2,
+      }),
+    );
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+    );
+    return { before, after: state.strokes };
+  });
+  expect(wheelPreview.after).toBe(wheelPreview.before);
+  await expect.poll(vectorStrokes).toBeGreaterThan(wheelPreview.after);
+  // A second settled zoom must reuse a live detail buffer.
+  const beforeSecondZoom = await vectorStrokes();
+  await page.mouse.wheel(0, -120);
+  await expect.poll(vectorStrokes).toBeGreaterThan(beforeSecondZoom);
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => requestAnimationFrame(() => resolve())),
+  );
+  expect(browserErrors).toEqual([]);
+  await plan.dblclick();
   await page.getByRole("button", { name: "Mesurer", exact: true }).click();
   // Measurement help can resize the canvas. Read targets from the active layout.
   const findInk = () =>
@@ -155,11 +239,73 @@ test("navigates and snaps measurements on a real storey plan", async ({
     .click();
   await settings
     .getByLabel("Nom de la règle", { exact: true })
-    .fill("Murs rouges");
+    .fill("Murs terre cuite");
   await settings
     .getByLabel("Classe IFC", { exact: true })
     .selectOption("IfcWall");
-  await settings.getByLabel("Remplissage", { exact: true }).fill("#ff0000");
+  const fillPalette = settings.getByRole("group", {
+    name: "Couleurs du plan",
+    exact: true,
+  });
+  const fillTrigger = fillPalette.getByRole("button", {
+    name: /^Remplissage,/,
+  });
+  await fillTrigger.click();
+  const strokesBeforeColors = await vectorStrokes();
+  for (const color of ["#7b9eac", "#7d9b87", "#b87560"]) {
+    await fillPalette
+      .getByRole("button", { name: `Choisir ${color}`, exact: true })
+      .click();
+    if (color !== "#b87560") await fillTrigger.click();
+  }
+  expect(await vectorStrokes()).toBe(strokesBeforeColors);
+  await expect.poll(vectorStrokes).toBeGreaterThan(strokesBeforeColors);
+  const contourPalette = settings.getByRole("group", {
+    name: "Couleurs du plan",
+    exact: true,
+  });
+  await contourPalette.getByRole("button", { name: /^Contour,/ }).click();
+  await contourPalette.screenshot({ path: "/tmp/mnemo-palette-compact.png" });
+  await contourPalette
+    .getByRole("button", { name: "Autre couleur", exact: true })
+    .click();
+  const strokesBeforeDraft = await vectorStrokes();
+  await contourPalette
+    .getByLabel("Nouvelle couleur pour contour", { exact: true })
+    .fill("#123456");
+  await contourPalette
+    .getByRole("textbox", { name: /^Code hexadécimal/ })
+    .fill("#345678");
+  expect(await vectorStrokes()).toBe(strokesBeforeDraft);
+  const colorLayout = await contourPalette.evaluate((element) => ({
+    height: element.getBoundingClientRect().height,
+    width: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+  }));
+  expect(colorLayout.height).toBeLessThan(180);
+  expect(colorLayout.scrollWidth).toBeLessThanOrEqual(colorLayout.width);
+  await contourPalette.screenshot({ path: "/tmp/mnemo-palette-light.png" });
+  await page.evaluate(() =>
+    document.documentElement.setAttribute("data-fr-theme", "dark"),
+  );
+  await contourPalette.screenshot({ path: "/tmp/mnemo-palette-dark.png" });
+  await page.evaluate(() =>
+    document.documentElement.setAttribute("data-fr-theme", "light"),
+  );
+  await contourPalette
+    .getByRole("button", { name: "Ajouter", exact: true })
+    .click();
+  await expect(
+    contourPalette.getByRole("button", {
+      name: "Contour, #345678",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await fillTrigger.click();
+  await expect(
+    fillPalette.getByRole("button", { name: "Choisir #345678", exact: true }),
+  ).toBeVisible();
+  await fillTrigger.press("Escape");
   await settings
     .getByLabel("Épaisseur du trait", { exact: true })
     .selectOption("0.7");
@@ -176,7 +322,7 @@ test("navigates and snaps measurements on a real storey plan", async ({
   ).toHaveValue("Ground Floor");
   await saveDialog
     .getByLabel("Nom de la vue", { exact: true })
-    .fill("RDC rouge");
+    .fill("RDC terre cuite");
   await saveDialog
     .getByRole("button", { name: "Enregistrer", exact: true })
     .click();
@@ -201,17 +347,17 @@ test("navigates and snaps measurements on a real storey plan", async ({
   await page.getByRole("button", { name: "Vues en plan", exact: true }).click();
   await settings
     .getByRole("combobox", { name: "Vue enregistrée", exact: true })
-    .selectOption({ label: "RDC rouge" });
+    .selectOption({ label: "RDC terre cuite" });
   await expect(plan).toBeVisible({ timeout: 60_000 });
   await settings
     .getByRole("button", { name: "Règles personnalisées (1)", exact: true })
     .click();
   await settings
-    .getByRole("button", { name: "Murs rouges", exact: true })
+    .getByRole("button", { name: "Murs terre cuite", exact: true })
     .click();
-  await expect(settings.getByLabel("Remplissage", { exact: true })).toHaveValue(
-    "#ff0000",
-  );
+  await expect(
+    settings.getByRole("button", { name: "Remplissage, #b87560", exact: true }),
+  ).toBeVisible();
   await expect(
     settings.getByLabel("Épaisseur du trait", { exact: true }),
   ).toHaveValue("0.7");
@@ -248,11 +394,15 @@ test("navigates and snaps measurements on a real storey plan", async ({
   await page.evaluate(() =>
     document.documentElement.setAttribute("data-fr-theme", "light"),
   );
+  const sceneCanvas = await page
+    .locator('canvas[aria-label^="Vue 3D"]')
+    .elementHandle();
   const savedViewSelect = settings.getByRole("combobox", {
     name: "Vue enregistrée",
     exact: true,
   });
   const savedId = await savedViewSelect.inputValue();
+  const beforeNewLevel = workerCount;
   await settings
     .getByLabel("Niveau", { exact: true })
     .selectOption({ label: "Roof" });
@@ -262,6 +412,7 @@ test("navigates and snaps measurements on a real storey plan", async ({
       exact: true,
     }),
   ).toBeVisible({ timeout: 60_000 });
+  expect(workerCount).toBe(beforeNewLevel + 1);
   await expect(savedViewSelect).toHaveValue(savedId);
   await expect(
     settings
@@ -272,6 +423,7 @@ test("navigates and snaps measurements on a real storey plan", async ({
     .getByLabel("Niveau", { exact: true })
     .selectOption({ label: "Ground Floor" });
   await expect(plan).toBeVisible({ timeout: 60_000 });
+  expect(workerCount).toBe(beforeNewLevel + 1);
   await expect(
     settings.getByRole("status").filter({ hasText: "Vue à jour" }),
   ).toBeVisible();
@@ -286,4 +438,57 @@ test("navigates and snaps measurements on a real storey plan", async ({
     .getByRole("button", { name: "Retour à la 3D", exact: true })
     .click();
   await expect(plan).toHaveCount(0);
+  expect(await sceneCanvas!.evaluate((element) => element.isConnected)).toBe(
+    true,
+  );
+  // Exercise the worker-error path with a fresh controller and no drawing cache.
+  await page.addInitScript(() => {
+    const postMessage = Worker.prototype.postMessage;
+    Worker.prototype.postMessage = function (
+      message: unknown,
+      ...args: unknown[]
+    ) {
+      if (
+        message &&
+        typeof message === "object" &&
+        "meshes" in message &&
+        "elevation" in message
+      ) {
+        queueMicrotask(() =>
+          this.dispatchEvent(
+            new MessageEvent("message", {
+              data: {
+                error:
+                  "Le maillage IFC #123 dépasse la limite de 50 000 triangles projetés par maillage d'IFC-Lite. La génération du plan a été interrompue pour éviter un résultat incomplet.",
+              },
+            }),
+          ),
+        );
+      } else Reflect.apply(postMessage, this, [message, ...args]);
+    };
+  });
+  await gotoHydrated(page, `${href}/viewer`);
+  await expect(
+    page.locator('[role="status"]').filter({ hasText: "entités IFC" }),
+  ).toBeVisible({ timeout: 120_000 });
+  await page
+    .getByRole("button", { name: "Autres outils", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Vues en plan", exact: true }).click();
+  await settings
+    .getByLabel("Niveau", { exact: true })
+    .selectOption({ label: "Ground Floor" });
+  await expect(
+    settings.getByRole("heading", { name: "Plan non généré", exact: true }),
+  ).toBeVisible();
+  await expect(
+    settings.getByText(/Niveau « Ground Floor ».*IFC #123.*50 000/),
+  ).toBeVisible();
+  await expect(plan).toHaveCount(0);
+  await expect(
+    settings.getByRole("button", {
+      name: "Enregistrer cette vue",
+      exact: true,
+    }),
+  ).toHaveCount(0);
 });

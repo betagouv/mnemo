@@ -34,8 +34,9 @@ export function useFloorPlans(
   useEffect(
     () => () => {
       requestId.current++;
+      getViewer()?.cancelFloorPlan();
     },
-    [],
+    [getViewer],
   );
 
   async function open(
@@ -64,17 +65,22 @@ export function useFloorPlans(
       if (request === requestId.current) {
         setSelection(plan ? `${plan.assetId}/${plan.storeyId}` : "");
         setError(
-          error instanceof Error
-            ? error.message
-            : "Impossible de générer ce plan.",
+          `Niveau « ${title} » — ${error instanceof Error ? error.message : "Impossible de générer ce plan."}`,
         );
       }
     } finally {
       if (request === requestId.current) setPending(false);
     }
   }
-  function close() {
+  function cancel() {
     requestId.current++;
+    getViewer()?.cancelFloorPlan();
+    setSelection(plan ? `${plan.assetId}/${plan.storeyId}` : "");
+    setPending(false);
+    setError(null);
+  }
+  function close() {
+    cancel();
     setPlan(null);
     saved.select();
     setSelection("");
@@ -102,6 +108,7 @@ export function useFloorPlans(
     error,
     open,
     close,
+    cancel,
     selection,
     preset,
     setPreset,

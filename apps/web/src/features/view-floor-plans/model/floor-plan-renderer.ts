@@ -12,20 +12,45 @@ import {
   type PlanSegment,
   type PlanTransform,
 } from "./floor-plan-navigation";
+import { PlanSpatialIndex, type PlanBounds } from "./floor-plan-spatial-index";
 import { PlanSnapIndex, type PlanSnap } from "./floor-plan-snap";
 
 type Polygon = FloorPlanDrawing["cutPolygons"][number];
-type Geometry = ReturnType<typeof prepareFloorPlan>;
+type Geometry = {
+  polygons: { path: Path2D; source: Polygon; bounds: PlanBounds }[];
+  lines: FloorPlanDrawing["lines"];
+  snapping: PlanSnapIndex;
+};
+const preparedPlans = new WeakMap<FloorPlanDrawing, Geometry>();
 type StyledPath = {
+  bounds: PlanBounds;
   path: Path2D;
   style: FloorPlanStyle;
   fill?: boolean;
   hatch?: Path2D;
 };
 
-export function prepareFloorPlan(drawing: FloorPlanDrawing) {
+function pointBounds(points: readonly PlanPoint[]): PlanBounds {
+  const bounds = {
+    minX: Infinity,
+    minY: Infinity,
+    maxX: -Infinity,
+    maxY: -Infinity,
+  };
+  for (const point of points) {
+    bounds.minX = Math.min(bounds.minX, point.x);
+    bounds.minY = Math.min(bounds.minY, point.y);
+    bounds.maxX = Math.max(bounds.maxX, point.x);
+    bounds.maxY = Math.max(bounds.maxY, point.y);
+  }
+  return bounds;
+}
+
+export function prepareFloorPlan(drawing: FloorPlanDrawing): Geometry {
+  const cached = preparedPlans.get(drawing);
+  if (cached) return cached;
   const segments: PlanSegment[] = [];
-  const polygons: { path: Path2D; source: Polygon }[] = [];
+  const polygons: { path: Path2D; source: Polygon; bounds: PlanBounds }[] = [];
   for (const source of drawing.cutPolygons) {
     const path = new Path2D();
     for (const ring of [source.polygon.outer, ...source.polygon.holes]) {
@@ -36,11 +61,13 @@ export function prepareFloorPlan(drawing: FloorPlanDrawing) {
       for (let i = 0; i < ring.length; i++)
         segments.push({ start: ring[i], end: ring[(i + 1) % ring.length] });
     }
-    polygons.push({ path, source });
+    polygons.push({ path, source, bounds: pointBounds(source.polygon.outer) });
   }
   const lines = drawing.lines.filter((item) => item.visibility !== "hidden");
   for (const item of lines) segments.push(item.line);
-  return { polygons, lines, snapping: new PlanSnapIndex(segments) };
+  const geometry = { polygons, lines, snapping: new PlanSnapIndex(segments) };
+  preparedPlans.set(drawing, geometry);
+  return geometry;
 }
 
 /** Resolve styles and hatch paths on preset changes, outside navigation frames. */
@@ -51,35 +78,61 @@ export function styleFloorPlan(
   rules: readonly FloorPlanRule[] = [],
 ) {
   const resolve = createFloorPlanStyleResolver(drawing, preset, rules);
-  const paths: StyledPath[] = geometry.polygons.map(({ path, source }) => {
-    const style = resolve(source);
-    const hatch = new Path2D();
-    if (style.visible)
-      for (const { line } of floorPlanHatches(source, style)) {
-        hatch.moveTo(line.start.x, line.start.y);
-        hatch.lineTo(line.end.x, line.end.y);
-      }
-    return { path, style, hatch, fill: true };
-  });
+  const paths: StyledPath[] = geometry.polygons.map(
+    ({ path, source, bounds }) => {
+      const style = resolve(source);
+      const hatch = new Path2D();
+      if (style.visible)
+        for (const { line } of floorPlanHatches(source, style)) {
+          hatch.moveTo(line.start.x, line.start.y);
+          hatch.lineTo(line.end.x, line.end.y);
+        }
+      return { path, style, hatch, fill: true, bounds };
+    },
+  );
   const groups = new Map<string, StyledPath>();
+  const tileSize = Math.max(
+    1,
+    Math.max(
+      drawing.bounds.max.x - drawing.bounds.min.x,
+      drawing.bounds.max.y - drawing.bounds.min.y,
+    ) / 32,
+  );
   for (const source of geometry.lines) {
     const style = resolve(source, source.category === "cut" ? 0.4 : 0.2);
-    const key = JSON.stringify(style);
+    const { start, end } = source.line;
+    const tileX = Math.floor((start.x + end.x) / 2 / tileSize);
+    const tileY = Math.floor((start.y + end.y) / 2 / tileSize);
+    const key = `${tileX}/${tileY}/${JSON.stringify(style)}`;
     let group = groups.get(key);
     if (!group) {
-      group = { path: new Path2D(), style };
+      group = { path: new Path2D(), style, bounds: pointBounds([start, end]) };
       groups.set(key, group);
     }
+    group.bounds.minX = Math.min(group.bounds.minX, start.x, end.x);
+    group.bounds.minY = Math.min(group.bounds.minY, start.y, end.y);
+    group.bounds.maxX = Math.max(group.bounds.maxX, start.x, end.x);
+    group.bounds.maxY = Math.max(group.bounds.maxY, start.y, end.y);
     group.path.moveTo(source.line.start.x, source.line.start.y);
     group.path.lineTo(source.line.end.x, source.line.end.y);
   }
   paths.push(...groups.values());
-  return paths.sort((a, b) => a.style.drawOrder - b.style.drawOrder);
+  paths.sort((a, b) => a.style.drawOrder - b.style.drawOrder);
+  const ordered = paths.map((path, order) => ({ ...path, order }));
+  return {
+    paths: ordered,
+    index: new PlanSpatialIndex(ordered, (path) => path.bounds),
+    maxStroke: paths.reduce(
+      (max, { style }) =>
+        Math.max(max, style.lineWeight * 4, style.hatchLineWeight * 4),
+      1,
+    ),
+  };
 }
 
 export function drawFloorPlan(
   ctx: CanvasRenderingContext2D,
-  paths: StyledPath[],
+  drawing: ReturnType<typeof styleFloorPlan>,
   view: PlanTransform,
   width: number,
   height: number,
@@ -91,7 +144,20 @@ export function drawFloorPlan(
   ctx.fillRect(0, 0, width, height);
   ctx.translate(view.x, view.y);
   ctx.scale(view.scale, view.scale);
-  for (const { path, style, fill, hatch } of paths) {
+  // Include stroke joins outside the viewport before culling whole paths.
+  const margin = (drawing.maxStroke * 5) / view.scale;
+  const visible: typeof drawing.paths = [];
+  drawing.index.forEach(
+    {
+      minX: -view.x / view.scale - margin,
+      minY: -view.y / view.scale - margin,
+      maxX: (width - view.x) / view.scale + margin,
+      maxY: (height - view.y) / view.scale + margin,
+    },
+    (path) => visible.push(path),
+  );
+  visible.sort((a, b) => a.order - b.order);
+  for (const { path, style, fill, hatch } of visible) {
     if (!style.visible) continue;
     ctx.globalAlpha = style.opacity;
     ctx.strokeStyle = style.strokeColor;
