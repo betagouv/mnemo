@@ -5,6 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
+  '@ifc-lite/wasm': https://github.com/boehm-e/ifc-lite/releases/download/wasm-v10.4.0-mnemo.1/ifc-lite-wasm-10.4.0-mnemo.1.tgz
   '@typescript-eslint/typescript-estree>minimatch': 11.0.1
   esbuild: 0.28.2
   source-map-js: 1.2.2
@@ -281,8 +282,8 @@ importers:
         specifier: 4.0.1
         version: 4.0.1(apache-arrow@21.2.0)(parquet-wasm@0.9.0)
       '@ifc-lite/wasm':
-        specifier: 10.4.0
-        version: 10.4.0
+        specifier: https://github.com/boehm-e/ifc-lite/releases/download/wasm-v10.4.0-mnemo.1/ifc-lite-wasm-10.4.0-mnemo.1.tgz
+        version: https://github.com/boehm-e/ifc-lite/releases/download/wasm-v10.4.0-mnemo.1/ifc-lite-wasm-10.4.0-mnemo.1.tgz
       '@mnemo/contracts':
         specifier: workspace:*
         version: link:../contracts
@@ -1013,8 +1014,9 @@ packages:
   '@ifc-lite/wasm-lifecycle@0.2.0':
     resolution: {integrity: sha512-PEmr5+DfXMnjZLzeupQtiW2b7RcxjmpgLvE73lqnzeq+DUQg9dOrfkyatOQOoLW+1r3gMD3CaOFJBIB7N6L5Kg==}
 
-  '@ifc-lite/wasm@10.4.0':
-    resolution: {integrity: sha512-T9PvWsL/25wM2ZNcThvIjzHxnTPe1eqEcrcY4/B0r+pqKAIja0MoRl8TppF0rptpoZlzBHKYIQWGjOiiHITh7A==}
+  '@ifc-lite/wasm@https://github.com/boehm-e/ifc-lite/releases/download/wasm-v10.4.0-mnemo.1/ifc-lite-wasm-10.4.0-mnemo.1.tgz':
+    resolution: {integrity: sha512-zm/f+FXIgHNgCawcejADzb9xdITjWPc3AfOeDCwiK1Rxrrf3XEbvDoRp+rv9XOosxqbr2nIPPGScW/rJbHCHlw==, tarball: https://github.com/boehm-e/ifc-lite/releases/download/wasm-v10.4.0-mnemo.1/ifc-lite-wasm-10.4.0-mnemo.1.tgz}
+    version: 10.4.0-mnemo.1
 
   '@img/colour@1.1.0':
     resolution: {integrity: sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ==}
@@ -6340,7 +6342,7 @@ snapshots:
     dependencies:
       '@ifc-lite/data': 6.2.0
       '@ifc-lite/load-trace': 0.3.0
-      '@ifc-lite/wasm': 10.4.0
+      '@ifc-lite/wasm': https://github.com/boehm-e/ifc-lite/releases/download/wasm-v10.4.0-mnemo.1/ifc-lite-wasm-10.4.0-mnemo.1.tgz
       '@ifc-lite/wasm-lifecycle': 0.2.0
     optionalDependencies:
       '@tauri-apps/api': 2.12.4
@@ -6366,7 +6368,7 @@ snapshots:
       '@ifc-lite/encoding': 2.3.0
       '@ifc-lite/ifcx': 4.4.0
       '@ifc-lite/load-trace': 0.3.0
-      '@ifc-lite/wasm': 10.4.0
+      '@ifc-lite/wasm': https://github.com/boehm-e/ifc-lite/releases/download/wasm-v10.4.0-mnemo.1/ifc-lite-wasm-10.4.0-mnemo.1.tgz
       '@ifc-lite/wasm-lifecycle': 0.2.0
       decimal.js: 10.6.0
       fflate: 0.8.3
@@ -6403,7 +6405,7 @@ snapshots:
 
   '@ifc-lite/wasm-lifecycle@0.2.0': {}
 
-  '@ifc-lite/wasm@10.4.0': {}
+  '@ifc-lite/wasm@https://github.com/boehm-e/ifc-lite/releases/download/wasm-v10.4.0-mnemo.1/ifc-lite-wasm-10.4.0-mnemo.1.tgz': {}
 
   '@img/colour@1.1.0':
     optional: true

@@ -6,14 +6,21 @@ import {
   Drawing2DGenerator,
   type Drawing2D,
 } from "@ifc-lite/drawing-2d";
-import { extractFloorPlanOutline } from "./floor-plan-outline";
-import { floorPlanProjectionDepth } from "./floor-plan-meshes";
+import {
+  assertFiniteFloorPlanMesh,
+  extractFloorPlanOutline,
+} from "./floor-plan-outline";
+import {
+  floorPlanProjectionAboveDepth,
+  floorPlanProjectionDepth,
+} from "./floor-plan-meshes";
 
 /** IFC-Lite owns section cuts, projection clipping, visibility and line merging. */
 export async function generateFloorPlanDrawing(
   meshes: MeshData[],
   elevation: number,
 ): Promise<Drawing2D> {
+  for (const mesh of meshes) assertFiniteFloorPlanMesh(mesh);
   const generator = new Drawing2DGenerator();
   try {
     await generator.initialize();
@@ -21,6 +28,8 @@ export async function generateFloorPlanDrawing(
       meshes,
       createSectionConfig("y", elevation, {
         projectionDepth: floorPlanProjectionDepth,
+        // The printable plan uses the below-cut band only.
+        projectionAboveDepth: floorPlanProjectionAboveDepth,
         clipProjectionBands: true,
       }),
       {
@@ -29,7 +38,7 @@ export async function generateFloorPlanDrawing(
         outlineProvider: extractFloorPlanOutline,
       },
     );
-    // The SDK retains dashed overhead lines. Mnemo's printable plan displays visible lines only.
+    // Keep framing and export bounds limited to visible lines.
     drawing.lines = drawing.lines.filter(
       (line) => line.visibility !== "hidden",
     );

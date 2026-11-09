@@ -4,7 +4,7 @@ import {
   createFloorPlanPropertyLookup,
   type FloorPlanDrawing,
 } from "./floor-plan-drawing";
-import { intersectsFloorPlan } from "./floor-plan-meshes";
+import { floorPlanCutHeight, intersectsFloorPlan } from "./floor-plan-meshes";
 import { computeFloorPlan } from "./floor-plan-worker-client";
 import type { IfcModelLoader, LoadedIfcModel } from "./ifc-model-loader";
 
@@ -59,7 +59,9 @@ export class FloorPlanGenerator {
       );
     }
     const elevation =
-      storey.elevation + 1.2 - context.modelLoader.renderOrigin.z;
+      storey.elevation +
+      floorPlanCutHeight -
+      context.modelLoader.renderOrigin.z;
     const key = `${assetId}/${storeyId}/${elevation}`;
     if (this.active?.key === key && this.active.model === model)
       return this.active.result;

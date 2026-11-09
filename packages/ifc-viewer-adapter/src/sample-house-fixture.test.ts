@@ -1,10 +1,26 @@
 import { readFile } from "node:fs/promises";
 
-import { generateFloorPlan } from "@ifc-lite/drawing-2d";
+import {
+  createSectionConfig,
+  Drawing2DGenerator,
+  generateFloorPlan,
+} from "@ifc-lite/drawing-2d";
+import { extractFloorPlanOutline } from "./floor-plan-outline";
 import type { MeshData } from "@ifc-lite/geometry";
 import { GeometryProcessor } from "@ifc-lite/geometry";
 import { IfcParser } from "@ifc-lite/parser";
-import { expect, it } from "vitest";
+import { beforeAll, expect, it } from "vitest";
+import initOutline from "@ifc-lite/wasm";
+
+beforeAll(async () => {
+  await initOutline({
+    module_or_path: await readFile(
+      new URL(
+        import.meta.resolve("@ifc-lite/wasm").replace(/\.js$/, "_bg.wasm"),
+      ),
+    ),
+  });
+});
 import { generateFloorPlanDrawing } from "./floor-plan-computation";
 import { intersectsFloorPlan } from "./floor-plan-meshes";
 import { createIfcBimIndex } from "./bim-index";
@@ -73,8 +89,45 @@ it("parses the versioned SampleHouse fixture into 47,309 entities and 223 meshes
     true,
   );
   expect(bounded.cutPolygons).toEqual(filtered.cutPolygons);
-  expect(filtered.lines).toEqual(drawing.lines);
+  const unfiltered = await generateFloorPlanDrawing(meshes, elevation);
+  expect(bounded.lines).toEqual(unfiltered.lines);
   expect(filtered.cutPolygons).toEqual(drawing.cutPolygons);
+  const reference = new Drawing2DGenerator();
+  try {
+    await reference.initialize();
+    for (const storey of levels) {
+      if (storey.elevation === null) continue;
+      const cutElevation = storey.elevation + 1.2 - originZ;
+      const levelMeshes = meshes.filter((mesh) =>
+        intersectsFloorPlan(mesh, cutElevation),
+      );
+      const withOverhead = await reference.generate(
+        levelMeshes,
+        createSectionConfig("y", cutElevation, {
+          projectionDepth: 3,
+          clipProjectionBands: true,
+        }),
+        {
+          includeProjection: true,
+          includeHiddenLines: false,
+          outlineProvider: extractFloorPlanOutline,
+        },
+      );
+      const visibleOnly = await generateFloorPlanDrawing(
+        levelMeshes,
+        cutElevation,
+      );
+      expect(
+        visibleOnly.lines.filter((line) => line.category === "cut"),
+        storey.name,
+      ).toEqual(withOverhead.lines.filter((line) => line.category === "cut"));
+      expect(visibleOnly.cutPolygons, storey.name).toEqual(
+        withOverhead.cutPolygons,
+      );
+    }
+  } finally {
+    reference.dispose();
+  }
   expect(drawing.stats.cutLineCount).toBeGreaterThan(0);
   expect(
     drawing.lines.every(({ line }) =>
