@@ -137,11 +137,14 @@ export class FloorPlanGenerator {
     signal.throwIfAborted();
     if (!drawing.lines.length && !drawing.cutPolygons.length)
       throw new Error("Aucun contour disponible pour ce niveau.");
+    const getElementExpressId = (id: number) =>
+      context.federation.fromGlobalId(id)?.expressId ?? id;
     return {
       ...drawing,
+      getElementExpressId,
       getElementProperties: createFloorPlanPropertyLookup(
         model.store,
-        (id) => context.federation.fromGlobalId(id)?.expressId ?? id,
+        getElementExpressId,
       ),
     };
   }

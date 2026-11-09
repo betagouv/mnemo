@@ -1,10 +1,7 @@
+import { prepareFloorPlan } from "./floor-plan-geometry";
 import { afterEach, expect, it, vi } from "vitest";
 import type { FloorPlanDrawing } from "@mnemo/ifc-viewer-adapter";
-import {
-  drawFloorPlan,
-  prepareFloorPlan,
-  styleFloorPlan,
-} from "./floor-plan-renderer";
+import { drawFloorPlan, styleFloorPlan } from "./floor-plan-renderer";
 
 class TestPath {
   moveTo() {}

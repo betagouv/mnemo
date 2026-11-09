@@ -1,5 +1,6 @@
 import {
   planDistance,
+  closestPointOnPlanSegment,
   type PlanPoint,
   type PlanSegment,
 } from "./floor-plan-navigation";
@@ -43,25 +44,7 @@ export class PlanSnapIndex {
             vertexDistance = distance;
           }
         }
-        const dx = segment.end.x - segment.start.x;
-        const dy = segment.end.y - segment.start.y;
-        const lengthSquared = dx * dx + dy * dy;
-        const t =
-          lengthSquared > 0
-            ? Math.max(
-                0,
-                Math.min(
-                  1,
-                  ((point.x - segment.start.x) * dx +
-                    (point.y - segment.start.y) * dy) /
-                    lengthSquared,
-                ),
-              )
-            : 0;
-        const candidate = {
-          x: segment.start.x + t * dx,
-          y: segment.start.y + t * dy,
-        };
+        const candidate = closestPointOnPlanSegment(point, segment);
         const distance = planDistance(point, candidate);
         if (distance < edgeDistance) {
           edge = candidate;

@@ -52,6 +52,12 @@ describe("floor plan lifecycle", () => {
     const first = generator.generate(context, "asset", 1);
     expect(generator.generate(context, "asset", 1)).toBe(first);
     const drawing = await first;
+    expect(drawing.getElementExpressId(123)).toBe(123);
+    vi.spyOn(context.federation, "fromGlobalId").mockReturnValue({
+      modelId: "asset",
+      expressId: 42,
+    });
+    expect(drawing.getElementExpressId(123)).toBe(42);
     expect(run.mock.calls[0][0]).toEqual([pieces[0]]);
     expect(await generator.generate(context, "asset", 1)).toBe(drawing);
     expect(getMeshDataPieces).toHaveBeenCalledTimes(1);

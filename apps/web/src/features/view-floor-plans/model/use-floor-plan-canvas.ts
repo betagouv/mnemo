@@ -3,9 +3,9 @@
 import type { FloorPlanRule } from "@mnemo/contracts/floor-plans";
 
 import { useEffect, useRef, useState } from "react";
-import type {
-  FloorPlanDrawing,
-  FloorPlanPresetId,
+import {
+  type FloorPlanDrawing,
+  type FloorPlanPresetId,
 } from "@mnemo/ifc-viewer-adapter";
 import {
   fitPlan,
@@ -17,12 +17,10 @@ import {
   type PlanTransform,
 } from "./floor-plan-navigation";
 import { type PlanSnap } from "./floor-plan-snap";
-import {
-  prepareFloorPlan,
-  styleFloorPlan,
-  drawPlanMarks,
-} from "./floor-plan-renderer";
+import { styleFloorPlan, drawPlanMarks } from "./floor-plan-renderer";
 
+import { prepareFloorPlan } from "./floor-plan-geometry";
+import { FloorPlanSelection } from "./floor-plan-selection";
 import { FloorPlanRaster } from "./floor-plan-raster";
 
 type Measurement = PlanSegment;
@@ -32,6 +30,7 @@ type Commands = {
   clear: () => void;
   undo: () => void;
   cancel: () => void;
+  refreshSelection: () => void;
 };
 
 export function useFloorPlanCanvas(
@@ -39,6 +38,8 @@ export function useFloorPlanCanvas(
   measuring: boolean,
   preset: FloorPlanPresetId,
   rules: readonly FloorPlanRule[],
+  selectedIds: readonly number[],
+  onSelect: (expressId: number | null) => void,
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -47,6 +48,8 @@ export function useFloorPlanCanvas(
   const commands = useRef<Commands | null>(null);
   const modeRef = useRef(measuring);
   const styledDrawing = useRef<FloorPlanDrawing | null>(null);
+  const selectionRef = useRef(selectedIds);
+  const onSelectRef = useRef(onSelect);
   const [count, setCount] = useState(0);
 
   useEffect(() => {
@@ -59,11 +62,14 @@ export function useFloorPlanCanvas(
 
     const geometry = prepareFloorPlan(drawing);
     const snapping = geometry.snapping;
-    const raster = new FloorPlanRaster(
-      ctx,
-      drawing.bounds,
-      styleFloorPlan(geometry, drawing, "default"),
-    );
+    const selection = new FloorPlanSelection(drawing, geometry);
+    const initialStyle = styleFloorPlan(geometry, drawing, "default");
+    let resolveStyle = initialStyle.resolve;
+    const selectionColor =
+      getComputedStyle(container)
+        .getPropertyValue("--text-action-high-blue-france")
+        .trim() || "#000091";
+    const raster = new FloorPlanRaster(ctx, drawing.bounds, initialStyle);
     let settleTimer: ReturnType<typeof setTimeout> | undefined;
     let navigating = false;
     let view: PlanTransform = { x: 0, y: 0, scale: 1 };
@@ -84,6 +90,8 @@ export function useFloorPlanCanvas(
       pan: boolean;
       view: PlanTransform;
       hadStart: boolean;
+      selectable: boolean;
+      dragged: boolean;
     } | null = null;
     let space = false;
     const measurements: Measurement[] = [];
@@ -120,6 +128,14 @@ export function useFloorPlanCanvas(
         width,
         height,
         dpr,
+      );
+      selection.draw(
+        marks!,
+        selectionRef.current,
+        view,
+        dpr,
+        resolveStyle,
+        selectionColor,
       );
       if (statusRef.current)
         statusRef.current.textContent = snap
@@ -164,11 +180,14 @@ export function useFloorPlanCanvas(
     }
     commands.current = {
       style: (preset, rules) => {
-        raster.style(styleFloorPlan(geometry, drawing, preset, rules));
+        const styled = styleFloorPlan(geometry, drawing, preset, rules);
+        resolveStyle = styled.resolve;
+        raster.style(styled);
         settle();
       },
       fit,
       cancel,
+      refreshSelection: () => schedule(),
       clear: () => {
         measurements.length = 0;
         setCount(0);
@@ -222,6 +241,8 @@ export function useFloorPlanCanvas(
         pan,
         view: { ...view },
         hadStart: Boolean(start),
+        selectable: event.button === 0 && !space && !modeRef.current,
+        dragged: false,
       };
       if (pan) clearTimeout(settleTimer);
       container!.setPointerCapture(event.pointerId);
@@ -233,7 +254,10 @@ export function useFloorPlanCanvas(
     }
     function pointerMove(event: PointerEvent) {
       updateHover(event);
-      if (down?.id === event.pointerId && down.pan) {
+      if (down?.id === event.pointerId)
+        down.dragged ||=
+          Math.hypot(event.clientX - down.x, event.clientY - down.y) > 4;
+      if (down?.id === event.pointerId && down.pan && down.dragged) {
         view = {
           ...view,
           x: down.view.x + event.clientX - down.x,
@@ -246,11 +270,16 @@ export function useFloorPlanCanvas(
       if (!down || down.id !== event.pointerId) return;
       updateHover(event);
       const completed = down;
+      const dragged =
+        completed.dragged ||
+        Math.hypot(event.clientX - completed.x, event.clientY - completed.y) >
+          4;
+      if (completed.selectable && !dragged)
+        onSelectRef.current(
+          selection.pick(screenToPlan(hover!, view), view.scale, resolveStyle),
+        );
       if (!completed.pan) {
         resolvePointer();
-        const dragged =
-          Math.hypot(event.clientX - completed.x, event.clientY - completed.y) >
-          4;
         if (
           (completed.hadStart || dragged) &&
           start &&
@@ -292,6 +321,7 @@ export function useFloorPlanCanvas(
       if (event.key === "Escape") {
         event.preventDefault();
         cancel();
+        if (!modeRef.current) onSelectRef.current(null);
       }
       if (event.key === "Home" || event.key.toLowerCase() === "f") {
         event.preventDefault();
@@ -387,6 +417,12 @@ export function useFloorPlanCanvas(
     );
     return () => clearTimeout(timer);
   }, [drawing, preset, rules]);
+
+  useEffect(() => {
+    selectionRef.current = selectedIds;
+    onSelectRef.current = onSelect;
+    commands.current?.refreshSelection();
+  }, [selectedIds, onSelect]);
 
   useEffect(() => {
     modeRef.current = measuring;
