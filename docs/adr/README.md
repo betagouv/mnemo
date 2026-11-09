@@ -56,3 +56,5 @@ same change as a new record.
 | [0017](0017-better-auth-project-access.md)          | Better Auth and per-project permissions    | Proposed                                                          |
 
 | [0018](0018-bcf-workspace.md) | BCF workspace and loss-aware exchange | Accepted |
+
+| [0019](0019-ifc-lite-footprint-fork.md) | IFC-Lite footprint optimization from a fork | Accepted |

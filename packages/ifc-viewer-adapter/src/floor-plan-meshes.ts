@@ -1,7 +1,8 @@
 import type { MeshData } from "@ifc-lite/geometry";
 
-// Keep the same three-metre projection bands as IFC-Lite's floor-plan helper.
-export const floorPlanProjectionDepth = 3;
+export const floorPlanCutHeight = 1.2;
+export const floorPlanProjectionDepth = floorPlanCutHeight;
+export const floorPlanProjectionAboveDepth = 0;
 const heights = new WeakMap<MeshData, { min: number; max: number }>();
 
 export function intersectsFloorPlan(mesh: MeshData, elevation: number) {
@@ -18,11 +19,11 @@ export function intersectsFloorPlan(mesh: MeshData, elevation: number) {
     bounds = { min, max };
     heights.set(mesh, bounds);
   }
-  // Retain malformed bounds for the vendor to handle rather than hiding geometry.
+  // Retain malformed bounds so generation can report invalid geometry explicitly.
   if (!Number.isFinite(bounds.min) || !Number.isFinite(bounds.max)) return true;
   const tolerance = 0.001;
   return (
     bounds.max >= elevation - floorPlanProjectionDepth - tolerance &&
-    bounds.min <= elevation + floorPlanProjectionDepth + tolerance
+    bounds.min <= elevation + floorPlanProjectionAboveDepth + tolerance
   );
 }

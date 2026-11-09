@@ -14,6 +14,7 @@ import {
 } from "@ifc-lite/drawing-2d";
 
 export type FloorPlanDrawing = Drawing2D & {
+  getElementExpressId: (id: number) => number;
   getElementProperties: (id: number) => NonNullable<ElementData["properties"]>;
 };
 export type FloorPlanStyle = ResolvedGraphicStyle;

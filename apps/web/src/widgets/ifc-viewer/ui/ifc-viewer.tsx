@@ -221,6 +221,17 @@ export function ProjectViewer({
             drawing={floorPlans.plan.drawing}
             preset={floorPlans.preset}
             rules={floorPlans.rules}
+            selectedIds={snapshot.selectedElements
+              .filter((element) => element.assetId === floorPlans.plan?.assetId)
+              .map((element) => element.expressId)}
+            onSelect={(expressId) => {
+              if (expressId === null) controllerRef.current?.selectEntity(null);
+              else if (floorPlans.plan)
+                controllerRef.current?.selectModelEntity(
+                  floorPlans.plan.assetId,
+                  expressId,
+                );
+            }}
             onClose={floorPlans.close}
           />
         ) : null}

@@ -92,7 +92,7 @@ test("navigates and snaps measurements on a real storey plan", async ({
     const stroke = CanvasRenderingContext2D.prototype.stroke;
     CanvasRenderingContext2D.prototype.stroke = function (path?: Path2D) {
       if (path) {
-        state.strokes++;
+        if (this.canvas.getAttribute("aria-hidden") !== "true") state.strokes++;
         stroke.call(this, path);
       } else Reflect.apply(stroke, this, []);
     };
@@ -177,6 +177,60 @@ test("navigates and snaps measurements on a real storey plan", async ({
       }
       return points;
     });
+  // A plan click must reveal the same IFC entity in the explorer and inspector.
+  await page.getByRole("button", { name: "Mesurer", exact: true }).click();
+  const selectionInk = await findInk();
+  expect(selectionInk.length).toBeGreaterThan(0);
+  const selectedTree = page.locator(
+    'button[aria-current="true"][aria-pressed="true"]',
+  );
+  await page.mouse.click(selectionInk[0].x, selectionInk[0].y);
+  await expect(selectedTree).toHaveCount(1);
+  await expect(selectedTree).toBeInViewport();
+  const selectedTitle = await selectedTree.getAttribute("title");
+  await expect(
+    page.getByRole("button", { name: "Effacer la sélection", exact: true }),
+  ).toBeVisible();
+  const selectionOverlay = plan.locator('canvas[aria-hidden="true"]');
+  await expect
+    .poll(() =>
+      selectionOverlay.evaluate((element) => {
+        const target = element as HTMLCanvasElement;
+        return target
+          .getContext("2d")!
+          .getImageData(0, 0, target.width, target.height)
+          .data.some((value, index) => index % 4 === 3 && value > 0);
+      }),
+    )
+    .toBe(true);
+  await page.screenshot({
+    path: "/tmp/mnemo-plan-selection-light.png",
+    animations: "disabled",
+  });
+  await page.evaluate(() =>
+    document.documentElement.setAttribute("data-fr-theme", "dark"),
+  );
+  await page.screenshot({
+    path: "/tmp/mnemo-plan-selection-dark.png",
+    animations: "disabled",
+  });
+  await page.evaluate(() =>
+    document.documentElement.setAttribute("data-fr-theme", "light"),
+  );
+  // Moving the plan must preserve the selection and use the cached raster.
+  await page.mouse.move(selectionInk[0].x, selectionInk[0].y);
+  await page.mouse.down();
+  await page.mouse.move(selectionInk[0].x + 30, selectionInk[0].y + 20, {
+    steps: 4,
+  });
+  await page.mouse.up();
+  await expect(selectedTree).toHaveAttribute("title", selectedTitle!);
+  await page
+    .getByRole("button", { name: "Effacer la sélection", exact: true })
+    .click();
+  await expect(selectedTree).toHaveCount(0);
+  await plan.dblclick();
+  await page.getByRole("button", { name: "Mesurer", exact: true }).click();
   let ink: { x: number; y: number }[] = [];
   await expect
     .poll(async () => {

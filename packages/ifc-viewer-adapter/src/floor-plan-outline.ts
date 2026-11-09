@@ -6,12 +6,24 @@ import {
   type SectionAxis,
 } from "@ifc-lite/drawing-2d";
 
+export function assertFiniteFloorPlanMesh(mesh: MeshData) {
+  if (
+    !mesh.positions.every(Number.isFinite) ||
+    (mesh.origin && !mesh.origin.every(Number.isFinite))
+  ) {
+    throw new Error(
+      `Le maillage IFC #${mesh.expressId} contient des coordonnées non finies. La génération du plan a été interrompue.`,
+    );
+  }
+}
+
 /** Bridge the public WASM footprint binding to IFC-Lite's outline provider. */
 export function extractFloorPlanOutline(
   mesh: MeshData,
   axis: SectionAxis,
   flipped: boolean,
 ): MeshOutline2D | null {
+  assertFiniteFloorPlanMesh(mesh);
   let outline: ReturnType<typeof meshOutline2d>;
   try {
     outline = meshOutline2d(

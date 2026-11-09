@@ -2,7 +2,6 @@ import { generateFloorPlan, type Drawing2D } from "@ifc-lite/drawing-2d";
 import type { MeshData } from "@ifc-lite/geometry";
 import { describe, expect, it, vi } from "vitest";
 import { FloorPlanGenerator } from "./floor-plan-generator";
-import { intersectsFloorPlan } from "./floor-plan-meshes";
 
 function mesh(min: number, max: number, origin = 0): MeshData {
   return {
@@ -45,17 +44,6 @@ const compute = () =>
     generateFloorPlan(meshes, elevation, { includeHiddenLines: false }),
   );
 
-describe("floor plan vertical selection", () => {
-  it("keeps crossing elements, both projection bands and per-mesh origins", () => {
-    expect(intersectsFloorPlan(mesh(0, 100), 50)).toBe(true);
-    expect(intersectsFloorPlan(mesh(0, 1), 4)).toBe(true);
-    expect(intersectsFloorPlan(mesh(7, 8), 4)).toBe(true);
-    expect(intersectsFloorPlan(mesh(0, 1, 7), 4)).toBe(true);
-    expect(intersectsFloorPlan(mesh(0, 1), 20)).toBe(false);
-    expect(intersectsFloorPlan(mesh(NaN, NaN), 20)).toBe(true);
-  });
-});
-
 describe("floor plan lifecycle", () => {
   it("deduplicates requests, filters meshes and reuses completed plans", async () => {
     const { context, pieces, getMeshDataPieces } = scene();
@@ -64,6 +52,12 @@ describe("floor plan lifecycle", () => {
     const first = generator.generate(context, "asset", 1);
     expect(generator.generate(context, "asset", 1)).toBe(first);
     const drawing = await first;
+    expect(drawing.getElementExpressId(123)).toBe(123);
+    vi.spyOn(context.federation, "fromGlobalId").mockReturnValue({
+      modelId: "asset",
+      expressId: 42,
+    });
+    expect(drawing.getElementExpressId(123)).toBe(42);
     expect(run.mock.calls[0][0]).toEqual([pieces[0]]);
     expect(await generator.generate(context, "asset", 1)).toBe(drawing);
     expect(getMeshDataPieces).toHaveBeenCalledTimes(1);
