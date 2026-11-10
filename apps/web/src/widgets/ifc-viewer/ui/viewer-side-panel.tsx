@@ -68,7 +68,7 @@ export function ViewerSidePanel({
           {onPin ? (
             <Button
               className={styles.pin}
-              iconId="ri-pushpin-line"
+              iconId={pinned ? "ri-pushpin-fill" : "ri-pushpin-line"}
               size="small"
               priority="tertiary no outline"
               title={

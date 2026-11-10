@@ -115,7 +115,7 @@
 }
 
 .stage {
-  left: 0;
+  left: 4.5rem;
 }
 .shell[data-panel-open="true"] .stage {
   left: calc(4.5rem + var(--viewer-panel-width));

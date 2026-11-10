@@ -15,6 +15,7 @@ import {
 } from "@mnemo/contracts/bcf";
 import { z } from "zod";
 import { readBcfWorkspace, summarizeTopic } from "@/entities/bcf";
+import type { BcfObject } from "./bcf-object";
 import type { BcfWorkspaceProps } from "./bcf-workspace-types";
 
 export function useBcfWorkspace({
@@ -42,6 +43,10 @@ export function useBcfWorkspace({
   const [screen, setScreen] = useState<"list" | "detail" | "create" | "edit">(
     "list",
   );
+  const [creation, setCreation] = useState<{
+    objects: BcfObject[];
+    revision: number;
+  }>({ objects: [], revision: 0 });
   const [active, setActive] = useState<BcfTopic | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -113,18 +118,25 @@ export function useBcfWorkspace({
     },
     [projectId, screen, onActiveTopicChange],
   );
-  const create = useCallback(() => {
-    if (!permissions.createTopic) return;
-    if (
-      (screen === "create" || screen === "edit") &&
-      !confirm("Abandonner les modifications de cette remarque ?")
-    )
-      return;
-    requestRevision.current += 1;
-    setBusy(false);
-    setError(null);
-    setScreen("create");
-  }, [permissions.createTopic, screen]);
+  const create = useCallback(
+    (objects: readonly BcfObject[] = []) => {
+      if (!permissions.createTopic) return;
+      if (
+        (screen === "create" || screen === "edit") &&
+        !confirm("Abandonner les modifications de cette remarque ?")
+      )
+        return;
+      requestRevision.current += 1;
+      setBusy(false);
+      setError(null);
+      setCreation((previous) => ({
+        objects: objects.map((object) => ({ ...object })),
+        revision: previous.revision + 1,
+      }));
+      setScreen("create");
+    },
+    [permissions.createTopic, screen],
+  );
   useImperativeHandle(ref, () => ({ open, create }), [open, create]);
   useEffect(() => {
     if (!markers) return;
@@ -207,6 +219,8 @@ export function useBcfWorkspace({
   };
   return {
     backToList,
+    create,
+    creation,
     topics,
     options,
     members,

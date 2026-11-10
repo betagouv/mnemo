@@ -123,6 +123,7 @@ export function ProjectViewer({
     previewBcfObjects,
     queryBcfObjects,
     bcfPanelRef,
+    createBcfFromSelection,
   } = useBcfViewer(getViewer, activePanel === "bcf", initialBcfTopics);
 
   const activeModelId = snapshot.activeModelId;
@@ -325,7 +326,7 @@ export function ProjectViewer({
           modelName={activeIfcSource?.fileName ?? null}
           canCreateBcf={bcfPermissions.read && bcfPermissions.createTopic}
           onCreateBcf={(trigger) => {
-            bcfPanelRef.current?.create();
+            createBcfFromSelection();
             openPanel("bcf", "annotations", trigger);
           }}
           onReveal={(trigger) => {

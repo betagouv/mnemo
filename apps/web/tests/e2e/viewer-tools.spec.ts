@@ -100,12 +100,27 @@ test("uses contextual panels without empty properties or unavailable tools", asy
     await tools
       .getByRole("button", { name: "Maquettes et relevés", exact: true })
       .click();
-    await layers
-      .getByRole("button", { name: "Épingler les maquettes" })
-      .click();
-    await expect(
-      layers.getByRole("button", { name: "Désépingler les maquettes" }),
-    ).toHaveAttribute("aria-pressed", "true");
+    const pin = layers.getByRole("button", { name: "Épingler les maquettes" });
+    await expect(pin).toHaveClass(/ri-pushpin-line/);
+    const outlineMask = await pin.evaluate(
+      (button) => getComputedStyle(button, "::before").maskImage,
+    );
+    expect(outlineMask).not.toBe("none");
+    await pin.click();
+    const unpin = layers.getByRole("button", {
+      name: "Désépingler les maquettes",
+    });
+    await expect(unpin).toHaveAttribute("aria-pressed", "true");
+    await expect(unpin).toHaveClass(/ri-pushpin-fill/);
+    const filledMask = await unpin.evaluate(
+      (button) => getComputedStyle(button, "::before").maskImage,
+    );
+    expect(filledMask).not.toBe("none");
+    expect(filledMask).not.toBe(outlineMask);
+    await unpin.click();
+    await expect(pin).toHaveClass(/ri-pushpin-line/);
+    await expect(pin).toHaveAttribute("aria-pressed", "false");
+    await pin.click();
     await cuts.click();
     await expect(layers).toBeVisible();
     for (const theme of ["light", "dark"]) {

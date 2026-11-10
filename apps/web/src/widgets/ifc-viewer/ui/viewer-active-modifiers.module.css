@@ -5,14 +5,13 @@
   left: 0.875rem;
   display: flex;
   max-width: min(18rem, calc(100% - 1.75rem));
-  max-height: 5.25rem;
   flex-wrap: wrap;
   gap: 0.35rem;
-  overflow: auto;
 }
 
 .modifier {
   display: flex;
+  max-width: 100%;
   min-width: 0;
   min-height: 2rem;
   align-items: center;

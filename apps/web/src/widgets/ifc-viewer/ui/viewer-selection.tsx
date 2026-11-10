@@ -5,7 +5,7 @@ import type {
   IfcViewerController,
   IfcViewerSnapshot,
 } from "@mnemo/ifc-viewer-adapter";
-import { IfcPropertiesPane } from "./ifc-properties-pane";
+import { IfcElementProperties } from "@/entities/ifc-element";
 import styles from "./viewer-selection.module.css";
 export function ViewerSelection({
   snapshot,
@@ -65,7 +65,7 @@ export function ViewerSelection({
       data-expanded={detailsOpen || undefined}
       aria-label="Élément sélectionné"
     >
-      <div className="p-3">
+      <div className={styles.header}>
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="mb-1 text-xs text-[var(--text-mention-grey)]">
@@ -75,7 +75,10 @@ export function ViewerSelection({
                 ? ` · ${snapshot.selectedElements.length} sélectionnés`
                 : ""}
             </p>
-            <h2 className="mb-2 break-words text-base">
+            <h2
+              className={`${styles.title} mb-2 text-base`}
+              title={selection.name}
+            >
               {selection.name || `Élément #${selection.expressId}`}
             </h2>
           </div>
@@ -162,15 +165,12 @@ export function ViewerSelection({
         </div>
       </div>
       {detailsOpen ? (
-        <div className="min-h-0 overflow-hidden">
-          <IfcPropertiesPane
-            activeModelId={snapshot.activeModelId}
-            modelName={modelName}
-            snapshot={snapshot}
-            onClearSelection={() => viewer?.selectEntity(null)}
-            onFrameSelection={() => viewer?.frameSelection()}
-          />
-        </div>
+        <section
+          className={styles.properties}
+          aria-label="Propriétés de l’élément"
+        >
+          <IfcElementProperties element={selection} modelName={modelName} />
+        </section>
       ) : null}
     </aside>
   );

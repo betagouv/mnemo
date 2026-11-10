@@ -118,6 +118,7 @@ export function SectionPanel({
       <SegmentedControl
         className={styles.modeControl}
         hideLegend
+        small
         legend="Type de coupe"
         segments={[
           {
