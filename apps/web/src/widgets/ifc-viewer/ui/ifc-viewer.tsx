@@ -1,5 +1,8 @@
 "use client";
 
+import type { CSSProperties } from "react";
+import Button from "@codegouvfr/react-dsfr/Button";
+
 import { useViewerPanels } from "../model/use-viewer-panels";
 import { useBcfViewer } from "@/features/manage-bcf-topics";
 import { ViewerLoadStatus } from "./viewer-load-status";
@@ -43,12 +46,6 @@ type AssistantSession = {
   threads: AssistantThreadSummary[];
   history: AssistantThreadHistory | null;
 };
-
-const shellLayout =
-  "relative grid h-full w-full min-h-0 min-w-0 overflow-hidden grid-cols-[minmax(0,1fr)] min-[769px]:grid-cols-[15.5rem_minmax(0,1fr)] min-[1201px]:grid-cols-[17.5rem_minmax(0,1fr)]";
-
-const openPanelLayout =
-  "min-[769px]:max-[897px]:grid-cols-[minmax(0,1fr)] min-[1025px]:grid-cols-[15.5rem_minmax(0,1fr)_20rem] min-[1201px]:grid-cols-[17.5rem_minmax(0,1fr)_22rem]";
 
 export function ProjectViewer({
   assistantSessions,
@@ -104,6 +101,8 @@ export function ProjectViewer({
   const {
     activePanel,
     setActivePanel,
+    explorerPinned,
+    setExplorerPinned,
     activeToolGroup,
     setActiveToolGroup,
     panelFocusRequest,
@@ -140,16 +139,39 @@ export function ProjectViewer({
       ),
   );
 
+  const showExplorer = activePanel === "layers" || explorerPinned;
+  const hasToolPanel = activePanel !== null && activePanel !== "layers";
+
   return (
     <main
-      className={`${styles.shell} ${shellLayout} ${activePanel ? openPanelLayout : ""}`}
-      data-panel-open={Boolean(activePanel)}
+      className={`${styles.shell} relative h-full w-full min-h-0 min-w-0 overflow-hidden`}
+      style={
+        {
+          "--viewer-panel-width":
+            activePanel === "bcf" ||
+            activePanel === "floor-plan" ||
+            activePanel === "assistant"
+              ? "24rem"
+              : "20rem",
+        } as CSSProperties
+      }
+      data-explorer-pinned={(explorerPinned && hasToolPanel) || undefined}
+      data-panel-open={Boolean(activePanel) || showExplorer}
     >
-      <aside
-        className={`${styles.explorerColumn} flex min-h-0 min-w-0 flex-col ${activePanel ? "max-[897px]:hidden" : "max-[769px]:hidden"}`}
-        aria-label="Explorateur du projet"
+      <ViewerSidePanel
+        title="Maquettes et relevés"
+        iconClass="fr-icon-stack-line"
+        isOpen={showExplorer}
+        focusRequest={activePanel === "layers" ? panelFocusRequest : 0}
+        mode="layers"
+        pinned={explorerPinned && hasToolPanel}
+        onPin={() => setExplorerPinned(!explorerPinned)}
+        onClose={() => {
+          setExplorerPinned(false);
+          if (activePanel === "layers") closePanel();
+        }}
       >
-        <div className="min-h-0 flex-1">
+        <div className="h-full min-h-0">
           <ViewerExplorerSplit
             explorer={
               <ProjectLayers
@@ -173,22 +195,26 @@ export function ProjectViewer({
               />
             }
             inspector={
-              <IfcPropertiesPane
-                activeModelId={activeModelId}
-                modelName={activeIfcSource?.fileName ?? null}
-                onClearSelection={() =>
-                  controllerRef.current?.selectEntity(null)
-                }
-                onFrameSelection={() => controllerRef.current?.frameSelection()}
-                snapshot={snapshot}
-              />
+              snapshot.selection ? (
+                <IfcPropertiesPane
+                  activeModelId={activeModelId}
+                  modelName={activeIfcSource?.fileName ?? null}
+                  onClearSelection={() =>
+                    controllerRef.current?.selectEntity(null)
+                  }
+                  onFrameSelection={() =>
+                    controllerRef.current?.frameSelection()
+                  }
+                  snapshot={snapshot}
+                />
+              ) : null
             }
           />
         </div>
-      </aside>
+      </ViewerSidePanel>
 
       <section
-        className="relative min-h-0 min-w-0 overflow-hidden bg-[var(--background-alt-grey)]"
+        className={`${styles.stage} absolute inset-y-0 right-0 min-h-0 min-w-0 overflow-hidden bg-[var(--background-alt-grey)]`}
         aria-label="Visionneuse 3D du projet"
       >
         <canvas
@@ -257,14 +283,6 @@ export function ProjectViewer({
             />
           ) : null}
         </div>
-        <ViewerToolBar
-          activeGroupId={activeToolGroup}
-          bcfTopicCount={bcfTopicCount}
-          canReadBcf={bcfPermissions.read}
-          onFitToView={() => getViewer()?.fitToView()}
-          onSelect={openPanel}
-          rootRef={toolBarRef}
-        />
 
         {activePanel === "cut-plane" && snapshot.section.active === "plane" ? (
           <SectionPlaneGizmo
@@ -333,10 +351,29 @@ export function ProjectViewer({
         </div>
       </section>
 
+      <div className={styles.layersTrigger}>
+        <Button
+          iconId="fr-icon-stack-line"
+          title="Maquettes et relevés"
+          priority={activePanel === "layers" ? "primary" : "secondary"}
+          onClick={() => {
+            setActivePanel(activePanel === "layers" ? null : "layers");
+            setActiveToolGroup(null);
+          }}
+        />
+      </div>
+      <ViewerToolBar
+        activeGroupId={activeToolGroup}
+        bcfTopicCount={bcfTopicCount}
+        canReadBcf={bcfPermissions.read}
+        onFitToView={() => getViewer()?.fitToView()}
+        onSelect={openPanel}
+        rootRef={toolBarRef}
+      />
       <ViewerSidePanel
         focusRequest={panelFocusRequest}
         iconClass={activePanelConfig?.icon}
-        isOpen={activePanel !== null}
+        isOpen={hasToolPanel}
         mode={activePanel ?? undefined}
         onClose={closePanel}
         title={activePanelConfig?.title ?? "Panneau d’outils"}

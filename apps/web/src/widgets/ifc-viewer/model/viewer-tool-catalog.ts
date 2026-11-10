@@ -1,4 +1,5 @@
 export const viewerPanels = {
+  layers: { title: "Maquettes et relevés", icon: "fr-icon-stack-line" },
   bcf: {
     title: "Remarques BCF",
     icon: "fr-icon-chat-3-line",

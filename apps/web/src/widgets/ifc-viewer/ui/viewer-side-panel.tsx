@@ -13,6 +13,8 @@ export function ViewerSidePanel({
   mode,
   onClose,
   title,
+  pinned = false,
+  onPin,
 }: {
   children: ReactNode;
   focusRequest: number;
@@ -21,6 +23,8 @@ export function ViewerSidePanel({
   mode?: string;
   onClose: () => void;
   title: string;
+  pinned?: boolean;
+  onPin?: () => void;
 }) {
   const titleId = useId();
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -32,7 +36,14 @@ export function ViewerSidePanel({
   return (
     <aside
       aria-labelledby={titleId}
-      className={`${styles.root} z-[2] grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] border-l border-[var(--viewer-border)] bg-[var(--background-default-grey)] max-[769px]:absolute max-[769px]:inset-y-0 max-[769px]:right-0 max-[769px]:z-20 max-[769px]:w-[min(100vw,26rem)] min-[769px]:max-[1025px]:absolute min-[769px]:max-[1025px]:inset-y-0 min-[769px]:max-[1025px]:right-0 min-[769px]:max-[1025px]:w-[22rem] min-[769px]:max-[897px]:w-[min(22rem,48vw)]`}
+      className={`${styles.root} grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] border border-[var(--viewer-border)] bg-[var(--background-default-grey)]`}
+      data-pinned={pinned || undefined}
+      data-wide={
+        mode === "bcf" ||
+        mode === "assistant" ||
+        mode === "floor-plan" ||
+        undefined
+      }
       hidden={!isOpen}
     >
       <header
@@ -44,13 +55,27 @@ export function ViewerSidePanel({
             {title}
           </h2>
         </div>
-        <Button
-          iconId="fr-icon-close-line"
-          onClick={onClose}
-          priority="tertiary no outline"
-          size="small"
-          title="Fermer le panneau"
-        />
+        <div className="flex items-center">
+          {onPin ? (
+            <Button
+              iconId="ri-pushpin-line"
+              size="small"
+              priority="tertiary no outline"
+              title={
+                pinned ? "Désépingler les maquettes" : "Épingler les maquettes"
+              }
+              nativeButtonProps={{ "aria-pressed": pinned }}
+              onClick={onPin}
+            />
+          ) : null}
+          <Button
+            iconId="fr-icon-close-line"
+            onClick={onClose}
+            priority="tertiary no outline"
+            size="small"
+            title="Fermer le panneau"
+          />
+        </div>
       </header>
       <div className={`${styles.body} min-h-0 overflow-auto`} data-mode={mode}>
         {children}
