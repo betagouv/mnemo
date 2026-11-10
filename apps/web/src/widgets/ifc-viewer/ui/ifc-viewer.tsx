@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useCallback, useState, type CSSProperties } from "react";
 
 import { useViewerPanels } from "../model/use-viewer-panels";
 import { useBcfViewer } from "@/features/manage-bcf-topics";
@@ -37,6 +37,10 @@ import styles from "./ifc-viewer.module.css";
 import { ProjectLayers } from "./project-layers";
 import { ViewCube } from "./view-cube";
 import { ViewerActiveModifiers } from "./viewer-active-modifiers";
+import {
+  ViewerActionMessage,
+  type ViewerFeedback,
+} from "./viewer-action-message";
 import { ViewerSelection } from "./viewer-selection";
 import { ViewerSidePanel } from "./viewer-side-panel";
 import { ViewerToolBar } from "./viewer-tool-bar";
@@ -128,7 +132,19 @@ export function ProjectViewer({
     (source) => source.assetId === activeModelId,
   );
   const activePanelConfig = activePanel ? viewerPanels[activePanel] : null;
-  const activeModifiers = getActiveViewerModifiers(snapshot);
+  const visibilityChanged =
+    hiddenPointCloudIds.size > 0 ||
+    snapshot.models.some(
+      (model) =>
+        getViewer()?.getLayerVisibility(model.assetId, { kind: "model" }) !==
+          "show" ||
+        (getViewer()?.getLayerExceptionCount(model.assetId, {
+          kind: "model",
+        }) ?? 0) > 0,
+    );
+  const activeModifiers = getActiveViewerModifiers(snapshot, visibilityChanged);
+  const [feedback, setFeedback] = useState<ViewerFeedback | null>(null);
+  const dismissFeedback = useCallback(() => setFeedback(null), []);
 
   const failedSource = ifcSources.find(
     (source) =>
@@ -343,11 +359,52 @@ export function ProjectViewer({
 
         <ViewerActiveModifiers
           activePanel={activePanel}
+          onReset={(modifier) => {
+            const viewer = getViewer();
+            if (!viewer) return;
+            if (modifier.reset === "section") {
+              const section = snapshot.section;
+              viewer.hideSection();
+              const expected = viewer.getSnapshot().section;
+              setFeedback({
+                message: "Coupe masquée",
+                canUndo: () => viewer.getSnapshot().section === expected,
+                undo: () =>
+                  section.active === "box"
+                    ? viewer.showSectionBox()
+                    : viewer.showSectionPlane(),
+              });
+            } else if (modifier.reset === "visual") {
+              const plan = viewer.getVisualPlan();
+              const assetId = snapshot.activeModelId;
+              viewer.resetVisuals();
+              const expected = viewer.getSnapshot().visual;
+              setFeedback({
+                message: "Affichage réinitialisé",
+                canUndo: () =>
+                  viewer.getSnapshot().activeModelId === assetId &&
+                  viewer.getSnapshot().visual === expected,
+                undo: () => viewer.applyVisualPlan(plan),
+              });
+            } else {
+              for (const model of snapshot.models)
+                viewer.setLayerVisibility(
+                  model.assetId,
+                  { kind: "model" },
+                  "show",
+                );
+              for (const id of hiddenPointCloudIds)
+                setPointCloudVisible(id, true);
+              setFeedback({ message: "Visibilité des fichiers rétablie" });
+            }
+          }}
           modifiers={activeModifiers}
           onOpen={(modifier, trigger) =>
             openPanel(modifier.panel, modifier.group, trigger)
           }
         />
+
+        <ViewerActionMessage feedback={feedback} onDismiss={dismissFeedback} />
 
         <div className={styles.help}>
           <span>Clic : sélectionner</span>

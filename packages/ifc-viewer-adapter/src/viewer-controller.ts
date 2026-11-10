@@ -768,6 +768,24 @@ export class IfcViewerController {
     this.renderer.requestRender();
   }
 
+  getVisualPlan(): IfcVisualPlan {
+    return {
+      hiddenIds: [...this.hiddenIds],
+      focusIds: this.ghostExceptIds
+        ? [...this.ghostExceptIds]
+        : this.isolatedIds
+          ? [...this.isolatedIds]
+          : null,
+      colors: [...this.colorOverrides].map(([id, color]) => ({
+        ids: [id],
+        color: [...color] as [number, number, number, number],
+      })),
+      label: this.snapshot.visual.label,
+      showContext: this.snapshot.visual.showContext,
+      contextOpacity: this.snapshot.visual.contextOpacity,
+    };
+  }
+
   resetVisuals() {
     this.applyVisualPlan({ label: null });
   }
