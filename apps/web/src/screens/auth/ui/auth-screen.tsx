@@ -145,7 +145,7 @@ export function AuthScreen({
             <h1>{isRegister ? "Créer un compte" : "Se connecter"}</h1>
             <p>
               {isRegister
-                ? "Créez votre compte pour accéder à vos dossiers Mnemo."
+                ? "Après confirmation de votre adresse e-mail, votre demande sera examinée par un administrateur."
                 : "Retrouvez les projets auxquels vous avez accès."}
             </p>
             {notice ? (
@@ -155,7 +155,7 @@ export function AuthScreen({
                 small
                 description={
                   notice === "verified"
-                    ? "Votre adresse e-mail est confirmée. Vous pouvez vous connecter."
+                    ? "Votre adresse e-mail est confirmée. Connectez-vous pour consulter le statut de votre demande."
                     : "Votre mot de passe a été modifié. Connectez-vous avec le nouveau mot de passe."
                 }
               />

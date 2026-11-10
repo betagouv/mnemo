@@ -59,6 +59,7 @@ app -> screens -> widgets -> features -> entities -> shared
 | `configure-point-cloud`               | Point-cloud loading, access renewal, point budgets, visibility, transforms and rendering settings.                                                                                                 |
 | `control-section`                     | Plane/box controls, scene picking, gizmos and their geometry calculations.                                                                                                                         |
 | `interact-with-ifc-assistant`         | Conversation UI, frontend tool schemas and translation of tool calls into viewer commands.                                                                                                         |
+| `manage-users`                        | Global account approval and administrator/user roles. Administrative actions are distinct from permissions on individual projects.                                                                 |
 | `manage-project-access`               | Member access, pending invitations, custom roles and permission editors.                                                                                                                           |
 | `manage-project-metadata`             | Project metadata editing.                                                                                                                                                                          |
 | `upload-asset`                        | File selection/drop, direct object-storage transfer and upload completion.                                                                                                                         |
@@ -115,6 +116,7 @@ app -> screens -> widgets -> features -> entities -> shared
 - Public registration uses Better Auth email/password with mandatory email verification. Brevo sends verification, password-reset, and invitation emails through the server-only SDK integration. Password reset revokes existing sessions.
 - Pending project invitations grant no access until accepted by a signed-in account with the matching verified email. Keep invitation tokens hashed, expiring, and revocable.
 - Authenticate users with Better Auth email/password sessions. There is no development actor or alternate authentication mode.
+- New accounts need email verification and administrator approval before workspace or asset access. Global `user`/`admin` roles are read live from PostgreSQL. Account administration lives in `server/accounts`; atomic role changes preserve at least one approved, verified administrator. Global administrators receive no implicit project permissions.
 - Authentication identifies the actor. Project permissions authorize each operation. Enforce authorization in server use cases, not only in pages or components.
 - Generate storage object keys on the server. Never trust a client-provided object key or prefix.
 - Deletion workflows must be idempotent and clean database records, original objects, derived artifacts, caches, and working copies.

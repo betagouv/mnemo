@@ -298,6 +298,11 @@ model users {
   email                String                 @unique(map: "users_email_unique") @db.VarChar(320)
   display_name         String                 @db.VarChar(160)
   email_verified       Boolean                @default(false)
+  roles                user_role[]            @default([user])
+  approved_at          DateTime?              @db.Timestamptz(6)
+  approved_by          String?                @db.Uuid
+  approver             users?                 @relation("account_approvals", fields: [approved_by], references: [id], onDelete: SetNull)
+  approved_accounts    users[]                @relation("account_approvals")
   image                String?
   created_at           DateTime               @default(now()) @db.Timestamptz(6)
   updated_at           DateTime               @default(now()) @updatedAt @db.Timestamptz(6)
@@ -313,6 +318,8 @@ model users {
   auth_sessions        auth_sessions[]
   auth_accounts        auth_accounts[]
   bcf_snapshot_uploads bcf_snapshot_uploads[]
+
+  @@index([approved_at, created_at(sort: Desc)])
 }
 
 model auth_sessions {
@@ -474,4 +481,9 @@ model project_floor_plans {
   asset       assets   @relation(fields: [asset_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([project_id, updated_at])
+}
+
+enum user_role {
+  user
+  admin
 }
