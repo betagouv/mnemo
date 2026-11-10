@@ -1,11 +1,12 @@
 "use client";
 
+import Button from "@codegouvfr/react-dsfr/Button";
 import Tabs from "@codegouvfr/react-dsfr/Tabs";
 import {
   type IfcViewerController,
   type IfcViewerSnapshot,
 } from "@mnemo/ifc-viewer-adapter";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   PointCloudPanel,
   type PointCloudConfiguration,
@@ -50,6 +51,7 @@ export function ProjectLayers({
   onPointSizeChange: (size: number) => void;
   onPointBudgetChange: (budget: number) => void;
 }) {
+  const rootRef = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState("bim");
   const [lastReveal, setLastReveal] = useState(revealSelectionRequest);
   if (lastReveal !== revealSelectionRequest) {
@@ -57,8 +59,18 @@ export function ProjectLayers({
     setTab("bim");
   }
 
+  useEffect(() => {
+    if (!revealSelectionRequest) return;
+    const frame = requestAnimationFrame(() =>
+      rootRef.current
+        ?.querySelector('[aria-current="true"]')
+        ?.scrollIntoView({ block: "nearest" }),
+    );
+    return () => cancelAnimationFrame(frame);
+  }, [revealSelectionRequest]);
+
   return (
-    <div className={styles.panel}>
+    <div className={styles.panel} ref={rootRef}>
       <Tabs
         className={styles.tabs}
         onTabChange={setTab}
@@ -73,11 +85,24 @@ export function ProjectLayers({
       >
         <>
           <div className={styles.tabContent} hidden={tab !== "bim"}>
-            <BimLayerTree
-              snapshot={snapshot}
-              ifcSources={ifcSources}
-              getViewer={getViewer}
-            />
+            {ifcSources.length ? (
+              <BimLayerTree
+                snapshot={snapshot}
+                ifcSources={ifcSources}
+                getViewer={getViewer}
+              />
+            ) : (
+              <div className="p-3">
+                <p className="text-sm">Aucune maquette IFC dans ce dossier.</p>
+                <Button
+                  size="small"
+                  priority="tertiary no outline"
+                  linkProps={{ href: `/projets/${projectId}` }}
+                >
+                  Voir les fichiers du dossier
+                </Button>
+              </div>
+            )}
           </div>
           <div className={styles.tabContent} hidden={tab !== "survey"}>
             {pointCloudConfigurations.length ? (

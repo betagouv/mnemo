@@ -1,4 +1,9 @@
 export const viewerPanels = {
+  information: {
+    title: "Informations sur la scène",
+    icon: "fr-icon-information-line",
+  },
+  help: { title: "Aide à la navigation", icon: "fr-icon-question-line" },
   layers: { title: "Maquettes et relevés", icon: "fr-icon-stack-line" },
   bcf: { title: "Remarques BCF", icon: "fr-icon-chat-3-line" },
   assistant: { title: "Assistant", icon: "fr-icon-sparkling-line" },
@@ -40,4 +45,20 @@ export const viewerToolGroups = [
     panel: "bcf",
   },
 ] as const;
-export type ViewerToolGroupId = (typeof viewerToolGroups)[number]["id"];
+export const viewerSecondaryTools = [
+  {
+    id: "information",
+    label: "Informations sur la scène",
+    icon: "fr-icon-information-line",
+    panel: "information",
+  },
+  {
+    id: "help",
+    label: "Aide à la navigation",
+    icon: "fr-icon-question-line",
+    panel: "help",
+  },
+] as const;
+export type ViewerToolGroupId =
+  | (typeof viewerToolGroups)[number]["id"]
+  | (typeof viewerSecondaryTools)[number]["id"];

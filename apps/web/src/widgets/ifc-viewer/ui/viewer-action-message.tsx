@@ -1,11 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Button from "@codegouvfr/react-dsfr/Button";
-export type ViewerFeedback = {
-  message: string;
-  undo?: () => void;
-  canUndo?: () => boolean;
-};
+import type { ViewerFeedback } from "../model/use-viewer-feedback";
 export function ViewerActionMessage({
   feedback,
   onDismiss,

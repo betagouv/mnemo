@@ -378,6 +378,13 @@ export class IfcViewerController {
     this.renderer.requestRender();
   }
 
+  resetLayerVisibility() {
+    if (this.disposed) return;
+    this.layerVisibility.reset();
+    this.updateSnapshot({});
+    this.renderer.requestRender();
+  }
+
   init() {
     if (this.disposed) {
       return Promise.reject(new Error("The IFC viewer has been disposed"));
@@ -769,6 +776,15 @@ export class IfcViewerController {
   }
 
   getVisualPlan(): IfcVisualPlan {
+    const groups = new Map<
+      readonly [number, number, number, number],
+      number[]
+    >();
+    for (const [id, color] of this.colorOverrides) {
+      const ids = groups.get(color);
+      if (ids) ids.push(id);
+      else groups.set(color, [id]);
+    }
     return {
       hiddenIds: [...this.hiddenIds],
       focusIds: this.ghostExceptIds
@@ -776,8 +792,8 @@ export class IfcViewerController {
         : this.isolatedIds
           ? [...this.isolatedIds]
           : null,
-      colors: [...this.colorOverrides].map(([id, color]) => ({
-        ids: [id],
+      colors: [...groups].map(([color, ids]) => ({
+        ids,
         color: [...color] as [number, number, number, number],
       })),
       label: this.snapshot.visual.label,

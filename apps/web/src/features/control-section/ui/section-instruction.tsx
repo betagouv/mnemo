@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Button from "@codegouvfr/react-dsfr/Button";
 import type { IfcSectionSnapshot } from "@mnemo/ifc-viewer-adapter";
 
@@ -10,6 +11,17 @@ export function SectionInstruction({
   section: IfcSectionSnapshot;
   onCancel: () => void;
 }) {
+  useEffect(() => {
+    if (!section.pickMode) return;
+    const cancelOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopPropagation();
+      onCancel();
+    };
+    window.addEventListener("keydown", cancelOnEscape, true);
+    return () => window.removeEventListener("keydown", cancelOnEscape, true);
+  }, [section.pickMode, onCancel]);
   if (!section.pickMode) return null;
   return (
     <div

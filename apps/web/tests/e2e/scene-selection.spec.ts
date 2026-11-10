@@ -41,14 +41,14 @@ test("reveals the object picked in the scene inside the collapsed model tree", a
     await page.locator('input[type="file"]').setInputFiles(fixture);
     await page.locator(`a[href="${href}/viewer"]`).click();
     await expect(
-      page.locator('[role="status"]').filter({ hasText: "entités IFC" }),
+      page.locator('canvas[aria-label^="Vue 3D"][data-phase="ready"]'),
     ).toBeVisible({ timeout: 120_000 });
     const notifications = page
       .locator('[aria-label="Notifications"]')
       .getByRole("button", { name: "Masquer le message" });
     while (await notifications.count()) await notifications.first().click();
     const tree = page.getByRole("complementary", {
-      name: "Explorateur du projet",
+      name: "Maquettes et relevés",
     });
     const model = tree.getByRole("button", {
       name: "Ifc4_SampleHouse.ifc",
@@ -80,11 +80,22 @@ test("reveals the object picked in the scene inside the collapsed model tree", a
     await expect
       .poll(() => selectedClass.getAttribute("aria-expanded"))
       .toBe("false");
-    await tree.getByRole("tab", { name: "Relevé 3D" }).click();
+    await tree.getByRole("tab", { name: /^Relevés/ }).click();
     await canvas.click({ position: pickedPoint });
-    await expect(
-      tree.getByRole("tab", { name: "BIM", exact: true }),
-    ).toHaveAttribute("aria-selected", "true", { timeout: 30_000 });
+    await expect(tree.getByRole("tab", { name: /^Relevés/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await page
+      .getByRole("button", {
+        name: "Afficher dans l’arborescence",
+        exact: true,
+      })
+      .click();
+    await expect(tree.getByRole("tab", { name: /^Maquettes/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
     await expect(selected).toBeInViewport();
     selectedTitle = await selected.getAttribute("title");
 
@@ -157,6 +168,23 @@ test("reveals the object picked in the scene inside the collapsed model tree", a
     await page.screenshot({
       path: test.info().outputPath("selection-dark.png"),
     });
+    await page
+      .getByRole("button", { name: "Filtres et couleurs", exact: true })
+      .click();
+    const filters = page.getByRole("complementary", {
+      name: "Filtres et couleurs",
+      exact: true,
+    });
+    await filters
+      .getByLabel("Classe IFC", { exact: true })
+      .selectOption("IfcWall");
+    await page.getByRole("button", { name: "Coupes", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Filtres et couleurs", exact: true })
+      .click();
+    await expect(filters.getByLabel("Classe IFC", { exact: true })).toHaveValue(
+      "IfcWall",
+    );
   } catch (error) {
     console.error(error);
     console.error(await page.locator("main").ariaSnapshot());

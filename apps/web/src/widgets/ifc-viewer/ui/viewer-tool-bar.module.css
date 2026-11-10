@@ -136,3 +136,22 @@
   border-radius: 50%;
   background: var(--viewer-accent);
 }
+
+.menu {
+  position: absolute;
+  z-index: 10;
+  left: calc(100% + 0.75rem);
+  bottom: 0;
+  width: min(18rem, calc(100vw - 5rem));
+  padding: 0.5rem;
+  border: 1px solid var(--viewer-border);
+  background: var(--background-default-grey);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 12%);
+}
+.menu[hidden] {
+  display: none;
+}
+.menu button {
+  width: 100%;
+  text-align: left;
+}

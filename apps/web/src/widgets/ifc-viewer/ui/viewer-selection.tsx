@@ -19,13 +19,39 @@ export function ViewerSelection({
   getViewer: () => IfcViewerController | null;
   modelName: string | null;
   canCreateBcf: boolean;
-  onCreateBcf: () => void;
-  onReveal: () => void;
+  onCreateBcf: (trigger: HTMLButtonElement) => void;
+  onReveal: (trigger: HTMLButtonElement) => void;
 }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const selection = snapshot.selection;
-  if (!selection || !snapshot.activeModelId) return null;
   const viewer = getViewer();
+  if (snapshot.selectionPhase === "error")
+    return (
+      <aside className={styles.root} aria-label="Erreur de sélection">
+        <div className="flex items-center justify-between gap-2 p-3">
+          <p className="mb-0 text-sm" role="alert">
+            {snapshot.selectionMessage ??
+              "Les propriétés n’ont pas pu être lues."}
+          </p>
+          <Button
+            size="small"
+            priority="tertiary no outline"
+            iconId="fr-icon-close-line"
+            title="Fermer l’erreur de sélection"
+            onClick={() => viewer?.selectEntity(null)}
+          />
+        </div>
+      </aside>
+    );
+  if (!selection && snapshot.selectionPhase === "loading")
+    return (
+      <aside className={styles.root} aria-label="Chargement de la sélection">
+        <p className="m-0 p-3 text-sm" role="status">
+          Lecture des propriétés…
+        </p>
+      </aside>
+    );
+  if (!selection || !snapshot.activeModelId) return null;
   const element = viewer?.getBimElement(
     snapshot.activeModelId,
     selection.expressId,
@@ -88,7 +114,11 @@ export function ViewerSelection({
               })
             }
           >
-            Isoler
+            {snapshot.selectedElements.some(
+              (element) => element.assetId !== snapshot.activeModelId,
+            )
+              ? "Isoler dans cette maquette"
+              : "Isoler"}
           </Button>
           <Button
             size="small"
@@ -107,7 +137,7 @@ export function ViewerSelection({
           <Button
             size="small"
             priority="tertiary no outline"
-            onClick={onReveal}
+            onClick={(event) => onReveal(event.currentTarget)}
           >
             Afficher dans l’arborescence
           </Button>
@@ -116,7 +146,7 @@ export function ViewerSelection({
               size="small"
               priority="tertiary no outline"
               iconId="fr-icon-chat-3-line"
-              onClick={onCreateBcf}
+              onClick={(event) => onCreateBcf(event.currentTarget)}
             >
               Créer une remarque
             </Button>

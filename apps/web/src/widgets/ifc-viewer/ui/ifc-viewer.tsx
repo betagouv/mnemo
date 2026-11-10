@@ -1,7 +1,9 @@
 "use client";
 
-import { useCallback, useState, type CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 
+import { useViewerFeedback } from "../model/use-viewer-feedback";
+import { BimAppearancePanel } from "@/features/explore-bim-model";
 import { useViewerPanels } from "../model/use-viewer-panels";
 import { useBcfViewer } from "@/features/manage-bcf-topics";
 import { ViewerLoadStatus } from "./viewer-load-status";
@@ -37,10 +39,7 @@ import styles from "./ifc-viewer.module.css";
 import { ProjectLayers } from "./project-layers";
 import { ViewCube } from "./view-cube";
 import { ViewerActiveModifiers } from "./viewer-active-modifiers";
-import {
-  ViewerActionMessage,
-  type ViewerFeedback,
-} from "./viewer-action-message";
+import { ViewerActionMessage } from "./viewer-action-message";
 import { ViewerSelection } from "./viewer-selection";
 import { ViewerSidePanel } from "./viewer-side-panel";
 import { ViewerToolBar } from "./viewer-tool-bar";
@@ -107,11 +106,10 @@ export function ProjectViewer({
     explorerPinned,
     setExplorerPinned,
     activeToolGroup,
-    setActiveToolGroup,
     panelFocusRequest,
-    setPanelFocusRequest,
     toolBarRef,
     openPanel,
+    togglePanel,
     closePanel,
   } = useViewerPanels(getViewer);
   const {
@@ -143,8 +141,11 @@ export function ProjectViewer({
         }) ?? 0) > 0,
     );
   const activeModifiers = getActiveViewerModifiers(snapshot, visibilityChanged);
-  const [feedback, setFeedback] = useState<ViewerFeedback | null>(null);
-  const dismissFeedback = useCallback(() => setFeedback(null), []);
+  const {
+    feedback,
+    dismiss: dismissFeedback,
+    reset: resetModifier,
+  } = useViewerFeedback(getViewer, hiddenPointCloudIds, setPointCloudVisible);
 
   const failedSource = ifcSources.find(
     (source) =>
@@ -180,7 +181,8 @@ export function ProjectViewer({
         isOpen={showExplorer}
         focusRequest={activePanel === "layers" ? panelFocusRequest : 0}
         mode="layers"
-        pinned={explorerPinned && hasToolPanel}
+        pinned={explorerPinned}
+        docked={explorerPinned && hasToolPanel}
         onPin={() => setExplorerPinned(!explorerPinned)}
         onClose={() => {
           setExplorerPinned(false);
@@ -217,6 +219,7 @@ export function ProjectViewer({
       >
         <canvas
           aria-label={`Vue 3D du projet ${projectName}`}
+          data-phase={snapshot.phase}
           className={`${styles.canvas} ${snapshot.section.pickMode ? styles.pickingCanvas : ""}`}
           ref={canvasRef}
         />
@@ -266,9 +269,7 @@ export function ProjectViewer({
           activeId={activeBcfTopicId}
           onSelect={(id) => {
             void bcfPanelRef.current?.open(id);
-            setActivePanel("bcf");
-            setActiveToolGroup("annotations");
-            setPanelFocusRequest((request) => request + 1);
+            openPanel("bcf", "annotations");
           }}
         />
         <div className={styles.rightControls}>
@@ -317,87 +318,25 @@ export function ProjectViewer({
           onRetry={retry}
         />
 
-        {snapshot.phase === "ready" ? (
-          <div className={styles.modelStats} role="status">
-            <strong>{snapshot.entityCount?.toLocaleString("fr-FR")}</strong>
-            <span>entités IFC</span>
-            <i aria-hidden="true" />
-            <strong>{snapshot.meshCount.toLocaleString("fr-FR")}</strong>
-            <span>maillages</span>
-            {snapshot.pointClouds.length ? (
-              <>
-                <i aria-hidden="true" />
-                <strong>
-                  {snapshot.pointClouds
-                    .reduce((total, cloud) => total + cloud.pointCount, 0)
-                    .toLocaleString("fr-FR")}
-                </strong>
-                <span>points</span>
-              </>
-            ) : null}
-          </div>
-        ) : null}
-
         <ViewerSelection
           key={`${activeModelId}:${snapshot.selection?.expressId}`}
           snapshot={snapshot}
           getViewer={getViewer}
           modelName={activeIfcSource?.fileName ?? null}
           canCreateBcf={bcfPermissions.read && bcfPermissions.createTopic}
-          onCreateBcf={() => {
-            void bcfPanelRef.current?.create();
-            setActivePanel("bcf");
-            setActiveToolGroup("annotations");
-            setPanelFocusRequest((request) => request + 1);
+          onCreateBcf={(trigger) => {
+            bcfPanelRef.current?.create();
+            openPanel("bcf", "annotations", trigger);
           }}
-          onReveal={() => {
-            setActivePanel("layers");
-            setActiveToolGroup("layers");
+          onReveal={(trigger) => {
+            openPanel("layers", "layers", trigger);
             setRevealSelectionRequest((request) => request + 1);
           }}
         />
 
         <ViewerActiveModifiers
           activePanel={activePanel}
-          onReset={(modifier) => {
-            const viewer = getViewer();
-            if (!viewer) return;
-            if (modifier.reset === "section") {
-              const section = snapshot.section;
-              viewer.hideSection();
-              const expected = viewer.getSnapshot().section;
-              setFeedback({
-                message: "Coupe masquée",
-                canUndo: () => viewer.getSnapshot().section === expected,
-                undo: () =>
-                  section.active === "box"
-                    ? viewer.showSectionBox()
-                    : viewer.showSectionPlane(),
-              });
-            } else if (modifier.reset === "visual") {
-              const plan = viewer.getVisualPlan();
-              const assetId = snapshot.activeModelId;
-              viewer.resetVisuals();
-              const expected = viewer.getSnapshot().visual;
-              setFeedback({
-                message: "Affichage réinitialisé",
-                canUndo: () =>
-                  viewer.getSnapshot().activeModelId === assetId &&
-                  viewer.getSnapshot().visual === expected,
-                undo: () => viewer.applyVisualPlan(plan),
-              });
-            } else {
-              for (const model of snapshot.models)
-                viewer.setLayerVisibility(
-                  model.assetId,
-                  { kind: "model" },
-                  "show",
-                );
-              for (const id of hiddenPointCloudIds)
-                setPointCloudVisible(id, true);
-              setFeedback({ message: "Visibilité des fichiers rétablie" });
-            }
-          }}
+          onReset={resetModifier}
           modifiers={activeModifiers}
           onOpen={(modifier, trigger) =>
             openPanel(modifier.panel, modifier.group, trigger)
@@ -405,13 +344,6 @@ export function ProjectViewer({
         />
 
         <ViewerActionMessage feedback={feedback} onDismiss={dismissFeedback} />
-
-        <div className={styles.help}>
-          <span>Clic : sélectionner</span>
-          <span>Glisser : orbiter</span>
-          <span>Maj ou clic milieu : déplacer</span>
-          <span>Molette : zoomer</span>
-        </div>
       </section>
 
       <ViewerToolBar
@@ -420,8 +352,7 @@ export function ProjectViewer({
         sectionActive={snapshot.section.active !== null}
         bcfTopicCount={bcfTopicCount}
         canReadBcf={bcfPermissions.read}
-        onFitToView={() => getViewer()?.fitToView()}
-        onSelect={openPanel}
+        onSelect={togglePanel}
         rootRef={toolBarRef}
       />
       <ViewerSidePanel
@@ -486,13 +417,21 @@ export function ProjectViewer({
             />
           </div>
         ) : null}
+        <div hidden={activePanel !== "colorization"}>
+          <BimAppearancePanel snapshot={snapshot} getViewer={getViewer} />
+        </div>
         <ViewerPanelContent
           panel={activePanel}
           snapshot={snapshot}
           getViewer={getViewer}
           hasActiveIfc={Boolean(activeIfcSource)}
           onSectionModeChange={(mode) => {
-            controllerRef.current?.cancelSectionPick();
+            const viewer = getViewer();
+            viewer?.cancelSectionPick();
+            if (snapshot.section.active) {
+              if (mode === "box") viewer?.showSectionBox();
+              else viewer?.showSectionPlane();
+            }
             setActivePanel(mode === "box" ? "cut-box" : "cut-plane");
           }}
           floorPlans={

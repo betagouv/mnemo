@@ -24,19 +24,20 @@ export function useViewerPanels(
   const openPanel = (
     panel: ViewerPanelId,
     groupId: ViewerToolGroupId,
-    trigger: HTMLButtonElement,
+    trigger?: HTMLButtonElement,
   ) => {
-    if (activeToolGroup === groupId && activePanel !== null) {
-      closePanel();
-      return;
-    }
     if (
       (activePanel === "cut-plane" || activePanel === "cut-box") &&
       panel !== activePanel
     ) {
       getViewer()?.cancelSectionPick();
     }
-    lastPanelTrigger.current = trigger;
+    lastPanelTrigger.current =
+      trigger ??
+      toolBarRef.current?.querySelector<HTMLButtonElement>(
+        `button[data-tool-group="${groupId}"]`,
+      ) ??
+      null;
     setActivePanel(panel);
     setActiveToolGroup(groupId);
     setPanelFocusRequest((request) => request + 1);
@@ -53,6 +54,14 @@ export function useViewerPanels(
         : null) ?? toolBarRef.current?.querySelector("button");
     returnTarget?.focus();
   };
+  const togglePanel = (
+    panel: ViewerPanelId,
+    groupId: ViewerToolGroupId,
+    trigger: HTMLButtonElement,
+  ) => {
+    if (activeToolGroup === groupId && activePanel !== null) closePanel();
+    else openPanel(panel, groupId, trigger);
+  };
   return {
     activePanel,
     setActivePanel,
@@ -64,6 +73,7 @@ export function useViewerPanels(
     setPanelFocusRequest,
     toolBarRef,
     openPanel,
+    togglePanel,
     closePanel,
   };
 }

@@ -14,6 +14,7 @@ export function ViewerSidePanel({
   onClose,
   title,
   pinned = false,
+  docked = false,
   onPin,
 }: {
   children: ReactNode;
@@ -24,6 +25,7 @@ export function ViewerSidePanel({
   onClose: () => void;
   title: string;
   pinned?: boolean;
+  docked?: boolean;
   onPin?: () => void;
 }) {
   const titleId = useId();
@@ -36,14 +38,21 @@ export function ViewerSidePanel({
   return (
     <aside
       aria-labelledby={titleId}
+      onKeyDown={(event) => {
+        if (
+          event.key === "Escape" &&
+          !event.defaultPrevented &&
+          !(event.target as HTMLElement).closest(
+            'input:not([type="radio"]):not([type="checkbox"]), textarea, select',
+          )
+        ) {
+          event.preventDefault();
+          onClose();
+        }
+      }}
       className={`${styles.root} grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] border border-[var(--viewer-border)] bg-[var(--background-default-grey)]`}
       data-pinned={pinned || undefined}
-      data-wide={
-        mode === "bcf" ||
-        mode === "assistant" ||
-        mode === "floor-plan" ||
-        undefined
-      }
+      data-docked={docked || undefined}
       hidden={!isOpen}
     >
       <header
@@ -58,6 +67,7 @@ export function ViewerSidePanel({
         <div className="flex items-center">
           {onPin ? (
             <Button
+              className={styles.pin}
               iconId="ri-pushpin-line"
               size="small"
               priority="tertiary no outline"

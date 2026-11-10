@@ -55,22 +55,28 @@
   overflow: hidden;
 }
 
-.root[data-pinned="true"] {
+.root[data-docked="true"] {
   width: 20rem;
 }
-:global([data-explorer-pinned="true"]) .root:not([data-pinned="true"]) {
+:global([data-explorer-pinned="true"]) .root:not([data-docked="true"]) {
   left: 25.25rem;
 }
 @media (width < 90rem) {
-  .root[data-pinned="true"] {
+  .root[data-docked="true"] {
     display: none;
   }
-  :global([data-explorer-pinned="true"]) .root:not([data-pinned="true"]) {
+  :global([data-explorer-pinned="true"]) .root:not([data-docked="true"]) {
     left: 4.5rem;
   }
 }
 @media (width <= 48rem) {
   .root {
     max-width: calc(100% - 5rem);
+  }
+}
+
+@media (width < 90rem) {
+  .header .pin {
+    display: none;
   }
 }

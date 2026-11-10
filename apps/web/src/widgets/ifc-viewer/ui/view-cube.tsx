@@ -1,5 +1,6 @@
 "use client";
 
+import Button from "@codegouvfr/react-dsfr/Button";
 import { SegmentedControl } from "@codegouvfr/react-dsfr/SegmentedControl";
 import type {
   IfcViewerController,
@@ -194,6 +195,16 @@ export function ViewCube({
         ]}
         small
       />
+      <Button
+        iconId="fr-icon-focus-3-line"
+        title="Tout cadrer"
+        size="small"
+        priority="secondary"
+        className={styles.fit}
+        onClick={() => getViewer()?.fitToView()}
+      >
+        Tout cadrer
+      </Button>
     </nav>
   );
 }

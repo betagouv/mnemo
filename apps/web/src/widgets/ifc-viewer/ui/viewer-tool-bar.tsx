@@ -1,8 +1,9 @@
 "use client";
 import Button from "@codegouvfr/react-dsfr/Button";
-import type { RefObject } from "react";
+import { useEffect, useId, useRef, useState, type RefObject } from "react";
 import {
   viewerToolGroups,
+  viewerSecondaryTools,
   type ViewerPanelId,
   type ViewerToolGroupId,
 } from "../model/viewer-tool-catalog";
@@ -13,7 +14,6 @@ export function ViewerToolBar({
   layerCount,
   canReadBcf,
   sectionActive,
-  onFitToView,
   onSelect,
   rootRef,
 }: {
@@ -22,7 +22,6 @@ export function ViewerToolBar({
   layerCount: number;
   canReadBcf: boolean;
   sectionActive: boolean;
-  onFitToView: () => void;
   onSelect: (
     panel: ViewerPanelId,
     groupId: ViewerToolGroupId,
@@ -30,6 +29,17 @@ export function ViewerToolBar({
   ) => void;
   rootRef: RefObject<HTMLDivElement | null>;
 }) {
+  const [moreOpen, setMoreOpen] = useState(false);
+  const menuId = useId();
+  const moreRef = useRef<HTMLLIElement>(null);
+  useEffect(() => {
+    if (!moreOpen) return;
+    const closeOutside = (event: PointerEvent) => {
+      if (!moreRef.current?.contains(event.target as Node)) setMoreOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    return () => document.removeEventListener("pointerdown", closeOutside);
+  }, [moreOpen]);
   return (
     <div
       aria-label="Outils de la visionneuse"
@@ -58,6 +68,7 @@ export function ViewerToolBar({
                   iconId={group.icon}
                   nativeButtonProps={{
                     "aria-label": group.label,
+                    "data-tool-group": group.id,
                     "aria-pressed": activeGroupId === group.id,
                     "data-active": activeGroupId === group.id || undefined,
                     "data-effect-active":
@@ -87,19 +98,55 @@ export function ViewerToolBar({
               </li>
             );
           })}
-        <li className={styles.item} data-separated="true">
+        <li
+          className={styles.item}
+          data-separated="true"
+          ref={moreRef}
+          onKeyDown={(event) => {
+            if (event.key === "Escape" && moreOpen) {
+              event.preventDefault();
+              setMoreOpen(false);
+              moreRef.current?.querySelector("button")?.focus();
+            }
+          }}
+        >
           <Button
             className={styles.trigger}
-            iconId="fr-icon-focus-3-line"
-            nativeButtonProps={{ "aria-label": "Tout cadrer" }}
-            onClick={onFitToView}
+            iconId="fr-icon-more-fill"
+            nativeButtonProps={{
+              "aria-label": "Autres outils",
+              "aria-expanded": moreOpen,
+              "aria-controls": menuId,
+              "data-active":
+                activeGroupId === "help" ||
+                activeGroupId === "information" ||
+                undefined,
+            }}
+            onClick={() => setMoreOpen(!moreOpen)}
             priority="tertiary no outline"
             size="small"
           >
             <span aria-hidden="true" className={styles.tooltip}>
-              Tout cadrer
+              Autres outils
             </span>
           </Button>
+          <div className={styles.menu} hidden={!moreOpen} id={menuId}>
+            {viewerSecondaryTools.map((tool) => (
+              <Button
+                key={tool.id}
+                iconId={tool.icon}
+                size="small"
+                priority="tertiary no outline"
+                onClick={() => {
+                  const trigger = moreRef.current?.querySelector("button");
+                  setMoreOpen(false);
+                  if (trigger) onSelect(tool.panel, tool.id, trigger);
+                }}
+              >
+                {tool.label}
+              </Button>
+            ))}
+          </div>
         </li>
       </ul>
     </div>
