@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { afterAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { getRuntimePrismaDatabase } from "@/server/database/runtime-database";
 
@@ -16,6 +16,7 @@ vi.mock("@/server/email/brevo-email", () => ({
 }));
 
 const email = `mnemo-auth-test-${randomUUID()}@example.invalid`;
+const adminEmail = `mnemo-admin-notification-${randomUUID()}@example.invalid`;
 const password = `Local-test-password-${randomUUID()}`;
 const newPassword = `New-local-test-password-${randomUUID()}`;
 const testIp = `2001:db8:${randomUUID().replaceAll("-", "").slice(0, 4)}::1`;
@@ -43,13 +44,29 @@ function post(path: string, body: unknown, cookie?: string) {
 }
 
 function lastLink() {
-  const link = deliveries.at(-1)?.actionUrl;
+  const link = deliveries
+    .filter((message) => message.to === email)
+    .at(-1)?.actionUrl;
   if (!link) throw new Error("Expected an email containing a link");
   return link;
 }
 
+beforeAll(async () => {
+  await getRuntimePrismaDatabase().users.create({
+    data: {
+      email: adminEmail,
+      display_name: "Admin notifications test",
+      email_verified: true,
+      approved_at: new Date(),
+      roles: ["user", "admin"],
+    },
+  });
+});
+
 afterAll(async () => {
-  await getRuntimePrismaDatabase().users.deleteMany({ where: { email } });
+  await getRuntimePrismaDatabase().users.deleteMany({
+    where: { email: { in: [email, adminEmail] } },
+  });
 });
 
 describe("Better Auth email verification and password recovery", () => {
@@ -61,13 +78,17 @@ describe("Better Auth email verification and password recovery", () => {
         email,
         password,
         callbackURL: "/connexion?verification=ok",
+        roles: ["user", "admin"],
+        approved_at: new Date().toISOString(),
       }),
     );
     expect(signup.status).toBe(200);
     expect(signup.headers.get("set-cookie") ?? "").not.toContain(
       "better-auth.session_token",
     );
-    expect(deliveries.at(-1)).toMatchObject({
+    expect(
+      deliveries.filter((message) => message.to === email).at(-1),
+    ).toMatchObject({
       to: email,
       subject: "Confirmer votre adresse e-mail Mnemo",
     });
@@ -92,7 +113,17 @@ describe("Better Auth email verification and password recovery", () => {
       }),
     );
     expect(resend.status).toBe(200);
-    expect(deliveries).toHaveLength(2);
+    expect(deliveries.filter((message) => message.to === email)).toHaveLength(
+      2,
+    );
+    expect(deliveries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          to: adminEmail,
+          subject: "Nouvelle demande de compte Mnemo",
+        }),
+      ]),
+    );
     const unknownResend = await auth.handler(
       post("send-verification-email", {
         email: `unknown-${randomUUID()}@example.invalid`,
@@ -109,6 +140,8 @@ describe("Better Auth email verification and password recovery", () => {
     expect(account).toMatchObject({
       display_name: "Test Mnemo",
       email_verified: false,
+      approved_at: null,
+      roles: ["user"],
     });
     expect(account?.auth_accounts).toHaveLength(1);
     expect(account?.auth_accounts[0]?.password).not.toBe(password);
@@ -130,6 +163,23 @@ describe("Better Auth email verification and password recovery", () => {
     expect(login.status).toBe(200);
     const loginCookie = login.headers.get("set-cookie")?.split(";")[0] ?? "";
     expect(loginCookie).toContain("better-auth.session_token");
+    const attemptedEscalation = await auth.handler(
+      post(
+        "update-user",
+        {
+          name: "Test Mnemo",
+          roles: ["user", "admin"],
+          approved_at: new Date().toISOString(),
+          approvedAt: new Date().toISOString(),
+        },
+        loginCookie,
+      ),
+    );
+    expect(attemptedEscalation.status).toBe(200);
+    expect(
+      await getRuntimePrismaDatabase().users.findUnique({ where: { email } }),
+    ).toMatchObject({ roles: ["user"], approved_at: null });
+
     expect(
       await auth.api.getSession({
         headers: new Headers({ cookie: loginCookie }),
@@ -143,7 +193,9 @@ describe("Better Auth email verification and password recovery", () => {
       }),
     );
     expect(recovery.status).toBe(200);
-    expect(deliveries.at(-1)).toMatchObject({
+    expect(
+      deliveries.filter((message) => message.to === email).at(-1),
+    ).toMatchObject({
       to: email,
       subject: "Réinitialiser votre mot de passe Mnemo",
     });

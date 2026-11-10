@@ -45,7 +45,7 @@ export const auth = betterAuth({
           to: user.email,
           subject: "Confirmer votre adresse e-mail Mnemo",
           intro:
-            "Confirmez votre adresse e-mail pour activer votre compte Mnemo.",
+            "Confirmez votre adresse e-mail. Un administrateur devra ensuite approuver votre compte pour vous donner accès à Mnemo.",
           actionLabel: "Confirmer mon adresse",
           actionUrl: url,
           note: "Si vous n'avez pas créé de compte Mnemo, vous pouvez ignorer ce message.",
@@ -57,6 +57,24 @@ export const auth = betterAuth({
           error instanceof Error ? error.message : "unknown",
         );
       }
+    },
+  },
+  databaseHooks: {
+    user: {
+      create: {
+        after: async (user) => {
+          const { getAccountAdministration } =
+            await import("@/server/accounts/account-administration-factory");
+          try {
+            await getAccountAdministration().notifyRegistration({
+              displayName: user.name,
+              email: user.email,
+            });
+          } catch {
+            console.error("Registration administrator notification failed");
+          }
+        },
+      },
     },
   },
   user: {

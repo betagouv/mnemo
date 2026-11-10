@@ -17,6 +17,7 @@ export default async function authSetup() {
         email,
         display_name: "Test navigateur Mnemo",
         email_verified: true,
+        approved_at: new Date(),
       },
     });
     await db.auth_accounts.create({

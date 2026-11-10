@@ -12,7 +12,8 @@
     "./projects": "./src/projects.ts",
     "./project-access": "./src/project-access.ts",
     "./point-clouds": "./src/point-clouds.ts",
-    "./floor-plans": "./src/floor-plans.ts"
+    "./floor-plans": "./src/floor-plans.ts",
+    "./accounts": "./src/accounts.ts"
   },
   "scripts": {
     "lint": "eslint src",

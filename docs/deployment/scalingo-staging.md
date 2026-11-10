@@ -2,7 +2,7 @@
 
 Un seul dépôt, trois applications dans la région `osc-secnum-fr1` : `mnemo-web` (Next.js et orchestration), `mnemo-ifc-rust` (lecture des IFC) et `mnemo-potree` (nom historique, conversion **COPC** à la demande). Le développement local reste disponible avec `make dev`.
 
-L'accès applicatif utilise un compte personnel Better Auth (e-mail et mot de passe). L'inscription est publique, mais la confirmation de l'adresse e-mail est obligatoire ; la réinitialisation du mot de passe passe par Brevo.
+L'accès applicatif utilise un compte personnel Better Auth (e-mail et mot de passe). L'inscription est publique, mais la confirmation de l'adresse e-mail et l'approbation par un administrateur sont obligatoires ; la réinitialisation du mot de passe passe par Brevo.
 
 ## 1. Configurer les applications
 
@@ -69,3 +69,23 @@ scalingo --region osc-secnum-fr1 --app mnemo-potree deploy "$deploy_dir/copc.tar
 - En cas d'échec, consulter les logs de l'app concernée et `scalingo --region osc-secnum-fr1 --app mnemo-potree ps` pendant la conversion. L'application attend la réponse de Brevo avant de terminer la demande d'e-mail ; cette réponse confirme la prise en charge, pas la livraison finale. Si un message n'arrive pas, vérifier les logs Brevo puis redemander un lien.
 
 Les responsabilités et les choix techniques sont détaillés dans [l'ADR S3/traitement à la demande](../adr/0015-s3-native-ifc-and-oneoff-processing.md).
+
+## Premier administrateur
+
+Après la migration des comptes, promouvoir un compte existant dont l'adresse
+est confirmée en exécutant cette requête dans la base de l'environnement visé.
+Remplacer l'adresse avant l'exécution.
+
+```sql
+UPDATE users
+SET roles = ARRAY['user', 'admin']::user_role[],
+    approved_at = COALESCE(approved_at, CURRENT_TIMESTAMP)
+WHERE email = 'administrateur@example.org'
+  AND email_verified = TRUE
+RETURNING id, email, roles, approved_at;
+```
+
+Vérifier qu'une ligne est retournée. Les changements s'appliquent aux sessions
+existantes à leur prochaine requête. L'interface est disponible à
+`/admin/utilisateurs`. Les anciens comptes sont approuvés par la migration et
+les nouvelles inscriptions attendent une approbation.
