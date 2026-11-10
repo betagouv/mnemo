@@ -25,5 +25,5 @@ export type BcfWorkspaceProps = {
   onTopicsChange: (count: number) => void;
   onActiveTopicChange: (id: string | null) => void;
   onMarkersChange: (topics: BcfMarkerTopic[]) => void;
-  ref?: Ref<{ open: (id: string) => Promise<void> }>;
+  ref?: Ref<{ open: (id: string) => Promise<void>; create: () => void }>;
 };

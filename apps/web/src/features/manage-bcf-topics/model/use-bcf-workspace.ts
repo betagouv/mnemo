@@ -19,6 +19,7 @@ import type { BcfWorkspaceProps } from "./bcf-workspace-types";
 
 export function useBcfWorkspace({
   projectId,
+  permissions,
   initialTopics,
   applyViewpoint,
   onTopicsChange,
@@ -112,7 +113,19 @@ export function useBcfWorkspace({
     },
     [projectId, screen, onActiveTopicChange],
   );
-  useImperativeHandle(ref, () => ({ open }), [open]);
+  const create = useCallback(() => {
+    if (!permissions.createTopic) return;
+    if (
+      (screen === "create" || screen === "edit") &&
+      !confirm("Abandonner les modifications de cette remarque ?")
+    )
+      return;
+    requestRevision.current += 1;
+    setBusy(false);
+    setError(null);
+    setScreen("create");
+  }, [permissions.createTopic, screen]);
+  useImperativeHandle(ref, () => ({ open, create }), [open, create]);
   useEffect(() => {
     if (!markers) return;
     const abort = new AbortController();

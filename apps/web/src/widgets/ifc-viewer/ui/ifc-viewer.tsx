@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 
 import { useViewerPanels } from "../model/use-viewer-panels";
 import { useBcfViewer } from "@/features/manage-bcf-topics";
@@ -34,11 +34,10 @@ import type {
   ViewerPointCloudSource,
 } from "@/entities/viewer";
 import styles from "./ifc-viewer.module.css";
-import { IfcPropertiesPane } from "./ifc-properties-pane";
 import { ProjectLayers } from "./project-layers";
 import { ViewCube } from "./view-cube";
 import { ViewerActiveModifiers } from "./viewer-active-modifiers";
-import { ViewerExplorerSplit } from "./viewer-explorer-split";
+import { ViewerSelection } from "./viewer-selection";
 import { ViewerSidePanel } from "./viewer-side-panel";
 import { ViewerToolBar } from "./viewer-tool-bar";
 
@@ -139,6 +138,7 @@ export function ProjectViewer({
       ),
   );
 
+  const [revealSelectionRequest, setRevealSelectionRequest] = useState(0);
   const showExplorer = activePanel === "layers" || explorerPinned;
   const hasToolPanel = activePanel !== null && activePanel !== "layers";
 
@@ -172,43 +172,25 @@ export function ProjectViewer({
         }}
       >
         <div className="h-full min-h-0">
-          <ViewerExplorerSplit
-            explorer={
-              <ProjectLayers
-                getViewer={getViewer}
-                hiddenPointCloudIds={hiddenPointCloudIds}
-                ifcSources={ifcSources}
-                onPointBudgetChange={(maxPoints) =>
-                  void reloadPointClouds(maxPoints)
-                }
-                onPointCloudConfigurationChange={updatePointCloudConfiguration}
-                onPointSizeChange={(pointSize) =>
-                  controllerRef.current?.setPointCloudPointSize(pointSize)
-                }
-                onPointCloudVisibilityChange={setPointCloudVisible}
-                pointBudget={pointBudget}
-                pointCloudConfigurations={pointCloudConfigurations}
-                pointCloudFailures={pointCloudFailures}
-                pointSize={snapshot.pointCloudOptions.pointSize}
-                projectId={projectId}
-                snapshot={snapshot}
-              />
+          <ProjectLayers
+            revealSelectionRequest={revealSelectionRequest}
+            getViewer={getViewer}
+            hiddenPointCloudIds={hiddenPointCloudIds}
+            ifcSources={ifcSources}
+            onPointBudgetChange={(maxPoints) =>
+              void reloadPointClouds(maxPoints)
             }
-            inspector={
-              snapshot.selection ? (
-                <IfcPropertiesPane
-                  activeModelId={activeModelId}
-                  modelName={activeIfcSource?.fileName ?? null}
-                  onClearSelection={() =>
-                    controllerRef.current?.selectEntity(null)
-                  }
-                  onFrameSelection={() =>
-                    controllerRef.current?.frameSelection()
-                  }
-                  snapshot={snapshot}
-                />
-              ) : null
+            onPointCloudConfigurationChange={updatePointCloudConfiguration}
+            onPointSizeChange={(pointSize) =>
+              controllerRef.current?.setPointCloudPointSize(pointSize)
             }
+            onPointCloudVisibilityChange={setPointCloudVisible}
+            pointBudget={pointBudget}
+            pointCloudConfigurations={pointCloudConfigurations}
+            pointCloudFailures={pointCloudFailures}
+            pointSize={snapshot.pointCloudOptions.pointSize}
+            projectId={projectId}
+            snapshot={snapshot}
           />
         </div>
       </ViewerSidePanel>
@@ -339,6 +321,25 @@ export function ProjectViewer({
             ) : null}
           </div>
         ) : null}
+
+        <ViewerSelection
+          key={`${activeModelId}:${snapshot.selection?.expressId}`}
+          snapshot={snapshot}
+          getViewer={getViewer}
+          modelName={activeIfcSource?.fileName ?? null}
+          canCreateBcf={bcfPermissions.read && bcfPermissions.createTopic}
+          onCreateBcf={() => {
+            void bcfPanelRef.current?.create();
+            setActivePanel("bcf");
+            setActiveToolGroup("annotations");
+            setPanelFocusRequest((request) => request + 1);
+          }}
+          onReveal={() => {
+            setActivePanel("layers");
+            setActiveToolGroup("layers");
+            setRevealSelectionRequest((request) => request + 1);
+          }}
+        />
 
         <ViewerActiveModifiers
           activePanel={activePanel}

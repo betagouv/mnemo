@@ -34,7 +34,10 @@ export function useBcfViewer(
     () => getViewer()?.bcfObjects() ?? [],
     [getViewer],
   );
-  const bcfPanelRef = useRef<{ open: (id: string) => Promise<void> }>(null);
+  const bcfPanelRef = useRef<{
+    open: (id: string) => Promise<void>;
+    create: () => void;
+  }>(null);
   return {
     bcfTopicCount,
     setBcfTopicCount,

@@ -19,6 +19,7 @@ type PointCloudFailure = { assetId: string; fileName: string; error: string };
 
 export function ProjectLayers({
   snapshot,
+  revealSelectionRequest = 0,
   ifcSources,
   hiddenPointCloudIds,
   pointCloudConfigurations,
@@ -33,6 +34,7 @@ export function ProjectLayers({
   onPointBudgetChange,
 }: {
   snapshot: IfcViewerSnapshot;
+  revealSelectionRequest?: number;
   ifcSources: IfcLayer[];
   hiddenPointCloudIds: ReadonlySet<string>;
   pointCloudConfigurations: PointCloudConfiguration[];
@@ -49,6 +51,11 @@ export function ProjectLayers({
   onPointBudgetChange: (budget: number) => void;
 }) {
   const [tab, setTab] = useState("bim");
+  const [lastReveal, setLastReveal] = useState(revealSelectionRequest);
+  if (lastReveal !== revealSelectionRequest) {
+    setLastReveal(revealSelectionRequest);
+    setTab("bim");
+  }
 
   return (
     <div className={styles.panel}>
