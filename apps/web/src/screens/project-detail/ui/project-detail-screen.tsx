@@ -68,8 +68,20 @@ export async function ProjectDetailScreen({
               Ouvrir la vue
             </Button>
           ) : null}
-          {hasProjectPermission(project, "project:update") ? (
-            <ProjectMetadataModal project={project} />
+          {hasProjectPermission(project, "project:update") ||
+          hasProjectPermission(project, "project:delete") ? (
+            <ProjectMetadataModal
+              project={project}
+              canEdit={hasProjectPermission(project, "project:update")}
+              deleteAction={
+                hasProjectPermission(project, "project:delete") ? (
+                  <DeleteProjectButton
+                    projectId={project.id}
+                    projectName={project.title}
+                  />
+                ) : undefined
+              }
+            />
           ) : null}
           {hasProjectPermission(project, "member:manage") ? (
             <Button
@@ -77,7 +89,7 @@ export async function ProjectDetailScreen({
               priority="secondary"
               linkProps={{ href: `/projets/${project.id}/acces` }}
             >
-              Accès au dossier
+              Gérer les accès
             </Button>
           ) : null}
         </div>
@@ -89,24 +101,6 @@ export async function ProjectDetailScreen({
         initialAssets={assets}
         projectId={project.id}
       />
-
-      {hasProjectPermission(project, "project:delete") ? (
-        <section
-          className={styles.management}
-          aria-labelledby="management-title"
-        >
-          <div>
-            <h2 id="management-title">Gestion du dossier</h2>
-            <p>
-              Supprimez ce dossier uniquement si vous n’en avez plus besoin.
-            </p>
-          </div>
-          <DeleteProjectButton
-            projectId={project.id}
-            projectName={project.title}
-          />
-        </section>
-      ) : null}
     </div>
   );
 }

@@ -1,8 +1,11 @@
 "use client";
 
-import Button from "@codegouvfr/react-dsfr/Button";
-import Tag from "@codegouvfr/react-dsfr/Tag";
-import type { AssetKind, AssetSummary } from "@mnemo/contracts/assets";
+import { Upload } from "@codegouvfr/react-dsfr/Upload";
+import {
+  beginAssetUploadInputSchema,
+  type AssetKind,
+  type AssetSummary,
+} from "@mnemo/contracts/assets";
 import { supportsAssetFile } from "@mnemo/domain/asset";
 import { type DragEvent, useRef, useState } from "react";
 
@@ -12,7 +15,6 @@ import styles from "./upload-asset-controls.module.css";
 import { uploadFile } from "./upload-file";
 
 const acceptedFiles = ".ifc,.ifczip,.las,.laz,.ply,.e57";
-const formatLabels = ["IFC", "IFCZIP", "LAS", "LAZ", "PLY", "E57"];
 
 type FileSystemHandleItem = DataTransferItem & {
   getAsFileSystemHandle?: () => Promise<FileSystemHandle | null>;
@@ -64,8 +66,10 @@ async function filesFromDrop(transfer: DataTransfer): Promise<File[]> {
 export function UploadAssetControls({
   projectId,
   onUploaded,
+  label = "Fichier à ajouter",
 }: {
   projectId: string;
+  label?: string;
   onUploaded: (asset: AssetSummary) => void;
 }) {
   const [progress, setProgress] = useState<number | null>(null);
@@ -126,13 +130,20 @@ export function UploadAssetControls({
       return;
     }
 
+    if (
+      !beginAssetUploadInputSchema.shape.sizeBytes.safeParse(file.size).success
+    ) {
+      setError("Le fichier doit être non vide et ne pas dépasser 5 Gio.");
+      return;
+    }
+
     void startUpload(kind, file);
   }
 
   function onDroppedFiles(files: File[]) {
     if (files.length === 0) {
       setError(
-        "Le navigateur n’a transmis aucun fichier. Utilisez « Sélectionner un fichier » pour l’ajouter.",
+        "Le navigateur n’a transmis aucun fichier. Utilisez le champ « Ajouter un fichier » pour l’ajouter.",
       );
       return;
     }
@@ -178,60 +189,45 @@ export function UploadAssetControls({
         }}
         role="group"
       >
-        <p className={styles.dropTitle}>Glisser-déposer un fichier ici</p>
-        <p className={styles.dropHint}>
-          Ou sélectionnez-le depuis votre ordinateur
-        </p>
-        <div className={styles.formats} aria-label="Formats acceptés">
-          {formatLabels.map((format) => (
-            <Tag as="span" key={format} small>
-              {format}
-            </Tag>
-          ))}
-        </div>
-        <Button
+        <Upload
+          label={label}
+          hint="Formats acceptés: IFC, IFCZIP, LAS, LAZ, PLY, E57. Un seul fichier, jusqu’à 5 Gio."
           disabled={isUploading}
-          iconId="fr-icon-upload-2-line"
-          onClick={() => fileInputRef.current?.click()}
-        >
-          Sélectionner un fichier
-        </Button>
-        <input
-          accept={acceptedFiles}
-          aria-hidden="true"
-          className={styles.dropInput}
-          disabled={isUploading}
-          onChange={(event) => {
-            nativeDropIdRef.current += 1;
-            setIsDragging(false);
-            onFileSelected(event.currentTarget.files?.[0]);
-            event.currentTarget.value = "";
-          }}
-          onDrop={(event) => {
-            event.stopPropagation();
-            setIsDragging(false);
-            if (isUploading) return;
+          nativeInputProps={{
+            accept: acceptedFiles,
+            onChange: (event) => {
+              nativeDropIdRef.current += 1;
+              setIsDragging(false);
+              onFileSelected(event.currentTarget.files?.[0]);
+              event.currentTarget.value = "";
+            },
+            onDrop: (event) => {
+              event.stopPropagation();
+              setIsDragging(false);
+              if (isUploading) return;
 
-            const directFiles = Array.from(event.dataTransfer.files);
-            if (directFiles.length > 0) {
-              event.preventDefault();
-              onDroppedFiles(directFiles);
-              return;
-            }
+              const directFiles = Array.from(event.dataTransfer.files);
+              if (directFiles.length > 0) {
+                event.preventDefault();
+                onDroppedFiles(directFiles);
+                return;
+              }
 
-            // Let the native file input receive the drop first. Some browsers
-            // populate input.files even when DataTransfer exposes no File.
-            const dropId = ++nativeDropIdRef.current;
-            const files = filesFromDrop(event.dataTransfer);
-            window.setTimeout(() => {
-              if (nativeDropIdRef.current !== dropId) return;
-              void files.then(onDroppedFiles);
-            }, 300);
+              // Let the native file input receive the drop first. Some browsers
+              // populate input.files even when DataTransfer exposes no File.
+              const dropId = ++nativeDropIdRef.current;
+              const files = filesFromDrop(event.dataTransfer);
+              window.setTimeout(() => {
+                if (nativeDropIdRef.current !== dropId) return;
+                void files.then(onDroppedFiles);
+              }, 300);
+            },
+            ref: fileInputRef,
           }}
-          ref={fileInputRef}
-          tabIndex={-1}
-          type="file"
         />
+        <p className={styles.dropHint}>
+          Vous pouvez aussi glisser-déposer un fichier dans cette zone.
+        </p>
       </div>
 
       {progress !== null ? (

@@ -4,7 +4,7 @@ import Button from "@codegouvfr/react-dsfr/Button";
 import { createModal } from "@codegouvfr/react-dsfr/Modal";
 import type { ProjectSummary } from "@mnemo/contracts/projects";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 
 import { createProject, updateProject } from "@/server/projects/actions";
 
@@ -19,8 +19,12 @@ const Modal = modal.Component;
 export function ProjectMetadataModal({
   project,
   onSaved,
+  canEdit = true,
+  deleteAction,
 }: {
   project?: ProjectSummary;
+  canEdit?: boolean;
+  deleteAction?: ReactNode;
   onSaved?: (project: ProjectSummary) => void;
 }) {
   const router = useRouter();
@@ -40,6 +44,7 @@ export function ProjectMetadataModal({
   }
 
   async function submit() {
+    if (!canEdit) return;
     setPending(true);
     setError(false);
     try {
@@ -90,6 +95,7 @@ export function ProjectMetadataModal({
             </label>
             <input
               className="fr-input"
+              disabled={pending || !canEdit}
               id="project-title"
               maxLength={160}
               minLength={2}
@@ -109,6 +115,7 @@ export function ProjectMetadataModal({
             </label>
             <input
               className="fr-input"
+              disabled={pending || !canEdit}
               id="project-address"
               maxLength={320}
               onChange={(event) => setAddress(event.target.value)}
@@ -124,6 +131,7 @@ export function ProjectMetadataModal({
             </label>
             <textarea
               className={`fr-input ${styles.textarea}`}
+              disabled={pending || !canEdit}
               id="project-description"
               maxLength={2_000}
               onChange={(event) => setDescription(event.target.value)}
@@ -147,18 +155,31 @@ export function ProjectMetadataModal({
             >
               Annuler
             </Button>
-            <Button
-              disabled={pending || title.trim().length < 2}
-              nativeButtonProps={{ type: "submit" }}
-            >
-              {pending
-                ? "Enregistrement…"
-                : isEditing
-                  ? "Enregistrer"
-                  : "Créer le dossier"}
-            </Button>
+            {canEdit ? (
+              <Button
+                disabled={pending || title.trim().length < 2}
+                nativeButtonProps={{ type: "submit" }}
+              >
+                {pending
+                  ? "Enregistrement…"
+                  : isEditing
+                    ? "Enregistrer"
+                    : "Créer le dossier"}
+              </Button>
+            ) : null}
           </div>
         </form>
+        {deleteAction ? (
+          <div
+            inert={pending}
+            className="mt-6 border-t border-[var(--border-default-grey)] pt-4"
+          >
+            <p className="fr-text--sm mb-3">
+              Supprimer le dossier retire aussi ses fichiers et ses données.
+            </p>
+            {deleteAction}
+          </div>
+        ) : null}
       </Modal>
     </>
   );

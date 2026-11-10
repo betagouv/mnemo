@@ -173,7 +173,8 @@ test("uses contextual panels without empty properties or unavailable tools", asy
   } finally {
     await gotoHydrated(page, href);
     page.once("dialog", (dialog) => void dialog.accept());
-    await page.getByRole("button", { name: "Supprimer le projet" }).click();
+    await page.getByRole("button", { name: "Modifier le dossier" }).click();
+    await page.getByRole("button", { name: "Supprimer le dossier" }).click();
     await expect(page).toHaveURL(/\/projets$/);
   }
 });

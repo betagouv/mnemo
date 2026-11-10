@@ -95,7 +95,8 @@ test("opens display settings from the compact viewer footer", async ({
   } finally {
     await gotoHydrated(page, projectHref);
     page.once("dialog", (nativeDialog) => void nativeDialog.accept());
-    await page.getByRole("button", { name: "Supprimer le projet" }).click();
+    await page.getByRole("button", { name: "Modifier le dossier" }).click();
+    await page.getByRole("button", { name: "Supprimer le dossier" }).click();
     await expect(page).toHaveURL(/\/projets$/);
   }
 });

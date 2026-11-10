@@ -41,7 +41,7 @@ test("creates a multi-object remark with a preview, comments, restores and expor
     await gotoHydrated(page, href);
     const [chooser] = await Promise.all([
       page.waitForEvent("filechooser"),
-      page.getByRole("button", { name: "Sélectionner un fichier" }).click(),
+      page.locator('input[type="file"]').click(),
     ]);
     await chooser.setFiles(fixture);
     await page
@@ -202,6 +202,7 @@ test("creates a multi-object remark with a preview, comments, restores and expor
     });
   } finally {
     await gotoHydrated(page, href);
-    await page.getByRole("button", { name: "Supprimer le projet" }).click();
+    await page.getByRole("button", { name: "Modifier le dossier" }).click();
+    await page.getByRole("button", { name: "Supprimer le dossier" }).click();
   }
 });
