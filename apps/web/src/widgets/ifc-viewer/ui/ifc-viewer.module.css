@@ -188,18 +188,6 @@
 .shell[data-explorer-pinned="true"] .stage {
   left: calc(25.25rem + var(--viewer-panel-width));
 }
-.layersTrigger {
-  position: absolute;
-  z-index: 7;
-  left: 1rem;
-  top: 0.75rem;
-}
-.layersTrigger button {
-  width: 2.75rem;
-  height: 2.75rem;
-  padding: 0;
-  justify-content: center;
-}
 @media (width < 90rem) {
   .shell[data-explorer-pinned="true"] .stage {
     left: calc(4.5rem + var(--viewer-panel-width));

@@ -1,7 +1,6 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import Button from "@codegouvfr/react-dsfr/Button";
 
 import { useViewerPanels } from "../model/use-viewer-panels";
 import { useBcfViewer } from "@/features/manage-bcf-topics";
@@ -357,19 +356,10 @@ export function ProjectViewer({
         </div>
       </section>
 
-      <div className={styles.layersTrigger}>
-        <Button
-          iconId="fr-icon-stack-line"
-          title="Maquettes et relevés"
-          priority={activePanel === "layers" ? "primary" : "secondary"}
-          onClick={() => {
-            setActivePanel(activePanel === "layers" ? null : "layers");
-            setActiveToolGroup(null);
-          }}
-        />
-      </div>
       <ViewerToolBar
         activeGroupId={activeToolGroup}
+        layerCount={ifcSources.length + pointCloudSources.length}
+        sectionActive={snapshot.section.active !== null}
         bcfTopicCount={bcfTopicCount}
         canReadBcf={bcfPermissions.read}
         onFitToView={() => getViewer()?.fitToView()}

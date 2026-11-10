@@ -14,7 +14,7 @@ export function useViewerPanels(
     "layers",
   );
   const [activeToolGroup, setActiveToolGroup] =
-    useState<ViewerToolGroupId | null>(null);
+    useState<ViewerToolGroupId | null>("layers");
   const [explorerPinned, setExplorerPinned] = useState(false);
   const [panelFocusRequest, setPanelFocusRequest] = useState(0);
 
@@ -26,6 +26,10 @@ export function useViewerPanels(
     groupId: ViewerToolGroupId,
     trigger: HTMLButtonElement,
   ) => {
+    if (activeToolGroup === groupId && activePanel !== null) {
+      closePanel();
+      return;
+    }
     if (
       (activePanel === "cut-plane" || activePanel === "cut-box") &&
       panel !== activePanel

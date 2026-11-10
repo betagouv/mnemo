@@ -1,13 +1,13 @@
 "use client";
 
-import Alert from "@codegouvfr/react-dsfr/Alert";
+import { BimAppearancePanel } from "@/features/explore-bim-model";
 import type { ReactNode } from "react";
 import type {
   IfcViewerController,
   IfcViewerSnapshot,
 } from "@mnemo/ifc-viewer-adapter";
 import { SectionPanel } from "@/features/control-section";
-import { viewerPanels, type ViewerPanelId } from "../model/viewer-tool-catalog";
+import { type ViewerPanelId } from "../model/viewer-tool-catalog";
 
 export function ViewerPanelContent({
   panel,
@@ -47,19 +47,9 @@ export function ViewerPanelContent({
       );
     case "floor-plan":
       return floorPlans;
-    default: {
-      const config = panel ? viewerPanels[panel] : null;
-      if (!config || !("upcoming" in config)) return null;
-      return (
-        <div className="p-4">
-          <Alert
-            description={config.upcoming}
-            role="status"
-            severity="info"
-            title="Outil en préparation"
-          />
-        </div>
-      );
-    }
+    case "colorization":
+      return <BimAppearancePanel snapshot={snapshot} getViewer={getViewer} />;
+    default:
+      return null;
   }
 }
