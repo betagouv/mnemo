@@ -2,6 +2,8 @@
 
 import type { SectionViewer } from "../model/viewer-target";
 import Button from "@codegouvfr/react-dsfr/Button";
+import Accordion from "@codegouvfr/react-dsfr/Accordion";
+import ToggleSwitch from "@codegouvfr/react-dsfr/ToggleSwitch";
 import Input from "@codegouvfr/react-dsfr/Input";
 import { SegmentedControl } from "@codegouvfr/react-dsfr/SegmentedControl";
 import type { IfcSectionSnapshot } from "@mnemo/ifc-viewer-adapter";
@@ -107,7 +109,7 @@ export function SectionPanel({
 }) {
   const controller = getViewer();
   const canCut = hasIfcGeometry || hasPointCloud;
-  const cutVisible = section.active !== null;
+  const cutVisible = section.active === mode;
 
   useEffect(() => () => getViewer()?.cancelSectionPick(), [getViewer]);
 
@@ -119,7 +121,7 @@ export function SectionPanel({
         legend="Type de coupe"
         segments={[
           {
-            label: "Plan de coupe",
+            label: "Plan",
             nativeInputProps: {
               checked: mode === "plane",
               onChange: () => onModeChange("plane"),
@@ -127,7 +129,7 @@ export function SectionPanel({
             },
           },
           {
-            label: "Boîte de coupe",
+            label: "Boîte",
             nativeInputProps: {
               checked: mode === "box",
               onChange: () => onModeChange("box"),
@@ -136,136 +138,81 @@ export function SectionPanel({
           },
         ]}
       />
-
-      <div
-        className="flex items-center justify-between gap-3 text-sm"
-        role="status"
-      >
-        <span className={styles.muted}>
-          {cutVisible
-            ? section.active === "box"
-              ? "Boîte de coupe visible"
-              : "Plan de coupe visible"
-            : "Aucune coupe visible"}
-        </span>
-        {cutVisible ? (
-          <Button
-            onClick={() => controller?.hideSection()}
-            priority="tertiary no outline"
-            size="small"
-          >
-            Masquer
-          </Button>
-        ) : null}
-      </div>
-
+      <ToggleSwitch
+        label="Coupe active"
+        checked={cutVisible}
+        disabled={!canCut || (mode === "box" && !hasIfcGeometry)}
+        showCheckedHint={false}
+        onChange={(enabled) => {
+          if (!enabled) controller?.hideSection();
+          else if (mode === "plane") controller?.showSectionPlane();
+          else controller?.showSectionBox();
+        }}
+      />
       {!canCut ? (
         <p className="fr-hint-text m-0" role="status">
           Ajoutez une maquette IFC ou un relevé 3D pour créer une coupe.
         </p>
       ) : null}
-
       {mode === "plane" ? (
-        <div className="flex flex-col gap-4">
-          <section
-            className={`${styles.card} p-4`}
-            aria-labelledby="section-axis-title"
+        <>
+          <SegmentedControl
+            className={styles.axisControl}
+            legend="Orientation"
+            small
+            segments={[
+              {
+                label: "Horizontal",
+                nativeInputProps: {
+                  checked:
+                    section.plane.source === "axis" &&
+                    section.plane.axis === "down",
+                  disabled: !canCut,
+                  onChange: () => controller?.setSectionAxis("down"),
+                  value: "down",
+                },
+              },
+              {
+                label: "Frontal",
+                nativeInputProps: {
+                  checked:
+                    section.plane.source === "axis" &&
+                    section.plane.axis === "front",
+                  disabled: !canCut,
+                  onChange: () => controller?.setSectionAxis("front"),
+                  value: "front",
+                },
+              },
+              {
+                label: "Latéral",
+                nativeInputProps: {
+                  checked:
+                    section.plane.source === "axis" &&
+                    section.plane.axis === "side",
+                  disabled: !canCut,
+                  onChange: () => controller?.setSectionAxis("side"),
+                  value: "side",
+                },
+              },
+            ]}
+          />
+          <p className="fr-hint-text m-0">
+            Déplacez la coupe avec la flèche dans la scène.
+          </p>
+          <Button
+            disabled={!cutVisible}
+            onClick={() =>
+              controller?.setSectionFlipped(!section.plane.flipped)
+            }
+            priority="secondary"
+            size="small"
+            nativeButtonProps={{ "aria-pressed": section.plane.flipped }}
           >
-            <h3 className="mb-2 text-base" id="section-axis-title">
-              Plan de coupe
-            </h3>
-            <p className={`${styles.muted} mb-4 text-sm`}>
-              Choisissez une orientation. Dans la scène, faites glisser la
-              flèche colorée pour déplacer le plan.
-            </p>
-            <SegmentedControl
-              className={styles.axisControl}
-              hideLegend
-              legend="Orientation du plan"
-              segments={[
-                {
-                  label: "Horizontal",
-                  nativeInputProps: {
-                    checked:
-                      section.active === "plane" &&
-                      section.plane.source === "axis" &&
-                      section.plane.axis === "down",
-                    disabled: !canCut,
-                    onChange: () => controller?.setSectionAxis("down"),
-                    value: "down",
-                  },
-                },
-                {
-                  label: "Frontal",
-                  nativeInputProps: {
-                    checked:
-                      section.active === "plane" &&
-                      section.plane.source === "axis" &&
-                      section.plane.axis === "front",
-                    disabled: !canCut,
-                    onChange: () => controller?.setSectionAxis("front"),
-                    value: "front",
-                  },
-                },
-                {
-                  label: "Latéral",
-                  nativeInputProps: {
-                    checked:
-                      section.active === "plane" &&
-                      section.plane.source === "axis" &&
-                      section.plane.axis === "side",
-                    disabled: !canCut,
-                    onChange: () => controller?.setSectionAxis("side"),
-                    value: "side",
-                  },
-                },
-              ]}
-              small
-            />
-            {section.plane.source !== "axis" ? (
-              <p className={`${styles.muted} mb-0 mt-3 text-sm`}>
-                {section.plane.source === "face"
-                  ? "Plan ancré sur la face choisie."
-                  : "Plan créé à partir des deux points."}{" "}
-                Déplacez-le directement dans la maquette.
-              </p>
-            ) : null}
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Button
-                disabled={!canCut}
-                onClick={() =>
-                  controller?.setSectionFlipped(!section.plane.flipped)
-                }
-                priority="secondary"
-                size="small"
-              >
-                {section.plane.flipped ? "Côté inversé" : "Inverser le côté"}
-              </Button>
-              {section.active !== "plane" ? (
-                <Button
-                  disabled={!canCut}
-                  onClick={() => controller?.showSectionPlane()}
-                  size="small"
-                >
-                  Afficher la coupe
-                </Button>
-              ) : null}
-            </div>
-          </section>
-
+            Inverser le côté conservé
+          </Button>
           {hasIfcGeometry ? (
-            <section
-              className={`${styles.card} p-4`}
-              aria-labelledby="section-pick-title"
-            >
-              <h3 className="mb-2 text-base" id="section-pick-title">
-                Couper dans la maquette
-              </h3>
-              <p className={`${styles.muted} mb-4 text-sm`}>
-                Ancrez le plan sur une face ou dessinez une ligne de coupe dans
-                la scène.
-              </p>
-              <div className="flex flex-wrap gap-2">
+            <Accordion label="Créer depuis la maquette">
+              <div className="flex flex-col gap-2">
                 <Button
                   onClick={() => controller?.startSectionPick("face")}
                   priority="secondary"
@@ -281,68 +228,29 @@ export function SectionPanel({
                   Tracer deux points
                 </Button>
               </div>
-              {section.pickMode ? (
-                <div
-                  className="mt-4 rounded bg-[var(--background-alt-blue-france)] p-3 text-sm"
-                  role="status"
-                >
-                  <p className="mb-2">
-                    {section.pickMode === "face"
-                      ? "Cliquez sur une face de la maquette."
-                      : section.draftPoint === null
-                        ? "Cliquez sur le premier point : il restera visible dans la scène."
-                        : "Déplacez la souris pour orienter la ligne, puis cliquez sur le deuxième point."}
-                  </p>
-                  <Button
-                    onClick={() => controller?.cancelSectionPick()}
-                    priority="tertiary no outline"
-                    size="small"
-                  >
-                    Annuler le tracé
-                  </Button>
-                </div>
-              ) : null}
-            </section>
+            </Accordion>
           ) : null}
-        </div>
+        </>
       ) : (
-        <section
-          className={`${styles.card} p-4`}
-          aria-labelledby="section-box-title"
-        >
-          <h3 className="mb-2 text-base" id="section-box-title">
-            Boîte de coupe
-          </h3>
-          <p className={`${styles.muted} mb-4 text-sm`}>
-            Faites glisser les flèches colorées perpendiculaires aux faces pour
-            cadrer la zone conservée. Vous pouvez aussi saisir une position
-            ci-dessous.
+        <>
+          <p className="fr-hint-text m-0">
+            Ajustez les faces avec les flèches dans la scène.
           </p>
-          <div className="flex flex-wrap gap-2">
+          {section.box ? (
             <Button
               disabled={!hasIfcGeometry}
-              onClick={() => controller?.showSectionBox()}
+              onClick={() => controller?.fitSectionBox()}
+              priority="secondary"
               size="small"
             >
-              {section.box ? "Afficher la boîte" : "Créer une boîte"}
+              Ajuster à la maquette
             </Button>
-            {section.box ? (
-              <Button
-                disabled={!hasIfcGeometry}
-                onClick={() => controller?.fitSectionBox()}
-                priority="secondary"
-                size="small"
-              >
-                Recentrer
-              </Button>
-            ) : null}
-          </div>
-          {section.active === "box" && section.box ? (
-            <div className="mt-5">
-              <h4 className="mb-2 text-sm">Position des faces</h4>
-              <p className="fr-hint-text mb-3">
-                Valeurs en mètres. Utilisez les flèches du clavier pour ajuster
-                de 10 cm, ou Maj + flèche pour 1 m.
+          ) : null}
+          {cutVisible && section.box ? (
+            <Accordion label="Position précise des faces">
+              <p className="fr-hint-text">
+                Valeurs en mètres. Flèches du clavier pour 10 cm, Maj + flèche
+                pour 1 m.
               </p>
               <div className="grid grid-cols-2 gap-x-3 gap-y-1">
                 {boxFields.map((field) => (
@@ -356,22 +264,21 @@ export function SectionPanel({
                   />
                 ))}
               </div>
-            </div>
+            </Accordion>
           ) : null}
           {hasPointCloud ? (
-            <p className={`${styles.muted} mb-0 mt-4 text-xs`}>
-              La boîte découpe la maquette IFC ; le relevé 3D reste visible.
+            <p className="fr-hint-text m-0">
+              La boîte découpe la maquette IFC. Le relevé 3D reste visible.
             </p>
           ) : null}
-        </section>
+        </>
       )}
-
       {section.message ? (
         <p className="fr-error-text m-0" role="alert">
           {section.message}
         </p>
       ) : null}
-      {cutVisible ? (
+      {section.active ? (
         <Button
           onClick={() => controller?.resetSection()}
           priority="tertiary no outline"

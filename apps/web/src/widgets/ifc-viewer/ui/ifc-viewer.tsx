@@ -19,6 +19,7 @@ import {
 } from "@/features/view-floor-plans";
 import { ViewerPanelContent } from "./viewer-panel-content";
 import {
+  SectionInstruction,
   SectionBoxGizmo,
   SectionPlaneGizmo,
   SectionSketchOverlay,
@@ -304,6 +305,11 @@ export function ProjectViewer({
             section={snapshot.section}
           />
         ) : null}
+
+        <SectionInstruction
+          section={snapshot.section}
+          onCancel={() => getViewer()?.cancelSectionPick()}
+        />
 
         <ViewerLoadStatus
           snapshot={snapshot}
