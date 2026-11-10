@@ -49,13 +49,6 @@ export function ProjectLayers({
   onPointBudgetChange: (budget: number) => void;
 }) {
   const [tab, setTab] = useState("bim");
-  const [revealedSelection, setRevealedSelection] = useState(
-    snapshot.selection,
-  );
-  if (snapshot.selection && snapshot.selection !== revealedSelection) {
-    setRevealedSelection(snapshot.selection);
-    setTab("bim");
-  }
 
   return (
     <div className={styles.panel}>
@@ -64,8 +57,11 @@ export function ProjectLayers({
         onTabChange={setTab}
         selectedTabId={tab}
         tabs={[
-          { tabId: "bim", label: "BIM" },
-          { tabId: "survey", label: "Relevé 3D" },
+          { tabId: "bim", label: `Maquettes (${ifcSources.length})` },
+          {
+            tabId: "survey",
+            label: `Relevés (${pointCloudConfigurations.length})`,
+          },
         ]}
       >
         <>

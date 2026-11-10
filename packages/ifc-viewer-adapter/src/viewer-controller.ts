@@ -496,6 +496,26 @@ export class IfcViewerController {
     this.notifyProjectionMode(this.renderer.getCamera().getProjectionMode());
   }
 
+  frameModel(assetId: string) {
+    const model = this.models.get(assetId);
+    if (this.disposed || !model) return;
+    const min = { x: Infinity, y: Infinity, z: Infinity };
+    const max = { x: -Infinity, y: -Infinity, z: -Infinity };
+    let found = false;
+    for (const id of model.meshIds) {
+      const bounds = this.renderer.getScene().getEntityBoundingBox(id);
+      if (!bounds) continue;
+      found = true;
+      for (const axis of ["x", "y", "z"] as const) {
+        min[axis] = Math.min(min[axis], bounds.min[axis]);
+        max[axis] = Math.max(max[axis], bounds.max[axis]);
+      }
+    }
+    if (!found) return;
+    void this.renderer.getCamera().frameBounds(min, max);
+    this.renderer.requestRender();
+  }
+
   frameSelection() {
     const expressId = this.snapshot.selection?.expressId;
     const modelId = this.snapshot.activeModelId;
