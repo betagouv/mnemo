@@ -1614,3 +1614,43 @@ describe("IfcViewerController", () => {
     controller.dispose();
   });
 });
+
+it("routes measuring clicks without selecting BIM entities and releases its handler", async () => {
+  const { controller, dispatch, calls } = createHarness();
+  await controller.loadIfc({
+    assetId: "measure",
+    fileName: "measure.ifc",
+    downloadUrl: "http://storage.local/measure.ifc",
+  });
+  const first = vi.fn();
+  const second = vi.fn();
+  const stopFirst = controller.onMeasurementPick(first);
+  const stopSecond = controller.onMeasurementPick(second);
+  stopFirst();
+  const click = () => {
+    dispatch("pointerdown", {
+      type: "pointerdown",
+      button: 0,
+      clientX: 100,
+      clientY: 120,
+      pointerId: 1,
+    });
+    dispatch("pointerup", {
+      type: "pointerup",
+      button: 0,
+      clientX: 100,
+      clientY: 120,
+      pointerId: 1,
+    });
+  };
+  click();
+  expect(first).not.toHaveBeenCalled();
+  expect(second).toHaveBeenCalledWith(100, 120);
+  expect(calls.pick).toBe(0);
+  stopSecond();
+  click();
+  await Promise.resolve();
+  expect(calls.pick).toBe(1);
+  expect(calls.rendererCreated).toBe(1);
+  controller.dispose();
+});

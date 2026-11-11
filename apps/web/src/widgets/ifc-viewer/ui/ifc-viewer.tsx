@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  SceneMeasurementProvider,
+  MeasurementPanel,
+  MeasurementOverlay,
+} from "@/features/measure-scene";
 import { useViewerPanels } from "../model/use-viewer-panels";
 import { useBcfViewer } from "@/features/manage-bcf-topics";
 import { ViewerLoadStatus } from "./viewer-load-status";
@@ -125,6 +130,12 @@ export function ProjectViewer({
     bcfPanelRef,
   } = useBcfViewer(getViewer, activePanel === "bcf", initialBcfTopics);
 
+  const measurementMode =
+    activePanel === "distance" || activePanel === "surface"
+      ? activePanel
+      : null;
+  const measurementsEnabled = snapshot.phase === "ready" && !floorPlans.plan;
+
   const activeModelId = snapshot.activeModelId;
   const activeIfcSource = ifcSources.find(
     (source) => source.assetId === activeModelId,
@@ -140,7 +151,7 @@ export function ProjectViewer({
       ),
   );
 
-  return (
+  const content = (
     <main
       className={`${styles.shell} ${shellLayout} ${activePanel ? openPanelLayout : ""}`}
       data-panel-open={Boolean(activePanel)}
@@ -195,7 +206,10 @@ export function ProjectViewer({
           aria-label={`Vue 3D du projet ${projectName}`}
           className={`${styles.canvas} ${snapshot.section.pickMode ? styles.pickingCanvas : ""}`}
           ref={canvasRef}
+          tabIndex={0}
         />
+
+        {measurementsEnabled ? <MeasurementOverlay /> : null}
 
         {floorPlans.plan ? (
           <FloorPlanView
@@ -404,6 +418,7 @@ export function ProjectViewer({
             controllerRef.current?.cancelSectionPick();
             setActivePanel(mode === "box" ? "cut-box" : "cut-plane");
           }}
+          measurements={<MeasurementPanel />}
           floorPlans={
             <FloorPlanPanel
               models={snapshot.models}
@@ -414,5 +429,16 @@ export function ProjectViewer({
         />
       </ViewerSidePanel>
     </main>
+  );
+
+  return (
+    <SceneMeasurementProvider
+      getViewer={getViewer}
+      canvasRef={canvasRef}
+      mode={measurementMode}
+      enabled={measurementsEnabled}
+    >
+      {content}
+    </SceneMeasurementProvider>
   );
 }

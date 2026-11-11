@@ -1,0 +1,42 @@
+.root {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  color: var(--text-action-high-blue-france);
+}
+
+.line,
+.surface {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.surface {
+  fill: var(--background-action-low-blue-france);
+  fill-opacity: 0.25;
+}
+
+.root [data-draft] polyline {
+  stroke-dasharray: 5 4;
+}
+
+.point {
+  fill: var(--background-default-grey);
+  stroke: currentColor;
+  stroke-width: 2;
+}
+
+.label {
+  font:
+    600 13px Marianne,
+    sans-serif;
+  fill: currentColor;
+  stroke: var(--background-default-grey);
+  stroke-width: 4;
+  paint-order: stroke;
+  stroke-linejoin: round;
+}

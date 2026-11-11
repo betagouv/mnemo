@@ -18,12 +18,10 @@ export const viewerPanels = {
   distance: {
     title: "Mesure de distance",
     icon: "fr-icon-ruler-line",
-    upcoming: "Mesurer entre deux points de la scène sera disponible ici.",
   },
   surface: {
     title: "Mesure de surface",
     icon: "fr-icon-ruler-line",
-    upcoming: "Mesurer une surface de la maquette sera disponible ici.",
   },
   colorization: {
     title: "Colorisation",
