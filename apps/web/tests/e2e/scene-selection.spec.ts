@@ -249,23 +249,29 @@ test("reveals the object picked in the scene inside the collapsed model tree", a
       .getByRole("button", { name: "Réduire les propriétés", exact: true })
       .click();
     await page
-      .getByRole("button", { name: "Filtres et couleurs", exact: true })
+      .getByRole("button", { name: "Filtres IFC", exact: true })
       .click();
     const filters = page.getByRole("complementary", {
-      name: "Filtres et couleurs",
+      name: "Filtres IFC",
       exact: true,
     });
+    const classPicker = filters.getByRole("combobox", {
+      name: "Classes IFC",
+      exact: true,
+    });
+    await classPicker.fill("IfcWall");
+    await page.getByRole("option", { name: "IfcWall", exact: true }).click();
+    await classPicker.press("Escape");
     await filters
-      .getByLabel("Classe IFC", { exact: true })
-      .selectOption("IfcWall");
+      .getByRole("button", { name: "Ajouter le filtre", exact: true })
+      .click();
     await page.getByRole("button", { name: "Coupes", exact: true }).click();
     await page
-      .getByRole("button", { name: "Filtres et couleurs", exact: true })
+      .getByRole("button", { name: "Filtres IFC", exact: true })
       .click();
-    await expect(filters.getByLabel("Classe IFC", { exact: true })).toHaveValue(
-      "IfcWall",
-    );
-    await filters.getByRole("button", { name: "Isoler", exact: true }).click();
+    await expect(
+      filters.getByRole("checkbox", { name: "Isoler · IfcWall", exact: true }),
+    ).toBeChecked();
     await page.getByRole("button", { name: "Coupes", exact: true }).click();
     await page.getByText("Coupe active", { exact: true }).click();
     await selectionCard

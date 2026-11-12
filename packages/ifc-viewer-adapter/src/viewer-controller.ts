@@ -37,6 +37,7 @@ import type {
   IfcViewerRuntime,
   IfcViewerSnapshot,
   IfcVisualPlan,
+  IfcVisualColorGroup,
   IfcVisualSnapshot,
   LayerVisibility,
   LoadIfcInput,
@@ -368,6 +369,13 @@ export class IfcViewerController {
     return activeId
       ? (this.models.get(activeId)?.bimIndex.query(query) ?? [])
       : [];
+  }
+
+  countBim(query: IfcBimQuery): number {
+    const activeId = this.snapshot.activeModelId;
+    return activeId
+      ? (this.models.get(activeId)?.bimIndex.count(query) ?? 0)
+      : 0;
   }
 
   findBimIds(query: IfcBimQuery): number[] {
@@ -721,6 +729,7 @@ export class IfcViewerController {
     const ids = this.findBimIds(query);
     const visual = this.snapshot.visual;
     this.applyVisualPlan({
+      ...this.getVisualPlan(),
       focusIds: ids,
       showContext: visual.showContext,
       contextOpacity: visual.contextOpacity,
@@ -730,11 +739,12 @@ export class IfcViewerController {
 
   hide(query: IfcBimQuery, label?: string) {
     const ids = this.findBimIds(query);
+    const current = this.getVisualPlan();
     this.applyVisualPlan({
-      hiddenIds: ids,
+      ...current,
+      hiddenIds: new Set([...(current.hiddenIds ?? []), ...ids]),
       label: label ?? "Éléments masqués",
     });
-    this.updateVisualSnapshot({ mode: "hide", matchCount: ids.length });
   }
 
   color(
@@ -743,14 +753,15 @@ export class IfcViewerController {
     label?: string,
   ) {
     const ids = this.findBimIds(query);
+    const current = this.getVisualPlan();
     this.applyVisualPlan({
-      colors: [{ ids, color }],
+      ...current,
+      colors: [...(current.colors ?? []), { ids, color }],
       label: label ?? "Coloration BIM",
     });
-    this.updateVisualSnapshot({ mode: "color", matchCount: ids.length });
   }
 
-  colorByStorey() {
+  getStoreyColorGroups(): IfcVisualColorGroup[] {
     const storeys = this.snapshot.catalog?.storeys ?? [];
     const palette = [
       [0.24, 0.62, 0.98, 1],
@@ -760,14 +771,17 @@ export class IfcViewerController {
       [0.96, 0.65, 0.18, 1],
       [0.91, 0.3, 0.66, 1],
     ] as const;
-    const groups = storeys.map((storey, index) => ({
-      ids: this.findBimIds({ storeyId: storey.expressId }),
+    return storeys.map((storey, index) => ({
+      ids: this.findBimIds({ storeyIds: [storey.expressId] }),
       color: palette[index % palette.length],
     }));
-    this.applyVisualPlan({ colors: groups, label: "Palette par niveau" });
-    this.updateVisualSnapshot({
-      mode: "color",
-      matchCount: groups.reduce((count, group) => count + group.ids.length, 0),
+  }
+
+  colorByStorey() {
+    this.applyVisualPlan({
+      ...this.getVisualPlan(),
+      colors: this.getStoreyColorGroups(),
+      label: "Palette par niveau",
     });
   }
 

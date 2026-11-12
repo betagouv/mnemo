@@ -60,8 +60,8 @@ export function getActiveViewerModifiers(
         snapshot.visual.mode === "color"
           ? "fr-icon-palette-line"
           : "fr-icon-filter-line",
-      panel: "colorization",
-      group: "colors",
+      panel: "filters",
+      group: "filters",
       reset: "visual",
     });
   if (visibilityChanged)

@@ -94,20 +94,32 @@ function createHarness() {
     frameSelection: vi.fn(),
     getSnapshot: () => snapshot,
     queryBim: vi.fn(
-      (query: { ifcClass?: string | null; storeyId?: number | null }) =>
+      (query: {
+        ifcClasses?: readonly string[];
+        storeyIds?: readonly number[];
+      }) =>
         elements.filter(
           (element) =>
-            (!query.ifcClass || element.ifcClass === query.ifcClass) &&
-            (!query.storeyId || element.storeyId === query.storeyId),
+            (!query.ifcClasses?.length ||
+              query.ifcClasses.includes(element.ifcClass)) &&
+            (!query.storeyIds?.length ||
+              (element.storeyId !== null &&
+                query.storeyIds.includes(element.storeyId))),
         ),
     ),
     findBimIds: vi.fn(
-      (query: { ifcClass?: string | null; storeyId?: number | null }) =>
+      (query: {
+        ifcClasses?: readonly string[];
+        storeyIds?: readonly number[];
+      }) =>
         elements
           .filter(
             (element) =>
-              (!query.ifcClass || element.ifcClass === query.ifcClass) &&
-              (!query.storeyId || element.storeyId === query.storeyId),
+              (!query.ifcClasses?.length ||
+                query.ifcClasses.includes(element.ifcClass)) &&
+              (!query.storeyIds?.length ||
+                (element.storeyId !== null &&
+                  query.storeyIds.includes(element.storeyId))),
           )
           .map((element) => element.expressId),
     ),

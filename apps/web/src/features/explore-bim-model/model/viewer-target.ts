@@ -11,10 +11,4 @@ export type BimViewer = Pick<
   | "setLayerVisibility"
   | "setActiveModel"
   | "selectModelEntity"
-  | "color"
-  | "colorByStorey"
-  | "hide"
-  | "isolate"
-  | "resetVisuals"
-  | "setIsolationContext"
 >;

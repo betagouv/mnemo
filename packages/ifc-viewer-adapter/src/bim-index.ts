@@ -2,8 +2,8 @@ import type { IfcDataStore } from "@ifc-lite/parser";
 import { IfcQuery } from "@ifc-lite/query";
 
 export type IfcBimQuery = {
-  ifcClass?: string | null;
-  storeyId?: number | null;
+  ifcClasses?: readonly string[];
+  storeyIds?: readonly number[];
 };
 
 export type IfcBimType = {
@@ -36,6 +36,7 @@ export type IfcBimIndex = {
   catalog: IfcBimCatalog;
   getElement(expressId: number): IfcElementSummary | null;
   findIds(query: IfcBimQuery): number[];
+  count(query: IfcBimQuery): number;
   query(query: IfcBimQuery): IfcElementSummary[];
   classesForStorey(storeyId: number | null): IfcBimType[];
   queryPage(
@@ -46,10 +47,6 @@ export type IfcBimIndex = {
   ): IfcElementSummary[];
 };
 
-function intersection(left: Iterable<number>, right: ReadonlySet<number>) {
-  return [...left].filter((expressId) => right.has(expressId));
-}
-
 export function createIfcBimIndex(
   store: IfcDataStore,
   renderableIds: Iterable<number>,
@@ -57,6 +54,7 @@ export function createIfcBimIndex(
   const queryApi = new IfcQuery(store);
   const renderable = new Set(renderableIds);
   const typeCounts = new Map<string, number>();
+  const untypedIds: number[] = [];
   const classesByStorey = new Map<number | null, Map<string, number>>();
   const pageCache = new Map<
     string,
@@ -66,6 +64,7 @@ export function createIfcBimIndex(
   for (const expressId of renderable) {
     const ifcClass = store.entities.getTypeName(expressId) || "IfcEntity";
     typeCounts.set(ifcClass, (typeCounts.get(ifcClass) ?? 0) + 1);
+    if (ifcClass === "IfcEntity") untypedIds.push(expressId);
     const storeyId =
       store.spatialHierarchy?.elementToStorey.get(expressId) ?? null;
     let classes = classesByStorey.get(storeyId);
@@ -77,39 +76,32 @@ export function createIfcBimIndex(
   }
 
   const findIds = (query: IfcBimQuery) => {
-    let ids: number[];
-
-    if (query.ifcClass) {
-      ids = queryApi
-        .ofType(query.ifcClass)
-        .execute()
-        .map((entity) => entity.expressId);
-    } else if (query.storeyId !== null && query.storeyId !== undefined) {
-      ids = queryApi
-        .onStorey(query.storeyId)
-        .execute()
-        .map((entity) => entity.expressId);
-    } else {
-      ids = [...renderable];
-    }
-
-    let result = intersection(ids, renderable);
-
-    if (
-      query.ifcClass &&
-      query.storeyId !== null &&
-      query.storeyId !== undefined
-    ) {
-      const storeyIds = new Set(
-        queryApi
-          .onStorey(query.storeyId)
-          .execute()
-          .map((entity) => entity.expressId),
-      );
-      result = intersection(result, storeyIds);
-    }
-
-    return result;
+    const byStorey = query.storeyIds?.length
+      ? new Set(
+          query.storeyIds.flatMap((id) =>
+            queryApi
+              .onStorey(id)
+              .execute()
+              .map((entity) => entity.expressId),
+          ),
+        )
+      : null;
+    const candidates = query.ifcClasses?.length
+      ? [
+          ...queryApi
+            .ofType(
+              ...query.ifcClasses.map((name) =>
+                name === "IfcEntity" ? "Unknown" : name,
+              ),
+            )
+            .execute()
+            .map((entity) => entity.expressId),
+          ...(query.ifcClasses.includes("IfcEntity") ? untypedIds : []),
+        ]
+      : (byStorey ?? renderable);
+    return [...new Set(candidates)].filter(
+      (id) => renderable.has(id) && (!byStorey || byStorey.has(id)),
+    );
   };
 
   const summarize = (expressId: number): IfcElementSummary => ({
@@ -137,7 +129,7 @@ export function createIfcBimIndex(
           elevation:
             store.spatialHierarchy?.storeyElevations.get(storey.expressId) ??
             null,
-          elementCount: findIds({ storeyId: storey.expressId }).length,
+          elementCount: findIds({ storeyIds: [storey.expressId] }).length,
         }))
         .sort((left, right) => {
           if (left.elevation !== null && right.elevation !== null) {
@@ -147,6 +139,20 @@ export function createIfcBimIndex(
         }),
     },
     findIds,
+    count(query) {
+      const classes = query.ifcClasses?.length
+        ? new Set(query.ifcClasses)
+        : null;
+      const levels = query.storeyIds?.length ? new Set(query.storeyIds) : null;
+      let count = 0;
+      for (const [storeyId, types] of classesByStorey) {
+        if (levels && (storeyId === null || !levels.has(storeyId))) continue;
+        for (const [ifcClass, amount] of types) {
+          if (!classes || classes.has(ifcClass)) count += amount;
+        }
+      }
+      return count;
+    },
     classesForStorey(storeyId) {
       return [...(classesByStorey.get(storeyId) ?? new Map()).entries()]
         .map(([ifcClass, elementCount]) => ({ ifcClass, elementCount }))

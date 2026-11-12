@@ -11,7 +11,7 @@ export const viewerPanels = {
   "cut-box": { title: "Coupes", icon: "fr-icon-crop-line" },
   distance: { title: "Mesure de distance", icon: "fr-icon-ruler-line" },
   surface: { title: "Mesure de surface", icon: "fr-icon-ruler-line" },
-  colorization: { title: "Filtres et couleurs", icon: "fr-icon-palette-line" },
+  filters: { title: "Filtres IFC", icon: "fr-icon-filter-line" },
   "floor-plan": { title: "Vues en plan", icon: "fr-icon-layout-grid-line" },
 } as const;
 export type ViewerPanelId = keyof typeof viewerPanels;
@@ -21,6 +21,12 @@ export const viewerToolGroups = [
     label: "Maquettes et relevés",
     icon: "fr-icon-stack-line",
     panel: "layers",
+  },
+  {
+    id: "filters",
+    label: "Filtres IFC",
+    icon: "fr-icon-filter-line",
+    panel: "filters",
   },
   {
     id: "cuts",
@@ -39,12 +45,6 @@ export const viewerToolGroups = [
     label: "Vues en plan",
     icon: "fr-icon-layout-grid-line",
     panel: "floor-plan",
-  },
-  {
-    id: "colors",
-    label: "Filtres et couleurs",
-    icon: "fr-icon-palette-line",
-    panel: "colorization",
   },
   {
     id: "annotations",

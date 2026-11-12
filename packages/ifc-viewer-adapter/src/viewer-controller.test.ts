@@ -12,7 +12,7 @@ import type {
 import { ServerEntityIndex } from "@ifc-lite/server-client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createIfcBimIndex } from "./bim-index";
+import { createIfcBimIndex, type IfcBimQuery } from "./bim-index";
 import {
   IfcViewerController,
   type IfcViewerRuntime,
@@ -468,6 +468,16 @@ function createHarness({
           storeyId: 10,
         },
       ];
+      const matchingIds = (query: IfcBimQuery) =>
+        elements
+          .filter(
+            (element) =>
+              (!query.ifcClasses?.length ||
+                query.ifcClasses.includes(element.ifcClass)) &&
+              (!query.storeyIds?.length ||
+                query.storeyIds.includes(element.storeyId)),
+          )
+          .map((element) => element.expressId);
       return {
         catalog: {
           unassignedCount: 0,
@@ -484,12 +494,8 @@ function createHarness({
             },
           ],
         },
-        findIds: (query) =>
-          query.ifcClass === "IfcDoor"
-            ? [84]
-            : query.ifcClass === "IfcWall"
-              ? [42]
-              : [42, 84],
+        count: (query) => matchingIds(query).length,
+        findIds: matchingIds,
         getElement: (expressId) =>
           elements.find((element) => element.expressId === expressId) ?? null,
         query: () => elements,
@@ -1354,7 +1360,7 @@ describe("IfcViewerController", () => {
       downloadUrl: "http://storage.local/model.ifc",
     });
 
-    controller.isolate({ ifcClass: "IfcWall" }, "Murs");
+    controller.isolate({ ifcClasses: ["IfcWall"] }, "Murs");
 
     expect(controller.getSnapshot().catalog?.storeys).toHaveLength(1);
     expect(controller.getSnapshot().visual).toMatchObject({
@@ -1371,11 +1377,53 @@ describe("IfcViewerController", () => {
       contextOpacity: 0.25,
     });
 
-    controller.color({ ifcClass: "IfcDoor" }, [0.5, 0.1, 0.8, 1]);
+    controller.color({ ifcClasses: ["IfcDoor"] }, [0.5, 0.1, 0.8, 1]);
     expect(calls.colorOverridesSet).toBe(1);
     expect(calls.rendererCreated).toBe(1);
     controller.fitToView();
     expect(calls.fitToView).toBe(1);
+    controller.dispose();
+  });
+
+  it("accumulates hidden and colored classes while retaining isolation", async () => {
+    const { calls, controller } = createHarness();
+    await controller.loadIfc({
+      assetId: "model-a",
+      fileName: "model.ifc",
+      downloadUrl: "http://storage.local/model.ifc",
+    });
+    const framing = calls.fitToView;
+    expect(controller.countBim({ ifcClasses: ["IfcWall", "IfcDoor"] })).toBe(2);
+    controller.isolate({ ifcClasses: ["IfcWall", "IfcDoor"] });
+    controller.color({ ifcClasses: ["IfcWall"] }, [1, 0, 0, 1]);
+    controller.color({ ifcClasses: ["IfcDoor"] }, [0, 0, 1, 1]);
+    controller.hide({ ifcClasses: ["IfcDoor"] });
+    controller.hide({ ifcClasses: ["IfcWall"] });
+    const plan = controller.getVisualPlan();
+    expect(Array.from(plan.focusIds ?? [])).toEqual([42, 84]);
+    expect(Array.from(plan.hiddenIds ?? [])).toEqual([84, 42]);
+    expect(
+      Array.from(plan.colors ?? []).map((group) => ({
+        ids: Array.from(group.ids),
+        color: group.color,
+      })),
+    ).toEqual([
+      { ids: [42], color: [1, 0, 0, 1] },
+      { ids: [84], color: [0, 0, 1, 1] },
+    ]);
+    expect(controller.getSnapshot().visual.mode).toBe("isolate");
+    controller.colorByStorey();
+    const byStorey = controller.getVisualPlan();
+    expect(Array.from(byStorey.focusIds ?? [])).toEqual([42, 84]);
+    expect(Array.from(byStorey.hiddenIds ?? [])).toEqual([84, 42]);
+    expect(controller.getSnapshot().visual.mode).toBe("isolate");
+    controller.setIsolationContext(false, 0.25);
+    expect(controller.getSnapshot().visual.showContext).toBe(false);
+    controller.resetVisuals();
+    expect(controller.getSnapshot().visual.mode).toBe("all");
+    expect(Array.from(controller.getVisualPlan().hiddenIds ?? [])).toEqual([]);
+    expect(calls.rendererCreated).toBe(1);
+    expect(calls.fitToView).toBe(framing);
     controller.dispose();
   });
 

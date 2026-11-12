@@ -100,13 +100,12 @@ function resolveStoreyId(catalog: IfcBimCatalog, input: ViewerFilterInput) {
 }
 
 function resolveQuery(catalog: IfcBimCatalog, input: ViewerFilterInput) {
+  const storeyId = resolveStoreyId(catalog, input);
   return {
     ...(input.ifcClass
-      ? { ifcClass: resolveIfcClass(catalog, input.ifcClass) }
+      ? { ifcClasses: [resolveIfcClass(catalog, input.ifcClass)] }
       : {}),
-    ...(input.storeyName || input.storeyExpressId
-      ? { storeyId: resolveStoreyId(catalog, input) }
-      : {}),
+    ...(storeyId === undefined ? {} : { storeyIds: [storeyId] }),
   } satisfies IfcBimQuery;
 }
 

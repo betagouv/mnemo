@@ -80,7 +80,7 @@ test("uses contextual panels without empty properties or unavailable tools", asy
       page.getByRole("complementary", { name: "Vues en plan", exact: true }),
     ).toBeVisible();
     await tools
-      .getByRole("button", { name: "Filtres et couleurs", exact: true })
+      .getByRole("button", { name: "Filtres IFC", exact: true })
       .click();
     await expect(
       page.getByText("Chargez une maquette IFC pour utiliser les filtres."),

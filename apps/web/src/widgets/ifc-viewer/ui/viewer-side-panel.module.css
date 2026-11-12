@@ -47,6 +47,7 @@
 
 @media (width <= 48rem) {
   .root {
+    z-index: 6;
     box-shadow: -0.75rem 0 2rem rgb(0 0 0 / 18%);
   }
 }

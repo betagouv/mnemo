@@ -1,0 +1,131 @@
+.fields :global(.fr-accordion),
+.fields > :global(.fr-select-group) {
+  margin-bottom: 0;
+}
+.hint {
+  margin: 0;
+  color: var(--text-mention-grey);
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+}
+.listHeading,
+.editorHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.listHeading h3,
+.editorHeading h3 {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  margin: 0;
+  background: var(--background-alt-grey);
+  border: 1px solid var(--border-default-grey);
+}
+.editorHeading {
+  margin-top: -0.25rem;
+}
+.editorFooter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.actionPicker:global(.fr-segmented) {
+  margin: 0;
+}
+.actionPicker :global(.fr-segmented__elements) {
+  display: flex;
+  width: 100%;
+}
+.actionPicker :global(.fr-segmented__element) {
+  flex: 1;
+  min-width: 0;
+}
+.actionPicker :global(.fr-label) {
+  justify-content: center;
+  min-width: 0;
+  padding-inline: 0.5rem;
+}
+.colorField {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+.color {
+  width: 2.5rem;
+  height: 2rem;
+  cursor: pointer;
+  padding: 0.125rem;
+  border: 1px solid var(--border-default-grey);
+  background: var(--background-default-grey);
+}
+.rules {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rule {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0;
+  margin: 0;
+  border-bottom: 1px solid var(--border-default-grey);
+}
+.ruleToggle:global(.fr-checkbox-group) {
+  flex: 1;
+  min-width: 0;
+  width: 0;
+  margin: 0;
+}
+.ruleToggle :global(.fr-label) {
+  min-width: 0;
+}
+.ruleLabel {
+  display: block;
+  flex: 1;
+  min-width: 0;
+}
+.ruleLabel strong {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+}
+.ruleLabel > span {
+  display: block;
+  overflow: hidden;
+  color: var(--text-mention-grey);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rule[data-enabled="false"] .ruleLabel {
+  opacity: 0.55;
+}
+.ruleActions {
+  display: flex;
+  flex: none;
+}
+.swatch {
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 1px solid var(--border-default-grey);
+}
+.addButton:global(.fr-btn) {
+  justify-content: center;
+  width: 100%;
+}

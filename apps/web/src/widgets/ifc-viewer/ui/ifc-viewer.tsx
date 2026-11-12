@@ -11,7 +11,7 @@ import {
 import { useState, type CSSProperties } from "react";
 
 import { useViewerFeedback } from "../model/use-viewer-feedback";
-import { BimAppearancePanel } from "@/features/explore-bim-model";
+import { BimFilterPanel } from "@/features/filter-bim-model";
 import { useViewerPanels } from "../model/use-viewer-panels";
 import { useBcfViewer } from "@/features/manage-bcf-topics";
 import { ViewerLoadStatus } from "./viewer-load-status";
@@ -448,8 +448,8 @@ export function ProjectViewer({
             />
           </div>
         ) : null}
-        <div hidden={activePanel !== "colorization"}>
-          <BimAppearancePanel snapshot={snapshot} getViewer={getViewer} />
+        <div className="h-full min-h-0" hidden={activePanel !== "filters"}>
+          <BimFilterPanel snapshot={snapshot} getViewer={getViewer} />
         </div>
         <ViewerPanelContent
           panel={activePanel}
