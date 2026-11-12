@@ -1,13 +1,14 @@
 "use client";
 
 import { useProjectMeasurements } from "@/entities/measurement";
+import { SegmentedControl } from "@codegouvfr/react-dsfr/SegmentedControl";
 import Button from "@codegouvfr/react-dsfr/Button";
 import { ToggleSwitch } from "@codegouvfr/react-dsfr/ToggleSwitch";
 import { formatMeasurement, distanceBetween } from "@mnemo/domain/measurement";
 import { useMeasurementContext } from "../model/measurement-context";
 
 export function MeasurementPanel() {
-  const { controller, mode, enabled, getViewer, Editor } =
+  const { controller, mode, enabled, getViewer, Editor, onModeChange } =
     useMeasurementContext();
   const { draft, cursor, measurements } = controller;
   const stored = useProjectMeasurements();
@@ -21,6 +22,30 @@ export function MeasurementPanel() {
       : null;
   return (
     <div className="flex flex-col gap-5 p-4">
+      <SegmentedControl
+        small
+        hideLegend
+        legend="Type de mesure"
+        segments={[
+          {
+            label: "Distance",
+            nativeInputProps: {
+              value: "distance",
+              checked: mode === "distance",
+              onChange: () => onModeChange("distance"),
+            },
+          },
+          {
+            label: "Surface",
+            nativeInputProps: {
+              value: "surface",
+              checked: mode === "surface",
+              onChange: () => onModeChange("surface"),
+            },
+          },
+        ]}
+      />
+
       <ToggleSwitch
         label="Accrochage et alignements"
         checked={controller.magnetic}

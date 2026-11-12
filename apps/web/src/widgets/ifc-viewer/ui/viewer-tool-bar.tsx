@@ -1,41 +1,27 @@
 "use client";
-
 import Button from "@codegouvfr/react-dsfr/Button";
 import { useEffect, useId, useRef, useState, type RefObject } from "react";
-
 import {
   viewerToolGroups,
+  viewerSecondaryTools,
   type ViewerPanelId,
   type ViewerToolGroupId,
 } from "../model/viewer-tool-catalog";
-
 import styles from "./viewer-tool-bar.module.css";
-
-const primaryGroups = viewerToolGroups.filter(
-  (group) =>
-    group.id === "measurements" ||
-    group.id === "cuts" ||
-    group.id === "annotations",
-);
-const otherGroups = viewerToolGroups.filter(
-  (group) =>
-    group.id !== "measurements" &&
-    group.id !== "cuts" &&
-    group.id !== "annotations",
-);
-
 export function ViewerToolBar({
   activeGroupId,
   bcfTopicCount,
+  layerCount,
   canReadBcf,
-  onFitToView,
+  sectionActive,
   onSelect,
   rootRef,
 }: {
   activeGroupId: ViewerToolGroupId | null;
   bcfTopicCount: number;
+  layerCount: number;
   canReadBcf: boolean;
-  onFitToView: () => void;
+  sectionActive: boolean;
   onSelect: (
     panel: ViewerPanelId,
     groupId: ViewerToolGroupId,
@@ -43,182 +29,123 @@ export function ViewerToolBar({
   ) => void;
   rootRef: RefObject<HTMLDivElement | null>;
 }) {
-  const menuPrefix = useId();
-  const [openGroup, setOpenGroup] = useState<string | null>(null);
-  const barRef = useRef<HTMLDivElement>(null);
-  const triggerRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-
+  const [moreOpen, setMoreOpen] = useState(false);
+  const menuId = useId();
+  const moreRef = useRef<HTMLLIElement>(null);
   useEffect(() => {
-    if (!openGroup) return;
-    const closeOnOutsideClick = (event: PointerEvent) => {
-      if (!barRef.current?.contains(event.target as Node)) setOpenGroup(null);
+    if (!moreOpen) return;
+    const closeOutside = (event: PointerEvent) => {
+      if (!moreRef.current?.contains(event.target as Node)) setMoreOpen(false);
     };
-    document.addEventListener("pointerdown", closeOnOutsideClick);
-    return () =>
-      document.removeEventListener("pointerdown", closeOnOutsideClick);
-  }, [openGroup]);
-
-  const select = (panel: ViewerPanelId, groupId: ViewerToolGroupId) => {
-    const trigger = triggerRefs.current[groupId] ?? triggerRefs.current.more;
-    setOpenGroup(null);
-    if (trigger) onSelect(panel, groupId, trigger);
-  };
-
+    document.addEventListener("pointerdown", closeOutside);
+    return () => document.removeEventListener("pointerdown", closeOutside);
+  }, [moreOpen]);
   return (
     <div
       aria-label="Outils de la visionneuse"
       className={styles.root}
-      onKeyDown={(event) => {
-        if (event.key !== "Escape" || !openGroup) return;
-        event.preventDefault();
-        triggerRefs.current[openGroup]?.focus();
-        setOpenGroup(null);
-      }}
-      ref={(element) => {
-        barRef.current = element;
-        rootRef.current = element;
-      }}
+      ref={rootRef}
       role="group"
     >
       <ul className={styles.list}>
-        <li className={styles.item}>
-          <Button
-            className={styles.trigger}
-            iconId="fr-icon-focus-3-line"
-            nativeButtonProps={{ "aria-label": "Tout cadrer" }}
-            onClick={onFitToView}
-            priority="tertiary no outline"
-            size="small"
-          >
-            <span aria-hidden="true" className={styles.tooltip}>
-              Tout cadrer
-            </span>
-          </Button>
-        </li>
-        {primaryGroups
+        {viewerToolGroups
           .filter((group) => canReadBcf || group.id !== "annotations")
           .map((group) => {
-            const hasMenu = group.actions.length > 1;
-            const expanded = openGroup === group.id;
-            const isActive = group.id === activeGroupId;
+            const count =
+              group.id === "layers"
+                ? layerCount
+                : group.id === "annotations"
+                  ? bcfTopicCount
+                  : 0;
             return (
-              <li className={styles.item} key={group.id}>
+              <li
+                className={styles.item}
+                key={group.id}
+                data-separated={group.id === "layers" || undefined}
+              >
                 <Button
                   className={styles.trigger}
                   iconId={group.icon}
                   nativeButtonProps={{
-                    "aria-label":
-                      group.id === "annotations" && bcfTopicCount > 0
-                        ? `${group.label} (${bcfTopicCount})`
-                        : group.label,
-                    "aria-controls": hasMenu
-                      ? `${menuPrefix}-viewer-tools-${group.id}`
-                      : undefined,
-                    "aria-expanded": hasMenu ? expanded : undefined,
-                    "data-active": isActive || undefined,
+                    "aria-label": group.label,
+                    "data-tool-group": group.id,
+                    "aria-pressed": activeGroupId === group.id,
+                    "data-active": activeGroupId === group.id || undefined,
+                    "data-effect-active":
+                      (group.id === "cuts" && sectionActive) || undefined,
                   }}
-                  onClick={() => {
-                    if (hasMenu) {
-                      setOpenGroup(expanded ? null : group.id);
-                    } else {
-                      select(group.actions[0].panel, group.id);
-                    }
-                  }}
-                  ref={(element) => {
-                    triggerRefs.current[group.id] = element;
-                  }}
+                  onClick={(event) =>
+                    onSelect(group.panel, group.id, event.currentTarget)
+                  }
                   priority="tertiary no outline"
                   size="small"
                 >
                   <span aria-hidden="true" className={styles.tooltip}>
                     {group.label}
                   </span>
-                  {group.id === "annotations" && bcfTopicCount > 0 ? (
-                    <span className={styles.count}>{bcfTopicCount}</span>
+                  {count > 0 ? (
+                    <span aria-hidden="true" className={styles.count}>
+                      {count}
+                    </span>
+                  ) : null}
+                  {group.id === "cuts" && sectionActive ? (
+                    <span
+                      className={styles.activeDot}
+                      aria-label="Coupe active"
+                    />
                   ) : null}
                 </Button>
-                {hasMenu ? (
-                  <div
-                    className={styles.menu}
-                    hidden={!expanded}
-                    id={`${menuPrefix}-viewer-tools-${group.id}`}
-                  >
-                    <ul>
-                      {group.actions.map((action) => (
-                        <li key={action.panel}>
-                          <Button
-                            className={styles.menuAction}
-                            onClick={() => select(action.panel, group.id)}
-                            priority="tertiary no outline"
-                            size="small"
-                          >
-                            {action.label}
-                          </Button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
               </li>
             );
           })}
-        <li className={styles.item}>
+        <li
+          className={styles.item}
+          data-separated="true"
+          ref={moreRef}
+          onKeyDown={(event) => {
+            if (event.key === "Escape" && moreOpen) {
+              event.preventDefault();
+              setMoreOpen(false);
+              moreRef.current?.querySelector("button")?.focus();
+            }
+          }}
+        >
           <Button
             className={styles.trigger}
+            iconId="fr-icon-more-fill"
             nativeButtonProps={{
               "aria-label": "Autres outils",
-              "aria-controls": `${menuPrefix}-viewer-tools-more`,
-              "aria-expanded": openGroup === "more",
+              "aria-expanded": moreOpen,
+              "aria-controls": menuId,
               "data-active":
-                otherGroups.some((group) => group.id === activeGroupId) ||
+                activeGroupId === "help" ||
+                activeGroupId === "information" ||
                 undefined,
             }}
-            onClick={() => setOpenGroup(openGroup === "more" ? null : "more")}
+            onClick={() => setMoreOpen(!moreOpen)}
             priority="tertiary no outline"
-            ref={(element) => {
-              triggerRefs.current.more = element;
-            }}
             size="small"
           >
-            <span aria-hidden="true" className={styles.moreDots}>
-              •••
-            </span>
             <span aria-hidden="true" className={styles.tooltip}>
               Autres outils
             </span>
           </Button>
-          <div
-            className={styles.menu}
-            hidden={openGroup !== "more"}
-            id={`${menuPrefix}-viewer-tools-more`}
-          >
-            <ul>
-              {otherGroups
-                .filter(
-                  (group) =>
-                    canReadBcf ||
-                    group.actions.some((action) => action.panel !== "bcf"),
-                )
-                .map((group) => (
-                  <li key={group.id}>
-                    <p className={styles.menuGroupTitle}>{group.label}</p>
-                    <ul>
-                      {group.actions.map((action) => (
-                        <li key={action.panel}>
-                          <Button
-                            className={styles.menuAction}
-                            onClick={() => select(action.panel, group.id)}
-                            priority="tertiary no outline"
-                            size="small"
-                          >
-                            {action.label}
-                          </Button>
-                        </li>
-                      ))}
-                    </ul>
-                  </li>
-                ))}
-            </ul>
+          <div className={styles.menu} hidden={!moreOpen} id={menuId}>
+            {viewerSecondaryTools.map((tool) => (
+              <Button
+                key={tool.id}
+                iconId={tool.icon}
+                size="small"
+                priority="tertiary no outline"
+                onClick={() => {
+                  const trigger = moreRef.current?.querySelector("button");
+                  setMoreOpen(false);
+                  if (trigger) onSelect(tool.panel, tool.id, trigger);
+                }}
+              >
+                {tool.label}
+              </Button>
+            ))}
           </div>
         </li>
       </ul>

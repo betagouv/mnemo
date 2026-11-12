@@ -47,7 +47,7 @@ test("moves box faces and section planes with projected axis arrows", async ({
       .getByRole("link", { name: "Ouvrir la vue", exact: true })
       .click();
     await expect(
-      page.locator('[role="status"]').filter({ hasText: "entités IFC" }),
+      page.locator('canvas[aria-label^="Vue 3D"][data-phase="ready"]'),
     ).toBeVisible({ timeout: 120_000 });
     const notifications = page
       .locator('[aria-label="Notifications"]')
@@ -60,13 +60,12 @@ test("moves box faces and section planes with projected axis arrows", async ({
     const originalCanvas = await canvas.elementHandle();
     await page.getByRole("button", { name: "Coupes", exact: true }).click();
     await page
-      .getByRole("button", { name: "Coupe par boîte", exact: true })
+      .getByRole("group", { name: "Type de coupe" })
+      .getByText("Boîte", { exact: true })
       .click();
+    await page.getByText("Coupe active", { exact: true }).click();
     await page
-      .getByRole("button", {
-        name: /Créer une boîte|Afficher la boîte/,
-        exact: true,
-      })
+      .getByRole("button", { name: "Position précise des faces", exact: true })
       .click();
     const handles = page.locator("[data-box-handle]");
     await expect(handles).toHaveCount(6);
@@ -77,8 +76,8 @@ test("moves box faces and section planes with projected axis arrows", async ({
     expect(new Set(colors).size).toBe(3);
     const right = page.getByLabel("Droite (m)", { exact: true });
     const before = Number(await right.inputValue());
-    await right.focus();
-    await page.keyboard.press("ArrowDown");
+    await right.click();
+    await right.press("ArrowDown");
     await right.blur();
     await expect
       .poll(async () => Number(await right.inputValue()))
@@ -138,7 +137,7 @@ test("moves box faces and section planes with projected axis arrows", async ({
     });
     await page
       .getByRole("group", { name: "Type de coupe" })
-      .getByText("Plan de coupe", { exact: true })
+      .getByText("Plan", { exact: true })
       .click();
     await expect(handles).toHaveCount(0);
     const planeArrow = page.getByRole("button", {
@@ -151,14 +150,14 @@ test("moves box faces and section planes with projected axis arrows", async ({
       ["Latéral", "rgb(255, 116, 124)"],
     ]) {
       await page
-        .getByRole("group", { name: "Orientation du plan" })
+        .getByRole("group", { name: "Orientation" })
         .getByText(orientation, { exact: true })
         .click();
       await expect(planeArrow).toBeVisible();
       await expect(planeArrow).toHaveCSS("color", color);
     }
     await page
-      .getByRole("group", { name: "Orientation du plan" })
+      .getByRole("group", { name: "Orientation" })
       .getByText("Horizontal", { exact: true })
       .click();
     const planeArrowPosition = () =>

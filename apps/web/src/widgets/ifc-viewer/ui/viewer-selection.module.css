@@ -1,0 +1,47 @@
+.root {
+  position: absolute;
+  z-index: 40;
+  bottom: 0.75rem;
+  right: 0.75rem;
+  width: min(23rem, calc(100% - 1.5rem));
+  max-height: calc(100% - 1.5rem);
+  overflow-y: auto;
+  border: 1px solid var(--viewer-border);
+  border-radius: 0.25rem;
+  background: var(--background-default-grey);
+  box-shadow: 0 2px 12px rgb(0 0 0 / 12%);
+}
+
+.root[data-expanded="true"] {
+  display: grid;
+  top: 0.75rem;
+  width: min(27rem, calc(100% - 1.5rem));
+  height: calc(100% - 1.5rem);
+  grid-template-rows: minmax(0, auto) minmax(50%, 1fr);
+  overflow: hidden;
+}
+
+.header {
+  padding: 0.75rem;
+}
+
+.root[data-expanded="true"] .header {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.title {
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.properties {
+  min-height: 0;
+  overflow-y: auto;
+  border-top: 1px solid var(--viewer-border);
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}

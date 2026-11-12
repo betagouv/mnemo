@@ -34,6 +34,10 @@ function createHarness({
     meshIds: [] as number[][],
     bimIndexIds: [] as number[][],
     fitToView: 0,
+    frames: [] as Array<{
+      min: { x: number; y: number; z: number };
+      max: { x: number; y: number; z: number };
+    }>,
     presetViews: [] as { view: string; bounds: object }[],
     orbit: 0,
     pan: 0,
@@ -75,6 +79,12 @@ function createHarness({
   };
   let frameCallback: ((time: number) => void) | null = null;
   const camera = {
+    frameBounds: async (
+      min: { x: number; y: number; z: number },
+      max: { x: number; y: number; z: number },
+    ) => {
+      calls.frames.push({ min, max });
+    },
     update: () => false,
     orbit: () => {
       calls.orbit += 1;
@@ -646,6 +656,60 @@ function createHarness({
 afterEach(() => vi.unstubAllGlobals());
 
 describe("IfcViewerController", () => {
+  it("frames only a loaded model without recreating the renderer", async () => {
+    const { controller, calls } = createHarness();
+    controller.frameModel("missing");
+    expect(calls.frames).toHaveLength(0);
+    await controller.loadIfc({
+      assetId: "model-a",
+      fileName: "model.ifc",
+      downloadUrl: "http://storage.local/model.ifc",
+    });
+    controller.frameModel("model-a");
+    expect(calls.frames).toEqual([
+      { min: { x: 0, y: 2, z: 4 }, max: { x: 2, y: 4, z: 6 } },
+    ]);
+    expect(calls.rendererCreated).toBe(1);
+    controller.dispose();
+    controller.frameModel("model-a");
+    expect(calls.frames).toHaveLength(1);
+  });
+  it("captures a detached visual plan for undo and resets layer overrides separately", async () => {
+    const { controller } = createHarness();
+    await controller.loadIfc({
+      assetId: "model-a",
+      fileName: "model.ifc",
+      downloadUrl: "http://storage.local/model.ifc",
+    });
+    controller.applyVisualPlan({
+      focusIds: [42],
+      label: "Selected",
+      colors: [{ ids: [42], color: [0.2, 0.3, 0.4, 1] }],
+    });
+    const plan = controller.getVisualPlan();
+    controller.resetVisuals();
+    expect(controller.getSnapshot().visual.mode).toBe("all");
+    controller.applyVisualPlan(plan);
+    expect(controller.getSnapshot().visual).toMatchObject({
+      mode: "isolate",
+      label: "Selected",
+    });
+    controller.setLayerVisibility(
+      "model-a",
+      { kind: "element", expressId: 42 },
+      "hide",
+    );
+    controller.resetLayerVisibility();
+    expect(
+      controller.getLayerVisibility("model-a", {
+        kind: "element",
+        expressId: 42,
+      }),
+    ).toBe("show");
+    expect(controller.getSnapshot().visual.mode).toBe("isolate");
+    controller.dispose();
+  });
+
   it("updates the scene background without recreating or reframing the renderer", async () => {
     const { calls, controller, advanceFrame } = createHarness();
     await controller.init();

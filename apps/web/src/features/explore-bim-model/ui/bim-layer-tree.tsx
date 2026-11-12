@@ -1,5 +1,7 @@
 "use client";
 
+import Button from "@codegouvfr/react-dsfr/Button";
+import Badge from "@codegouvfr/react-dsfr/Badge";
 import { StoreyTree } from "./storey-tree";
 import type { BimViewer } from "../model/viewer-target";
 import {
@@ -12,19 +14,8 @@ import { VisibilityCheckbox } from "@/shared/ui/visibility-checkbox";
 import { InlineDisclosure } from "@/shared/ui/inline-disclosure";
 import { useSelectionExpansion } from "../model/use-selection-expansion";
 import styles from "./bim-layer-tree.module.css";
-import { BimExplorer } from "./bim-explorer";
 
 type IfcLayer = { assetId: string; fileName: string };
-
-function hexToRgba(hex: string): [number, number, number, number] {
-  const value = hex.replace("#", "");
-  return [
-    Number.parseInt(value.slice(0, 2), 16) / 255,
-    Number.parseInt(value.slice(2, 4), 16) / 255,
-    Number.parseInt(value.slice(4, 6), 16) / 255,
-    1,
-  ];
-}
 
 function ModelDisclosure({
   selection,
@@ -83,7 +74,6 @@ export function BimLayerTree({
 
   return (
     <>
-      {" "}
       {ifcSources.map((source, index) => {
         const model = snapshot.models.find(
           (item) => item.assetId === source.assetId,
@@ -109,6 +99,16 @@ export function BimLayerTree({
               }
               defaultExpanded={index === 0}
               label={source.fileName}
+              actions={
+                <Button
+                  iconId="fr-icon-focus-3-line"
+                  size="small"
+                  priority="tertiary no outline"
+                  title={`Cadrer ${source.fileName}`}
+                  disabled={!ready}
+                  onClick={() => getViewer()?.frameModel(source.assetId)}
+                />
+              }
               visibilityControl={
                 ready ? (
                   <VisibilityCheckbox
@@ -128,6 +128,14 @@ export function BimLayerTree({
             >
               {ready ? (
                 <>
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <Badge small noIcon>
+                      IFC
+                    </Badge>
+                    <span className="text-xs text-[var(--text-mention-grey)]">
+                      {storeys.length} niveaux
+                    </span>
+                  </div>
                   <button
                     className={styles.activate}
                     disabled={snapshot.activeModelId === source.assetId}
@@ -136,7 +144,7 @@ export function BimLayerTree({
                   >
                     {snapshot.activeModelId === source.assetId
                       ? "Maquette active"
-                      : "Inspecter cette maquette"}
+                      : "Activer pour les filtres"}
                   </button>
                   {storeys.map((storey) => (
                     <StoreyTree
@@ -187,25 +195,6 @@ export function BimLayerTree({
           </div>
         );
       })}
-      {snapshot.catalog ? (
-        <InlineDisclosure label="Filtres et couleurs">
-          <BimExplorer
-            key={snapshot.activeModelId}
-            catalog={snapshot.catalog}
-            onColor={(query, color, label) =>
-              getViewer()?.color(query, hexToRgba(color), label)
-            }
-            onColorByStorey={() => getViewer()?.colorByStorey()}
-            onHide={(query, label) => getViewer()?.hide(query, label)}
-            onIsolate={(query, label) => getViewer()?.isolate(query, label)}
-            onReset={() => getViewer()?.resetVisuals()}
-            onSetContext={(show, opacity) =>
-              getViewer()?.setIsolationContext(show, opacity)
-            }
-            visual={snapshot.visual}
-          />
-        </InlineDisclosure>
-      ) : null}
     </>
   );
 }

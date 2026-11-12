@@ -41,7 +41,7 @@ test("measures and persists 3D geometry with snapping and shared results", async
       .getByRole("link", { name: "Ouvrir la vue", exact: true })
       .click();
     await expect(
-      page.getByRole("status").filter({ hasText: "entités IFC" }),
+      page.locator('canvas[aria-label^="Vue 3D"][data-phase="ready"]'),
     ).toBeVisible({ timeout: 120_000 });
     await page
       .getByRole("button", { name: "Vue de dessus", exact: true })
@@ -55,7 +55,6 @@ test("measures and persists 3D geometry with snapping and shared results", async
     ).toBeChecked();
     const tools = page.getByRole("group", { name: "Outils de la visionneuse" });
     await tools.getByRole("button", { name: "Mesures", exact: true }).click();
-    await tools.getByRole("button", { name: "Distance", exact: true }).click();
     let panel = page.getByRole("complementary", { name: "Mesure de distance" });
     await expect(panel.getByText("Choisissez le premier point.")).toBeVisible();
     const canvas = page.locator('canvas[aria-label^="Vue 3D"]');
@@ -124,7 +123,10 @@ test("measures and persists 3D geometry with snapping and shared results", async
     ).toBeVisible();
     await panel.getByRole("button", { name: "Fermer le panneau" }).click();
     await tools.getByRole("button", { name: "Mesures", exact: true }).click();
-    await tools.getByRole("button", { name: "Surface", exact: true }).click();
+    await page
+      .getByRole("group", { name: "Type de mesure", exact: true })
+      .getByText("Surface", { exact: true })
+      .click();
     panel = page.getByRole("complementary", { name: "Mesure de surface" });
     await expect(
       panel.getByRole("heading", { name: "Mesures (1)" }),
@@ -195,10 +197,9 @@ test("measures and persists 3D geometry with snapping and shared results", async
     const savedValues = await panel.locator("li strong").allTextContents();
     await page.reload();
     await expect(
-      page.getByRole("status").filter({ hasText: "entités IFC" }),
+      page.locator('canvas[aria-label^="Vue 3D"][data-phase="ready"]'),
     ).toBeVisible({ timeout: 120_000 });
     await tools.getByRole("button", { name: "Mesures", exact: true }).click();
-    await tools.getByRole("button", { name: "Distance", exact: true }).click();
     panel = page.getByRole("complementary", { name: "Mesure de distance" });
     await expect(
       panel.getByRole("heading", { name: "Mesures (2)" }),

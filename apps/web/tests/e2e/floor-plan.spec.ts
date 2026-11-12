@@ -47,18 +47,15 @@ test("navigates and snaps measurements on a real storey plan", async ({
   await page.locator('input[type="file"]').setInputFiles(fixture);
   await page.locator(`a[href="${href}/viewer"]`).click();
   await expect(
-    page.locator('[role="status"]').filter({ hasText: "entités IFC" }),
+    page.locator('canvas[aria-label^="Vue 3D"][data-phase="ready"]'),
   ).toBeVisible({ timeout: 120_000 });
-  await page
-    .getByRole("button", { name: "Autres outils", exact: true })
-    .click();
   await page.getByRole("button", { name: "Vues en plan", exact: true }).click();
   const settings = page.getByRole("complementary", {
     name: "Vues en plan",
     exact: true,
   });
   await settings
-    .getByLabel("Niveau", { exact: true })
+    .getByRole("combobox", { name: "Niveau", exact: true })
     .selectOption({ label: "Ground Floor" });
   const plan = page.getByRole("group", {
     name: "Plan interactif du niveau Ground Floor",
@@ -195,7 +192,11 @@ test("navigates and snaps measurements on a real storey plan", async ({
       return (await selectedTree.count()) === 1;
     })
     .toBe(true);
+  await page
+    .getByRole("button", { name: "Afficher dans l’arborescence", exact: true })
+    .click();
   await expect(selectedTree).toBeInViewport();
+  await page.getByRole("button", { name: "Vues en plan", exact: true }).click();
   const selectedTitle = await selectedTree.getAttribute("title");
   await expect(
     page.getByRole("button", { name: "Effacer la sélection", exact: true }),
@@ -304,7 +305,7 @@ test("navigates and snaps measurements on a real storey plan", async ({
     .getByLabel("Nom de la règle", { exact: true })
     .fill("Murs terre cuite");
   await settings
-    .getByLabel("Classe IFC", { exact: true })
+    .getByRole("combobox", { name: "Classe IFC", exact: true })
     .selectOption("IfcWall");
   const fillPalette = settings.getByRole("group", {
     name: "Couleurs du plan",
@@ -428,11 +429,8 @@ test("navigates and snaps measurements on a real storey plan", async ({
   await download.saveAs("/tmp/mnemo-floor-plan.pdf");
   await page.reload();
   await expect(
-    page.locator('[role="status"]').filter({ hasText: "entités IFC" }),
+    page.locator('canvas[aria-label^="Vue 3D"][data-phase="ready"]'),
   ).toBeVisible({ timeout: 120_000 });
-  await page
-    .getByRole("button", { name: "Autres outils", exact: true })
-    .click();
   await page.getByRole("button", { name: "Vues en plan", exact: true }).click();
   await settings
     .getByRole("combobox", { name: "Vue enregistrée", exact: true })
@@ -466,7 +464,9 @@ test("navigates and snaps measurements on a real storey plan", async ({
     .getByRole("button", { name: "Règles personnalisées (1)", exact: true })
     .click();
   await page.setViewportSize({ width: 1440, height: 760 });
-  await expect(settings.getByLabel("Niveau", { exact: true })).toBeInViewport();
+  await expect(
+    settings.getByRole("combobox", { name: "Niveau", exact: true }),
+  ).toBeInViewport();
   await expect(
     settings.getByLabel("Style du plan", { exact: true }),
   ).toBeInViewport();
@@ -505,7 +505,7 @@ test("navigates and snaps measurements on a real storey plan", async ({
   const savedId = await savedViewSelect.inputValue();
   const beforeNewLevel = workerCount;
   await settings
-    .getByLabel("Niveau", { exact: true })
+    .getByRole("combobox", { name: "Niveau", exact: true })
     .selectOption({ label: "Roof" });
   await expect(
     page.getByRole("group", {
@@ -521,7 +521,7 @@ test("navigates and snaps measurements on a real storey plan", async ({
       .filter({ hasText: "Modifications non enregistrées" }),
   ).toBeVisible();
   await settings
-    .getByLabel("Niveau", { exact: true })
+    .getByRole("combobox", { name: "Niveau", exact: true })
     .selectOption({ label: "Ground Floor" });
   await expect(plan).toBeVisible({ timeout: 60_000 });
   expect(workerCount).toBe(beforeNewLevel + 1);
@@ -570,14 +570,11 @@ test("navigates and snaps measurements on a real storey plan", async ({
   });
   await gotoHydrated(page, `${href}/viewer`);
   await expect(
-    page.locator('[role="status"]').filter({ hasText: "entités IFC" }),
+    page.locator('canvas[aria-label^="Vue 3D"][data-phase="ready"]'),
   ).toBeVisible({ timeout: 120_000 });
-  await page
-    .getByRole("button", { name: "Autres outils", exact: true })
-    .click();
   await page.getByRole("button", { name: "Vues en plan", exact: true }).click();
   await settings
-    .getByLabel("Niveau", { exact: true })
+    .getByRole("combobox", { name: "Niveau", exact: true })
     .selectOption({ label: "Ground Floor" });
   await expect(
     settings.getByRole("heading", { name: "Plan non généré", exact: true }),

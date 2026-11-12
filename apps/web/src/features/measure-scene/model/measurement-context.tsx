@@ -21,6 +21,7 @@ type MeasurementContextValue = {
   getViewer: () => MeasurementViewer | null;
   mode: MeasurementKind | null;
   enabled: boolean;
+  onModeChange: (mode: MeasurementKind) => void;
 };
 const MeasurementContext = createContext<MeasurementContextValue | null>(null);
 
@@ -32,6 +33,7 @@ export function SceneMeasurementProvider({
   canvasRef,
   mode,
   enabled,
+  onModeChange,
 }: {
   children: ReactNode;
   Editor: MeasurementEditorSlot;
@@ -39,11 +41,12 @@ export function SceneMeasurementProvider({
   canvasRef: RefObject<HTMLCanvasElement | null>;
   mode: MeasurementKind | null;
   enabled: boolean;
+  onModeChange: (mode: MeasurementKind) => void;
 }) {
   const controller = useSceneMeasurements(getViewer, canvasRef, mode, enabled);
   return (
     <MeasurementContext.Provider
-      value={{ Editor, controller, getViewer, mode, enabled }}
+      value={{ Editor, controller, getViewer, mode, enabled, onModeChange }}
     >
       {children}
     </MeasurementContext.Provider>

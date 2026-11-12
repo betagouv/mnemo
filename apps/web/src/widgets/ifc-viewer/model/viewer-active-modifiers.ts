@@ -8,6 +8,7 @@ export type ViewerActiveModifier = {
   icon: string;
   panel: ViewerPanelId;
   group: ViewerToolGroupId;
+  reset?: "section" | "visual" | "visibility";
 };
 
 type ModifierSource = {
@@ -21,6 +22,7 @@ const modifierSources: readonly ModifierSource[] = [
       if (snapshot.section.active === "plane") {
         return {
           id: "section",
+          reset: "section",
           label: "Plan de coupe actif",
           icon: "fr-icon-crop-line",
           panel: "cut-plane",
@@ -30,6 +32,7 @@ const modifierSources: readonly ModifierSource[] = [
       if (snapshot.section.active === "box") {
         return {
           id: "section",
+          reset: "section",
           label: "Boîte de coupe active",
           icon: "fr-icon-crop-line",
           panel: "cut-box",
@@ -43,9 +46,32 @@ const modifierSources: readonly ModifierSource[] = [
 
 export function getActiveViewerModifiers(
   snapshot: IfcViewerSnapshot,
+  visibilityChanged = false,
 ): ViewerActiveModifier[] {
-  return modifierSources.flatMap((source) => {
+  const modifiers = modifierSources.flatMap((source) => {
     const modifier = source.getActive(snapshot);
     return modifier ? [modifier] : [];
   });
+  if (snapshot.visual.mode !== "all")
+    modifiers.push({
+      id: "visual",
+      label: snapshot.visual.label || "Affichage modifié",
+      icon:
+        snapshot.visual.mode === "color"
+          ? "fr-icon-palette-line"
+          : "fr-icon-filter-line",
+      panel: "colorization",
+      group: "colors",
+      reset: "visual",
+    });
+  if (visibilityChanged)
+    modifiers.push({
+      id: "visibility",
+      label: "Visibilité modifiée",
+      icon: "fr-icon-eye-off-line",
+      panel: "layers",
+      group: "layers",
+      reset: "visibility",
+    });
+  return modifiers;
 }

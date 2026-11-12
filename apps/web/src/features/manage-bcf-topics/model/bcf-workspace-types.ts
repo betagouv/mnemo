@@ -9,6 +9,11 @@ import type { CapturedBcfViewpoint } from "@mnemo/ifc-viewer-adapter";
 import type { BcfPermissions } from "./bcf-permissions";
 import type { BcfObject } from "./bcf-object";
 
+export type BcfWorkspaceHandle = {
+  open: (id: string) => Promise<void>;
+  create: (objects?: readonly BcfObject[]) => void;
+};
+
 export type BcfWorkspaceProps = {
   projectId: string;
   initialTopics: BcfTopicSummary[];
@@ -25,5 +30,5 @@ export type BcfWorkspaceProps = {
   onTopicsChange: (count: number) => void;
   onActiveTopicChange: (id: string | null) => void;
   onMarkersChange: (topics: BcfMarkerTopic[]) => void;
-  ref?: Ref<{ open: (id: string) => Promise<void> }>;
+  ref?: Ref<BcfWorkspaceHandle>;
 };

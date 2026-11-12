@@ -11,6 +11,7 @@ export function InlineDisclosure({
   onExpandedChange,
   label,
   visibilityControl,
+  actions,
 }: {
   children: ReactNode;
   defaultExpanded?: boolean;
@@ -18,6 +19,7 @@ export function InlineDisclosure({
   onExpandedChange?: (expanded: boolean) => void;
   label: string;
   visibilityControl?: ReactNode;
+  actions?: ReactNode;
 }) {
   const [localExpanded, setExpanded] = useState(defaultExpanded);
   const expanded = controlledExpanded ?? localExpanded;
@@ -46,6 +48,7 @@ export function InlineDisclosure({
             />
           </button>
         </h3>
+        {actions}
       </div>
       <div className={styles.body} hidden={!expanded} id={contentId}>
         {children}

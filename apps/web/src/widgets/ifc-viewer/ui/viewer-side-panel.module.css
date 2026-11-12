@@ -1,4 +1,11 @@
 .root {
+  position: absolute;
+  z-index: 4;
+  top: 0.75rem;
+  bottom: 0.75rem;
+  left: 4.5rem;
+  width: var(--viewer-panel-width, 20rem);
+  border-radius: 0.25rem;
   box-shadow: -3px 0 12px rgb(0 0 0 / 3%);
 }
 
@@ -46,4 +53,30 @@
 
 .body[data-mode="bcf"] {
   overflow: hidden;
+}
+
+.root[data-docked="true"] {
+  width: 20rem;
+}
+:global([data-explorer-pinned="true"]) .root:not([data-docked="true"]) {
+  left: 25.25rem;
+}
+@media (width < 90rem) {
+  .root[data-docked="true"] {
+    display: none;
+  }
+  :global([data-explorer-pinned="true"]) .root:not([data-docked="true"]) {
+    left: 4.5rem;
+  }
+}
+@media (width <= 48rem) {
+  .root {
+    max-width: calc(100% - 5rem);
+  }
+}
+
+@media (width < 90rem) {
+  .header .pin {
+    display: none;
+  }
 }

@@ -29,6 +29,8 @@ export function BcfPanel(props: BcfWorkspaceProps) {
   } = props;
   const {
     topics,
+    create,
+    creation,
     options,
     members,
     screen,
@@ -65,9 +67,16 @@ export function BcfPanel(props: BcfWorkspaceProps) {
                 : "Modifier la remarque"}
             </h2>
             <BcfTopicEditor
-              key={screen + active?.id}
+              key={
+                screen === "create"
+                  ? `create-${creation.revision}`
+                  : `edit-${active?.id}`
+              }
               projectId={projectId}
               topic={screen === "edit" ? (active ?? undefined) : undefined}
+              initialObjects={
+                screen === "create" ? creation.objects : undefined
+              }
               options={options}
               members={members}
               selection={selection}
@@ -103,10 +112,7 @@ export function BcfPanel(props: BcfWorkspaceProps) {
               <Button
                 size="small"
                 iconId="fr-icon-add-line"
-                onClick={() => {
-                  setError(null);
-                  setScreen("create");
-                }}
+                onClick={() => create()}
               >
                 Nouvelle remarque
               </Button>

@@ -7,4 +7,6 @@ export type BcfViewer = Pick<
   | "captureBcfViewpoint"
   | "setBcfSelection"
   | "bcfObjects"
+  | "getSnapshot"
+  | "getBimElement"
 >;
