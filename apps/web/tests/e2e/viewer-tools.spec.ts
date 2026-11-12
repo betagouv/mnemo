@@ -1,238 +1,151 @@
 import { expect, test } from "./fixtures";
-
 import { gotoHydrated } from "./hydration";
 
-async function expectFloatingViewerTools(
-  page: import("@playwright/test").Page,
-) {
-  const layout = await page.evaluate(() => {
-    const viewer = document.querySelector("main");
-    const tools = document.querySelector(
-      '[role="group"][aria-label="Outils de la visionneuse"]',
-    );
-    const viewport = document.querySelector(
-      '[aria-label="Visionneuse 3D du projet"]',
-    );
-    const triggers = Array.from(
-      tools?.querySelectorAll(":scope > ul > li > button") ?? [],
-    );
-    if (!viewer || !tools || !viewport || triggers.length !== 5) return null;
-    const viewerRect = viewer.getBoundingClientRect();
-    const toolsRect = tools.getBoundingClientRect();
-    const viewportRect = viewport.getBoundingClientRect();
-    const triggerRects = triggers.map((trigger) =>
-      trigger.getBoundingClientRect(),
-    );
-    return {
-      sceneUsesFullHeight: Math.abs(viewportRect.top - viewerRect.top) <= 1,
-      toolsInsideScene:
-        toolsRect.top >= viewportRect.top &&
-        toolsRect.left >= viewportRect.left &&
-        toolsRect.right <= viewportRect.right &&
-        toolsRect.bottom < viewportRect.bottom,
-      toolsAtLeft: toolsRect.left - viewportRect.left <= 20,
-      triggersAreSquare: triggerRects.every(
-        (rect) =>
-          Math.abs(rect.width - 44) <= 1 && Math.abs(rect.height - 44) <= 1,
-      ),
-      triggersStackVertically: triggerRects.every(
-        (rect, index) =>
-          Math.abs(rect.left - triggerRects[0].left) <= 1 &&
-          (index === 0 || rect.top >= triggerRects[index - 1].bottom),
-      ),
-    };
-  });
-  expect(layout).toEqual({
-    sceneUsesFullHeight: true,
-    toolsInsideScene: true,
-    toolsAtLeft: true,
-    triggersAreSquare: true,
-    triggersStackVertically: true,
-  });
-}
+test.use({ viewport: { width: 1440, height: 1000 } });
 
-test("opens viewer tools in a reusable side panel", async ({ page }) => {
-  const projectName = `Outils visionneuse ${Date.now()}`;
-
+test("uses contextual panels without empty properties or unavailable tools", async ({
+  page,
+}) => {
+  const name = `Viewer UX ${Date.now()}`;
   await gotoHydrated(page, "/projets");
   await page.getByRole("button", { name: "Nouveau dossier" }).click();
-  await page.getByLabel("Titre du dossier").fill(projectName);
+  await page.getByLabel("Titre du dossier").fill(name);
   await page.getByRole("button", { name: "Créer le dossier" }).click();
-
-  const projectHref = await page
-    .getByRole("link", { name: projectName })
+  const href = await page
+    .getByRole("link", { name, exact: true })
     .getAttribute("href");
-  if (!projectHref) throw new Error("The created project has no URL");
-
+  if (!href) throw new Error("Missing project URL");
   try {
-    await gotoHydrated(page, `${projectHref}/viewer`);
-    await expect(
-      page.getByRole("banner").getByRole("img", { name: /^Mnemo/ }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("banner").getByText(projectName, { exact: true }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("heading", {
-        name: `Scène du projet ${projectName}`,
-        level: 1,
-        includeHidden: true,
-      }),
-    ).toBeAttached();
-    await expect(
-      page.getByRole("link", { name: `Retour au projet ${projectName}` }),
-    ).toHaveCount(0);
-    await expect(page.getByRole("contentinfo")).toBeVisible();
-    const footerToggle = page.getByRole("button", {
-      name: "Plus d’informations",
-    });
-    const sceneHeight = await page
-      .getByRole("region", { name: "Visionneuse 3D du projet" })
-      .evaluate((element) => element.getBoundingClientRect().height);
-    await footerToggle.click();
-    await expect(
-      page.getByRole("button", { name: "Fermer", exact: true }),
-    ).toHaveAttribute("aria-expanded", "true");
-    await expect(page.getByRole("contentinfo")).toContainText("RÉPUBLIQUE");
-    expect(
-      await page
-        .getByRole("region", { name: "Visionneuse 3D du projet" })
-        .evaluate((element) => element.getBoundingClientRect().height),
-    ).toBe(sceneHeight);
-    await page.keyboard.press("Escape");
-    await expect(footerToggle).toBeFocused();
-    await expect(footerToggle).toHaveAttribute("aria-expanded", "false");
+    await gotoHydrated(page, `${href}/viewer`);
     const tools = page.getByRole("group", { name: "Outils de la visionneuse" });
-    const sidePanel = page.getByRole("complementary", {
-      name: "Coupes",
+    const scene = page.getByRole("region", {
+      name: "Visionneuse 3D du projet",
     });
-
-    await expect(tools.getByRole("button", { name: "Coupes" })).toBeVisible();
-    await expect(tools.getByRole("button", { name: "Mesures" })).toBeVisible();
-    await expect(
-      tools.locator(":scope > ul > li").first().getByRole("button", {
-        name: "Tout cadrer",
-      }),
-    ).toBeVisible();
-    await expect(sidePanel).not.toBeVisible();
-    await expectFloatingViewerTools(page);
-
-    const measurements = tools.getByRole("button", { name: "Mesures" });
-    await measurements.hover();
-    await expect(measurements.getByText("Mesures")).toBeVisible();
-    await page.mouse.move(0, 0);
-    await expect(measurements.getByText("Mesures")).not.toBeVisible();
-    await measurements.focus();
-    await expect(measurements.getByText("Mesures")).toBeVisible();
-
-    await tools.getByRole("button", { name: "Coupes" }).click();
-    await expect(
-      tools.getByRole("button", { name: "Coupe par plan" }),
-    ).toBeVisible();
-    await page.keyboard.press("Escape");
-    await expect(
-      tools.getByRole("button", { name: "Coupe par plan" }),
-    ).not.toBeVisible();
-    await expect(tools.getByRole("button", { name: "Coupes" })).toBeFocused();
-    await tools.getByRole("button", { name: "Coupes" }).click();
-    await tools.getByRole("button", { name: "Coupe par plan" }).click();
-    await expect(sidePanel).toBeVisible();
-    await expect(
-      sidePanel.getByRole("heading", { name: "Plan de coupe" }),
-    ).toBeVisible();
-    await expect(sidePanel.locator('input[type="range"]')).toHaveCount(0);
-    await expect(
-      sidePanel.getByText("Remplir les surfaces coupées"),
-    ).toHaveCount(0);
-    await sidePanel
-      .getByRole("group", { name: "Type de coupe" })
-      .getByText("Boîte de coupe")
-      .click();
-    await expect(
-      sidePanel.getByRole("radio", { name: "Boîte de coupe" }),
-    ).toBeChecked();
-    await expect(
-      sidePanel.getByRole("heading", { name: "Boîte de coupe" }),
-    ).toBeVisible();
-    await expect(sidePanel.locator('input[type="range"]')).toHaveCount(0);
-
-    await tools.getByRole("button", { name: "Mesures" }).click();
-    await tools.getByRole("button", { name: "Distance" }).click();
-    const measurementPanel = page.getByRole("complementary", {
-      name: "Mesure de distance",
+    const canvas = page.locator('canvas[aria-label^="Vue 3D"]');
+    const original = await canvas.elementHandle();
+    const layers = page.getByRole("complementary", {
+      name: "Maquettes et relevés",
     });
-    await expect(measurementPanel).toBeVisible();
-    await measurementPanel
-      .getByRole("button", { name: "Fermer le panneau" })
-      .click();
-    await expect(measurementPanel).not.toBeVisible();
-    await expect(tools.getByRole("button", { name: "Mesures" })).toBeFocused();
-
+    await expect(layers).toBeVisible();
     await expect(
       page.getByRole("region", { name: "Propriétés IFC" }),
-    ).toBeVisible();
-    await tools.getByRole("button", { name: "Annotations" }).click();
+    ).toHaveCount(0);
     await expect(
-      page.getByRole("complementary", { name: "Remarques BCF" }),
-    ).toBeVisible();
+      tools.getByRole("button", { name: "Mesures", exact: true }),
+    ).toHaveCount(0);
+    const iconMasks = await tools
+      .locator(":scope > ul > li > button")
+      .evaluateAll((buttons) =>
+        buttons.map((button) => ({
+          label: button.getAttribute("aria-label"),
+          mask: getComputedStyle(button, "::before").maskImage,
+        })),
+      );
+    expect(iconMasks.filter((icon) => icon.mask === "none")).toEqual([]);
+    const initial = await scene.boundingBox();
+    await layers.getByRole("button", { name: "Fermer le panneau" }).click();
+    const expanded = await scene.boundingBox();
+    expect(expanded!.width).toBeGreaterThan(initial!.width);
+    const cuts = tools.getByRole("button", { name: "Coupes", exact: true });
+    await cuts.focus();
+    await cuts.press("Tab");
+    await page.keyboard.press("Shift+Tab");
+    await expect(cuts.getByText("Coupes", { exact: true })).toBeVisible();
+    await cuts.click();
+    const panel = page.getByRole("complementary", {
+      name: "Coupes",
+      exact: true,
+    });
+    await expect(panel).toBeVisible();
     await expect(
-      tools.getByRole("button", { name: "Annotations" }),
-    ).toHaveAttribute("data-active", "true");
+      panel.getByRole("checkbox", { name: "Coupe active" }),
+    ).toBeDisabled();
+    await expect(
+      panel.getByRole("radio", { name: "Plan", exact: true }),
+    ).toBeChecked();
+    await panel
+      .getByRole("group", { name: "Type de coupe" })
+      .getByText("Boîte", { exact: true })
+      .click();
+    await expect(
+      panel.getByRole("radio", { name: "Boîte", exact: true }),
+    ).toBeChecked();
+    await page.keyboard.press("Escape");
+    await expect(panel).not.toBeVisible();
+    await expect(cuts).toBeFocused();
+    await tools
+      .getByRole("button", { name: "Vues en plan", exact: true })
+      .click();
+    await expect(
+      page.getByRole("complementary", { name: "Vues en plan", exact: true }),
+    ).toBeVisible();
+    await tools
+      .getByRole("button", { name: "Filtres et couleurs", exact: true })
+      .click();
+    await expect(
+      page.getByText("Chargez une maquette IFC pour utiliser les filtres."),
+    ).toBeVisible();
+    await tools.getByRole("button", { name: "Autres outils" }).click();
+    await tools
+      .getByRole("button", { name: "Informations sur la scène" })
+      .click();
+    await expect(
+      page.getByRole("complementary", { name: "Informations sur la scène" }),
+    ).toContainText("Maillages");
+    await tools.getByRole("button", { name: "Autres outils" }).click();
+    await page.keyboard.press("Escape");
     await expect(
       tools.getByRole("button", { name: "Autres outils" }),
-    ).not.toHaveAttribute("data-active", "true");
-
-    await page.setViewportSize({ width: 1024, height: 800 });
-    await expectFloatingViewerTools(page);
-    await expect(
-      page.getByRole("complementary", { name: "Remarques BCF" }),
-    ).toBeVisible();
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth <= window.innerWidth,
-      ),
-    ).toBe(true);
-
-    await page.setViewportSize({ width: 800, height: 800 });
-    await expect(
-      page.getByRole("complementary", { name: "Explorateur du projet" }),
-    ).not.toBeVisible();
-    await expect(
-      page.getByRole("complementary", { name: "Remarques BCF" }),
-    ).toBeVisible();
-
-    await page.setViewportSize({ width: 390, height: 844 });
-    await expectFloatingViewerTools(page);
-    await expect(
-      page.getByRole("banner").getByText(projectName, { exact: true }),
-    ).toBeVisible();
-    const mobilePanel = page.getByRole("complementary", {
-      name: "Remarques BCF",
-    });
-    await expect(mobilePanel).toBeVisible();
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth <= window.innerWidth,
-      ),
-    ).toBe(true);
-    await mobilePanel
-      .getByRole("button", { name: "Fermer le panneau" })
+    ).toBeFocused();
+    await tools
+      .getByRole("button", { name: "Maquettes et relevés", exact: true })
       .click();
-    await expect(mobilePanel).not.toBeVisible();
-    await tools.getByRole("button", { name: "Coupes" }).click();
-    await expect(
-      tools.getByRole("button", { name: "Coupe par plan" }),
-    ).toBeVisible();
-    await page.keyboard.press("Escape");
-    await footerToggle.click();
-    await expect(
-      page.getByRole("button", { name: "Fermer", exact: true }),
-    ).toHaveAttribute("aria-expanded", "true");
-    await expect(page.getByRole("contentinfo")).toContainText("RÉPUBLIQUE");
-    await page.keyboard.press("Escape");
-    await expect(footerToggle).toHaveAttribute("aria-expanded", "false");
+    const pin = layers.getByRole("button", { name: "Épingler les maquettes" });
+    await expect(pin).toHaveClass(/ri-pushpin-line/);
+    const outlineMask = await pin.evaluate(
+      (button) => getComputedStyle(button, "::before").maskImage,
+    );
+    expect(outlineMask).not.toBe("none");
+    await pin.click();
+    const unpin = layers.getByRole("button", {
+      name: "Désépingler les maquettes",
+    });
+    await expect(unpin).toHaveAttribute("aria-pressed", "true");
+    await expect(unpin).toHaveClass(/ri-pushpin-fill/);
+    const filledMask = await unpin.evaluate(
+      (button) => getComputedStyle(button, "::before").maskImage,
+    );
+    expect(filledMask).not.toBe("none");
+    expect(filledMask).not.toBe(outlineMask);
+    await unpin.click();
+    await expect(pin).toHaveClass(/ri-pushpin-line/);
+    await expect(pin).toHaveAttribute("aria-pressed", "false");
+    await pin.click();
+    await cuts.click();
+    await expect(layers).toBeVisible();
+    for (const theme of ["light", "dark"]) {
+      await page.evaluate(
+        (value) =>
+          document.documentElement.setAttribute("data-fr-theme", value),
+        theme,
+      );
+      await page.screenshot({
+        path: test.info().outputPath(`viewer-ux-${theme}.png`),
+      });
+    }
+    await page.setViewportSize({ width: 1024, height: 800 });
+    await expect(panel).toBeVisible();
+    await expect(layers).not.toBeVisible();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+    expect(
+      await canvas.evaluate((node, prior) => node === prior, original),
+    ).toBe(true);
   } finally {
-    await gotoHydrated(page, projectHref);
+    await gotoHydrated(page, href);
     page.once("dialog", (dialog) => void dialog.accept());
     await page.getByRole("button", { name: "Supprimer le projet" }).click();
     await expect(page).toHaveURL(/\/projets$/);

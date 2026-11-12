@@ -3,6 +3,8 @@ packages:
   - packages/*
 
 overrides:
+  # Temporary footprint optimization, pinned to the published fork archive.
+  "@ifc-lite/wasm": https://github.com/boehm-e/ifc-lite/releases/download/wasm-v10.4.0-mnemo.1/ifc-lite-wasm-10.4.0-mnemo.1.tgz
   "@typescript-eslint/typescript-estree>minimatch": 11.0.1
   esbuild: 0.28.2
   source-map-js: 1.2.2

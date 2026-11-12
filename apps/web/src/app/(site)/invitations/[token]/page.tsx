@@ -1,9 +1,13 @@
 import Alert from "@codegouvfr/react-dsfr/Alert";
 import Button from "@codegouvfr/react-dsfr/Button";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
 import { AcceptInvitationButton } from "@/screens/project-access";
-import { getCurrentActor } from "@/server/auth/resolve-actor";
+import {
+  getCurrentActor,
+  getCurrentAccount,
+} from "@/server/auth/resolve-actor";
 import { getRuntimePrismaDatabase } from "@/server/database/runtime-database";
 import { getProjectInvitationService } from "@/server/project-access/project-invitation-service-factory";
 
@@ -13,6 +17,8 @@ export const dynamic = "force-dynamic";
 export default async function InvitationPage({
   params,
 }: PageProps<"/invitations/[token]">) {
+  const account = await getCurrentAccount();
+  if (account && !account.approved_at) redirect("/compte-en-attente");
   const { token } = await params;
   const invitation = await getProjectInvitationService().preview(token);
   const actor = await getCurrentActor();

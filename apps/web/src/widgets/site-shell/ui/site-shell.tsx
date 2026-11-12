@@ -28,11 +28,13 @@ export function SiteHeader({
   projectTitle,
   projectHref,
   authenticated = false,
+  isAdmin = false,
 }: {
   compact?: boolean;
   projectTitle?: string;
   projectHref?: string;
   authenticated?: boolean;
+  isAdmin?: boolean;
 }) {
   return (
     <Header
@@ -46,6 +48,15 @@ export function SiteHeader({
       }
       serviceTitle={projectTitle}
       quickAccessItems={[
+        ...(isAdmin
+          ? [
+              {
+                iconId: "fr-icon-admin-line" as const,
+                text: "Administration",
+                linkProps: { href: "/admin/utilisateurs" },
+              },
+            ]
+          : []),
         {
           iconId: "fr-icon-folder-2-line",
           text: "Mes dossiers",

@@ -378,6 +378,13 @@ export class IfcViewerController {
     this.renderer.requestRender();
   }
 
+  resetLayerVisibility() {
+    if (this.disposed) return;
+    this.layerVisibility.reset();
+    this.updateSnapshot({});
+    this.renderer.requestRender();
+  }
+
   init() {
     if (this.disposed) {
       return Promise.reject(new Error("The IFC viewer has been disposed"));
@@ -494,6 +501,26 @@ export class IfcViewerController {
     if (!changed) return;
     this.renderer.requestRender();
     this.notifyProjectionMode(this.renderer.getCamera().getProjectionMode());
+  }
+
+  frameModel(assetId: string) {
+    const model = this.models.get(assetId);
+    if (this.disposed || !model) return;
+    const min = { x: Infinity, y: Infinity, z: Infinity };
+    const max = { x: -Infinity, y: -Infinity, z: -Infinity };
+    let found = false;
+    for (const id of model.meshIds) {
+      const bounds = this.renderer.getScene().getEntityBoundingBox(id);
+      if (!bounds) continue;
+      found = true;
+      for (const axis of ["x", "y", "z"] as const) {
+        min[axis] = Math.min(min[axis], bounds.min[axis]);
+        max[axis] = Math.max(max[axis], bounds.max[axis]);
+      }
+    }
+    if (!found) return;
+    void this.renderer.getCamera().frameBounds(min, max);
+    this.renderer.requestRender();
   }
 
   frameSelection() {
@@ -746,6 +773,33 @@ export class IfcViewerController {
       },
     });
     this.renderer.requestRender();
+  }
+
+  getVisualPlan(): IfcVisualPlan {
+    const groups = new Map<
+      readonly [number, number, number, number],
+      number[]
+    >();
+    for (const [id, color] of this.colorOverrides) {
+      const ids = groups.get(color);
+      if (ids) ids.push(id);
+      else groups.set(color, [id]);
+    }
+    return {
+      hiddenIds: [...this.hiddenIds],
+      focusIds: this.ghostExceptIds
+        ? [...this.ghostExceptIds]
+        : this.isolatedIds
+          ? [...this.isolatedIds]
+          : null,
+      colors: [...groups].map(([color, ids]) => ({
+        ids,
+        color: [...color] as [number, number, number, number],
+      })),
+      label: this.snapshot.visual.label,
+      showContext: this.snapshot.visual.showContext,
+      contextOpacity: this.snapshot.visual.contextOpacity,
+    };
   }
 
   resetVisuals() {

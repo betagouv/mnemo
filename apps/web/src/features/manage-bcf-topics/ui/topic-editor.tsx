@@ -22,6 +22,7 @@ import styles from "./editor.module.css";
 export type BcfEditorProps = {
   projectId: string;
   topic?: BcfTopic;
+  initialObjects?: readonly BcfObject[];
   options: BcfProjectOptions;
   members: Array<{ id: string; name: string; email: string }>;
   canCapture: boolean;
@@ -41,6 +42,7 @@ export type BcfEditorProps = {
 export function BcfTopicEditor({
   projectId,
   topic,
+  initialObjects = [],
   options,
   members,
   canCapture,
@@ -70,10 +72,12 @@ export function BcfTopicEditor({
       expressId: component.expressId,
       globalId: component.globalId,
       name: component.globalId,
-    })) ?? [],
+    })) ?? [...initialObjects],
   );
   const [scope, setScope] = useState(
-    topic?.components.length ? "objects" : "general",
+    (topic ? topic.components.length : initialObjects.length)
+      ? "objects"
+      : "general",
   );
   const [view, setView] = useState<CapturedBcfViewpoint | null>(null);
   const [busy, setBusy] = useState(false);

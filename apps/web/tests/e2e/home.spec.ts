@@ -373,14 +373,16 @@ test("creates, reloads, opens and deletes a project asset", async ({
     // headed local E2E additionally checks the rendered viewer counters.
     if (process.env.CI) return;
 
-    const stats = page
-      .locator('[aria-label="Visionneuse 3D du projet"] [role="status"]')
-      .filter({ hasText: "entités IFC" });
+    const readyCanvas = page.locator(
+      'canvas[aria-label^="Vue 3D"][data-phase="ready"]',
+    );
     const viewerError = page.locator(
       '[aria-label="Visionneuse 3D du projet"] [role="alert"]',
     );
     try {
-      await expect(stats.or(viewerError)).toBeVisible({ timeout: 120_000 });
+      await expect(readyCanvas.or(viewerError)).toBeVisible({
+        timeout: 120_000,
+      });
     } catch (error) {
       const visibleText = (await page.locator("body").innerText()).slice(
         0,
@@ -398,13 +400,23 @@ test("creates, reloads, opens and deletes a project asset", async ({
         `Le viewer IFC a échoué : ${await viewerError.innerText()}`,
       );
     }
-    await expect(stats).toContainText(/47\s*309\s*entités IFC/, {
-      timeout: 120_000,
+    await page
+      .getByRole("button", { name: "Autres outils", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Informations sur la scène", exact: true })
+      .click();
+    const stats = page.getByRole("complementary", {
+      name: "Informations sur la scène",
     });
-    await expect(stats).toContainText(/223\s*maillages/);
+    await expect(stats.locator("dd").nth(0)).toContainText(/47\s*309/);
+    await expect(stats.locator("dd").nth(1)).toContainText(/223/);
+    await page
+      .getByRole("button", { name: "Maquettes et relevés", exact: true })
+      .click();
 
     const tree = page.getByRole("complementary", {
-      name: "Explorateur du projet",
+      name: "Maquettes et relevés",
     });
     const modelVisibility = tree.getByRole("checkbox", {
       name: new RegExp(`^${fileName} :`),

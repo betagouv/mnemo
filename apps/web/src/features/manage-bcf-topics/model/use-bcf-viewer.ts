@@ -7,6 +7,7 @@ import type {
 } from "@mnemo/contracts/bcf";
 import { useCallback, useRef, useState } from "react";
 import type { BcfViewer } from "./viewer-target";
+import type { BcfWorkspaceHandle } from "./bcf-workspace-types";
 
 export function useBcfViewer(
   getViewer: () => BcfViewer | null,
@@ -34,7 +35,30 @@ export function useBcfViewer(
     () => getViewer()?.bcfObjects() ?? [],
     [getViewer],
   );
-  const bcfPanelRef = useRef<{ open: (id: string) => Promise<void> }>(null);
+  const bcfPanelRef = useRef<BcfWorkspaceHandle>(null);
+  const createBcfFromSelection = useCallback(() => {
+    const viewer = getViewer();
+    if (!viewer) return;
+    const objects = viewer
+      .getSnapshot()
+      .selectedElements.flatMap((selected) => {
+        const element = viewer.getBimElement(
+          selected.assetId,
+          selected.expressId,
+        );
+        return element?.globalId
+          ? [
+              {
+                assetId: selected.assetId,
+                expressId: selected.expressId,
+                globalId: element.globalId,
+                name: element.name || element.globalId,
+              },
+            ]
+          : [];
+      });
+    bcfPanelRef.current?.create(objects);
+  }, [getViewer]);
   return {
     bcfTopicCount,
     setBcfTopicCount,
@@ -46,5 +70,6 @@ export function useBcfViewer(
     previewBcfObjects,
     queryBcfObjects,
     bcfPanelRef,
+    createBcfFromSelection,
   };
 }

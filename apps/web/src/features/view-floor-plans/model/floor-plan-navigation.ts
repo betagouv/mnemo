@@ -23,6 +23,29 @@ export function zoomPlan(
   };
 }
 
+/** Project onto a finite segment, including collapsed segments. */
+export function closestPointOnPlanSegment(
+  point: PlanPoint,
+  segment: PlanSegment,
+): PlanPoint {
+  const { start, end } = segment;
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const lengthSquared = dx * dx + dy * dy;
+  const fraction =
+    lengthSquared > 0
+      ? Math.max(
+          0,
+          Math.min(
+            1,
+            ((point.x - start.x) * dx + (point.y - start.y) * dy) /
+              lengthSquared,
+          ),
+        )
+      : 0;
+  return { x: start.x + fraction * dx, y: start.y + fraction * dy };
+}
+
 export function planDistance(start: PlanPoint, end: PlanPoint) {
   return Math.hypot(end.x - start.x, end.y - start.y);
 }

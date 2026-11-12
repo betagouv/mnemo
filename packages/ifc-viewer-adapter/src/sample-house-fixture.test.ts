@@ -9,7 +9,18 @@ import { extractFloorPlanOutline } from "./floor-plan-outline";
 import type { MeshData } from "@ifc-lite/geometry";
 import { GeometryProcessor } from "@ifc-lite/geometry";
 import { IfcParser } from "@ifc-lite/parser";
-import { expect, it } from "vitest";
+import { beforeAll, expect, it } from "vitest";
+import initOutline from "@ifc-lite/wasm";
+
+beforeAll(async () => {
+  await initOutline({
+    module_or_path: await readFile(
+      new URL(
+        import.meta.resolve("@ifc-lite/wasm").replace(/\.js$/, "_bg.wasm"),
+      ),
+    ),
+  });
+});
 import { generateFloorPlanDrawing } from "./floor-plan-computation";
 import { intersectsFloorPlan } from "./floor-plan-meshes";
 import { createIfcBimIndex } from "./bim-index";
@@ -78,7 +89,8 @@ it("parses the versioned SampleHouse fixture into 47,309 entities and 223 meshes
     true,
   );
   expect(bounded.cutPolygons).toEqual(filtered.cutPolygons);
-  expect(filtered.lines).toEqual(drawing.lines);
+  const unfiltered = await generateFloorPlanDrawing(meshes, elevation);
+  expect(bounded.lines).toEqual(unfiltered.lines);
   expect(filtered.cutPolygons).toEqual(drawing.cutPolygons);
   const reference = new Drawing2DGenerator();
   try {

@@ -1,5 +1,9 @@
 "use client";
 
+import { useState, type CSSProperties } from "react";
+
+import { useViewerFeedback } from "../model/use-viewer-feedback";
+import { BimAppearancePanel } from "@/features/explore-bim-model";
 import { useViewerPanels } from "../model/use-viewer-panels";
 import { useBcfViewer } from "@/features/manage-bcf-topics";
 import { ViewerLoadStatus } from "./viewer-load-status";
@@ -16,6 +20,7 @@ import {
 } from "@/features/view-floor-plans";
 import { ViewerPanelContent } from "./viewer-panel-content";
 import {
+  SectionInstruction,
   SectionBoxGizmo,
   SectionPlaneGizmo,
   SectionSketchOverlay,
@@ -31,11 +36,11 @@ import type {
   ViewerPointCloudSource,
 } from "@/entities/viewer";
 import styles from "./ifc-viewer.module.css";
-import { IfcPropertiesPane } from "./ifc-properties-pane";
 import { ProjectLayers } from "./project-layers";
 import { ViewCube } from "./view-cube";
 import { ViewerActiveModifiers } from "./viewer-active-modifiers";
-import { ViewerExplorerSplit } from "./viewer-explorer-split";
+import { ViewerActionMessage } from "./viewer-action-message";
+import { ViewerSelection } from "./viewer-selection";
 import { ViewerSidePanel } from "./viewer-side-panel";
 import { ViewerToolBar } from "./viewer-tool-bar";
 
@@ -43,12 +48,6 @@ type AssistantSession = {
   threads: AssistantThreadSummary[];
   history: AssistantThreadHistory | null;
 };
-
-const shellLayout =
-  "relative grid h-full w-full min-h-0 min-w-0 overflow-hidden grid-cols-[minmax(0,1fr)] min-[769px]:grid-cols-[15.5rem_minmax(0,1fr)] min-[1201px]:grid-cols-[17.5rem_minmax(0,1fr)]";
-
-const openPanelLayout =
-  "min-[769px]:max-[897px]:grid-cols-[minmax(0,1fr)] min-[1025px]:grid-cols-[15.5rem_minmax(0,1fr)_20rem] min-[1201px]:grid-cols-[17.5rem_minmax(0,1fr)_22rem]";
 
 export function ProjectViewer({
   assistantSessions,
@@ -104,12 +103,13 @@ export function ProjectViewer({
   const {
     activePanel,
     setActivePanel,
+    explorerPinned,
+    setExplorerPinned,
     activeToolGroup,
-    setActiveToolGroup,
     panelFocusRequest,
-    setPanelFocusRequest,
     toolBarRef,
     openPanel,
+    togglePanel,
     closePanel,
   } = useViewerPanels(getViewer);
   const {
@@ -123,6 +123,7 @@ export function ProjectViewer({
     previewBcfObjects,
     queryBcfObjects,
     bcfPanelRef,
+    createBcfFromSelection,
   } = useBcfViewer(getViewer, activePanel === "bcf", initialBcfTopics);
 
   const activeModelId = snapshot.activeModelId;
@@ -130,7 +131,22 @@ export function ProjectViewer({
     (source) => source.assetId === activeModelId,
   );
   const activePanelConfig = activePanel ? viewerPanels[activePanel] : null;
-  const activeModifiers = getActiveViewerModifiers(snapshot);
+  const visibilityChanged =
+    hiddenPointCloudIds.size > 0 ||
+    snapshot.models.some(
+      (model) =>
+        getViewer()?.getLayerVisibility(model.assetId, { kind: "model" }) !==
+          "show" ||
+        (getViewer()?.getLayerExceptionCount(model.assetId, {
+          kind: "model",
+        }) ?? 0) > 0,
+    );
+  const activeModifiers = getActiveViewerModifiers(snapshot, visibilityChanged);
+  const {
+    feedback,
+    dismiss: dismissFeedback,
+    reset: resetModifier,
+  } = useViewerFeedback(getViewer, hiddenPointCloudIds, setPointCloudVisible);
 
   const failedSource = ifcSources.find(
     (source) =>
@@ -140,59 +156,71 @@ export function ProjectViewer({
       ),
   );
 
+  const [revealSelectionRequest, setRevealSelectionRequest] = useState(0);
+  const showExplorer = activePanel === "layers" || explorerPinned;
+  const hasToolPanel = activePanel !== null && activePanel !== "layers";
+
   return (
     <main
-      className={`${styles.shell} ${shellLayout} ${activePanel ? openPanelLayout : ""}`}
-      data-panel-open={Boolean(activePanel)}
+      className={`${styles.shell} relative h-full w-full min-h-0 min-w-0 overflow-hidden`}
+      style={
+        {
+          "--viewer-panel-width":
+            activePanel === "bcf" ||
+            activePanel === "floor-plan" ||
+            activePanel === "assistant"
+              ? "24rem"
+              : "20rem",
+        } as CSSProperties
+      }
+      data-explorer-pinned={(explorerPinned && hasToolPanel) || undefined}
+      data-panel-open={Boolean(activePanel) || showExplorer}
     >
-      <aside
-        className={`${styles.explorerColumn} flex min-h-0 min-w-0 flex-col ${activePanel ? "max-[897px]:hidden" : "max-[769px]:hidden"}`}
-        aria-label="Explorateur du projet"
+      <ViewerSidePanel
+        title="Maquettes et relevés"
+        iconClass="fr-icon-stack-line"
+        isOpen={showExplorer}
+        focusRequest={activePanel === "layers" ? panelFocusRequest : 0}
+        mode="layers"
+        pinned={explorerPinned}
+        docked={explorerPinned && hasToolPanel}
+        onPin={() => setExplorerPinned(!explorerPinned)}
+        onClose={() => {
+          setExplorerPinned(false);
+          if (activePanel === "layers") closePanel();
+        }}
       >
-        <div className="min-h-0 flex-1">
-          <ViewerExplorerSplit
-            explorer={
-              <ProjectLayers
-                getViewer={getViewer}
-                hiddenPointCloudIds={hiddenPointCloudIds}
-                ifcSources={ifcSources}
-                onPointBudgetChange={(maxPoints) =>
-                  void reloadPointClouds(maxPoints)
-                }
-                onPointCloudConfigurationChange={updatePointCloudConfiguration}
-                onPointSizeChange={(pointSize) =>
-                  controllerRef.current?.setPointCloudPointSize(pointSize)
-                }
-                onPointCloudVisibilityChange={setPointCloudVisible}
-                pointBudget={pointBudget}
-                pointCloudConfigurations={pointCloudConfigurations}
-                pointCloudFailures={pointCloudFailures}
-                pointSize={snapshot.pointCloudOptions.pointSize}
-                projectId={projectId}
-                snapshot={snapshot}
-              />
+        <div className="h-full min-h-0">
+          <ProjectLayers
+            revealSelectionRequest={revealSelectionRequest}
+            getViewer={getViewer}
+            hiddenPointCloudIds={hiddenPointCloudIds}
+            ifcSources={ifcSources}
+            onPointBudgetChange={(maxPoints) =>
+              void reloadPointClouds(maxPoints)
             }
-            inspector={
-              <IfcPropertiesPane
-                activeModelId={activeModelId}
-                modelName={activeIfcSource?.fileName ?? null}
-                onClearSelection={() =>
-                  controllerRef.current?.selectEntity(null)
-                }
-                onFrameSelection={() => controllerRef.current?.frameSelection()}
-                snapshot={snapshot}
-              />
+            onPointCloudConfigurationChange={updatePointCloudConfiguration}
+            onPointSizeChange={(pointSize) =>
+              controllerRef.current?.setPointCloudPointSize(pointSize)
             }
+            onPointCloudVisibilityChange={setPointCloudVisible}
+            pointBudget={pointBudget}
+            pointCloudConfigurations={pointCloudConfigurations}
+            pointCloudFailures={pointCloudFailures}
+            pointSize={snapshot.pointCloudOptions.pointSize}
+            projectId={projectId}
+            snapshot={snapshot}
           />
         </div>
-      </aside>
+      </ViewerSidePanel>
 
       <section
-        className="relative min-h-0 min-w-0 overflow-hidden bg-[var(--background-alt-grey)]"
+        className={`${styles.stage} absolute inset-y-0 right-0 min-h-0 min-w-0 overflow-hidden bg-[var(--background-alt-grey)]`}
         aria-label="Visionneuse 3D du projet"
       >
         <canvas
           aria-label={`Vue 3D du projet ${projectName}`}
+          data-phase={snapshot.phase}
           className={`${styles.canvas} ${snapshot.section.pickMode ? styles.pickingCanvas : ""}`}
           ref={canvasRef}
         />
@@ -221,6 +249,17 @@ export function ProjectViewer({
             drawing={floorPlans.plan.drawing}
             preset={floorPlans.preset}
             rules={floorPlans.rules}
+            selectedIds={snapshot.selectedElements
+              .filter((element) => element.assetId === floorPlans.plan?.assetId)
+              .map((element) => element.expressId)}
+            onSelect={(expressId) => {
+              if (expressId === null) controllerRef.current?.selectEntity(null);
+              else if (floorPlans.plan)
+                controllerRef.current?.selectModelEntity(
+                  floorPlans.plan.assetId,
+                  expressId,
+                );
+            }}
             onClose={floorPlans.close}
           />
         ) : null}
@@ -231,9 +270,7 @@ export function ProjectViewer({
           activeId={activeBcfTopicId}
           onSelect={(id) => {
             void bcfPanelRef.current?.open(id);
-            setActivePanel("bcf");
-            setActiveToolGroup("annotations");
-            setPanelFocusRequest((request) => request + 1);
+            openPanel("bcf", "annotations");
           }}
         />
         <div className={styles.rightControls}>
@@ -246,14 +283,6 @@ export function ProjectViewer({
             />
           ) : null}
         </div>
-        <ViewerToolBar
-          activeGroupId={activeToolGroup}
-          bcfTopicCount={bcfTopicCount}
-          canReadBcf={bcfPermissions.read}
-          onFitToView={() => getViewer()?.fitToView()}
-          onSelect={openPanel}
-          rootRef={toolBarRef}
-        />
 
         {activePanel === "cut-plane" && snapshot.section.active === "plane" ? (
           <SectionPlaneGizmo
@@ -276,6 +305,11 @@ export function ProjectViewer({
           />
         ) : null}
 
+        <SectionInstruction
+          section={snapshot.section}
+          onCancel={() => getViewer()?.cancelSectionPick()}
+        />
+
         <ViewerLoadStatus
           snapshot={snapshot}
           accessError={accessError}
@@ -285,47 +319,47 @@ export function ProjectViewer({
           onRetry={retry}
         />
 
-        {snapshot.phase === "ready" ? (
-          <div className={styles.modelStats} role="status">
-            <strong>{snapshot.entityCount?.toLocaleString("fr-FR")}</strong>
-            <span>entités IFC</span>
-            <i aria-hidden="true" />
-            <strong>{snapshot.meshCount.toLocaleString("fr-FR")}</strong>
-            <span>maillages</span>
-            {snapshot.pointClouds.length ? (
-              <>
-                <i aria-hidden="true" />
-                <strong>
-                  {snapshot.pointClouds
-                    .reduce((total, cloud) => total + cloud.pointCount, 0)
-                    .toLocaleString("fr-FR")}
-                </strong>
-                <span>points</span>
-              </>
-            ) : null}
-          </div>
-        ) : null}
+        <ViewerSelection
+          key={`${activeModelId}:${snapshot.selection?.expressId}`}
+          snapshot={snapshot}
+          getViewer={getViewer}
+          modelName={activeIfcSource?.fileName ?? null}
+          canCreateBcf={bcfPermissions.read && bcfPermissions.createTopic}
+          onCreateBcf={(trigger) => {
+            createBcfFromSelection();
+            openPanel("bcf", "annotations", trigger);
+          }}
+          onReveal={(trigger) => {
+            openPanel("layers", "layers", trigger);
+            setRevealSelectionRequest((request) => request + 1);
+          }}
+        />
 
         <ViewerActiveModifiers
           activePanel={activePanel}
+          onReset={resetModifier}
           modifiers={activeModifiers}
           onOpen={(modifier, trigger) =>
             openPanel(modifier.panel, modifier.group, trigger)
           }
         />
 
-        <div className={styles.help}>
-          <span>Clic : sélectionner</span>
-          <span>Glisser : orbiter</span>
-          <span>Maj ou clic milieu : déplacer</span>
-          <span>Molette : zoomer</span>
-        </div>
+        <ViewerActionMessage feedback={feedback} onDismiss={dismissFeedback} />
       </section>
 
+      <ViewerToolBar
+        activeGroupId={activeToolGroup}
+        layerCount={ifcSources.length + pointCloudSources.length}
+        sectionActive={snapshot.section.active !== null}
+        bcfTopicCount={bcfTopicCount}
+        canReadBcf={bcfPermissions.read}
+        onSelect={togglePanel}
+        rootRef={toolBarRef}
+      />
       <ViewerSidePanel
         focusRequest={panelFocusRequest}
         iconClass={activePanelConfig?.icon}
-        isOpen={activePanel !== null}
+        isOpen={hasToolPanel}
         mode={activePanel ?? undefined}
         onClose={closePanel}
         title={activePanelConfig?.title ?? "Panneau d’outils"}
@@ -384,13 +418,21 @@ export function ProjectViewer({
             />
           </div>
         ) : null}
+        <div hidden={activePanel !== "colorization"}>
+          <BimAppearancePanel snapshot={snapshot} getViewer={getViewer} />
+        </div>
         <ViewerPanelContent
           panel={activePanel}
           snapshot={snapshot}
           getViewer={getViewer}
           hasActiveIfc={Boolean(activeIfcSource)}
           onSectionModeChange={(mode) => {
-            controllerRef.current?.cancelSectionPick();
+            const viewer = getViewer();
+            viewer?.cancelSectionPick();
+            if (snapshot.section.active) {
+              if (mode === "box") viewer?.showSectionBox();
+              else viewer?.showSectionPlane();
+            }
             setActivePanel(mode === "box" ? "cut-box" : "cut-plane");
           }}
           floorPlans={

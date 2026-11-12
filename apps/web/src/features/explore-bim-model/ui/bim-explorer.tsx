@@ -6,7 +6,11 @@ import type {
   IfcVisualSnapshot,
 } from "@mnemo/ifc-viewer-adapter";
 import { useMemo, useState } from "react";
-import styles from "./bim-explorer.module.css";
+import Button from "@codegouvfr/react-dsfr/Button";
+import Select from "@codegouvfr/react-dsfr/Select";
+import Accordion from "@codegouvfr/react-dsfr/Accordion";
+import Checkbox from "@codegouvfr/react-dsfr/Checkbox";
+import Range from "@codegouvfr/react-dsfr/Range";
 
 function queryLabel(
   catalog: IfcBimCatalog,
@@ -53,161 +57,125 @@ export function BimExplorer({
   const hasCriteria = Boolean(ifcClass || storeyId);
 
   return (
-    <div className={styles.explorer}>
-      <div className={styles.body}>
-        <section>
-          <div className={styles.sectionTitle}>
-            <h2>Filtrer la maquette</h2>
-            {visual.mode !== "all" ? (
-              <button onClick={onReset} type="button">
-                Réinitialiser
-              </button>
-            ) : null}
-          </div>
-
-          <label htmlFor="viewer-ifc-class">Classe IFC</label>
-          <select
-            id="viewer-ifc-class"
-            onChange={(event) => setIfcClass(event.target.value)}
-            value={ifcClass}
-          >
-            <option value="">Toutes les classes</option>
-            {catalog.types.map((type) => (
-              <option key={type.ifcClass} value={type.ifcClass}>
-                {type.ifcClass} ({type.elementCount.toLocaleString("fr-FR")})
-              </option>
-            ))}
-          </select>
-
-          <label htmlFor="viewer-storey">Niveau</label>
-          <select
-            id="viewer-storey"
-            onChange={(event) => setStoreyId(event.target.value)}
-            value={storeyId}
-          >
-            <option value="">Tous les niveaux</option>
-            {catalog.storeys.map((storey) => (
-              <option key={storey.expressId} value={storey.expressId}>
-                {storey.name} ({storey.elementCount.toLocaleString("fr-FR")})
-              </option>
-            ))}
-          </select>
-
-          <div className={styles.actions}>
-            <button
-              disabled={!hasCriteria}
-              onClick={() => onIsolate(query, label)}
-              type="button"
-            >
-              Afficher
-            </button>
-            <button
-              disabled={!hasCriteria}
-              onClick={() => onHide(query, label)}
-              type="button"
-            >
-              Masquer
-            </button>
-          </div>
-
-          <div className={styles.colorAction}>
-            <label htmlFor="viewer-color">Couleur</label>
-            <input
-              aria-label="Couleur des éléments"
-              id="viewer-color"
-              onChange={(event) => setColor(event.target.value)}
-              type="color"
-              value={color}
-            />
-            <button
-              disabled={!hasCriteria}
-              onClick={() => onColor(query, color, label)}
-              type="button"
-            >
-              Appliquer
-            </button>
-          </div>
-        </section>
-
-        <section>
-          <h2>Niveaux</h2>
-          {catalog.storeys.length ? (
-            <ul className={styles.storeys}>
-              {catalog.storeys.map((storey) => (
-                <li key={storey.expressId}>
-                  <button
-                    onClick={() => {
-                      const storeyQuery = { storeyId: storey.expressId };
-                      setStoreyId(String(storey.expressId));
-                      onIsolate(storeyQuery, storey.name);
-                    }}
-                    type="button"
-                  >
-                    <span>{storey.name}</span>
-                    <small>
-                      {storey.elevation !== null
-                        ? `${storey.elevation.toLocaleString("fr-FR")} m · `
-                        : ""}
-                      {storey.elementCount.toLocaleString("fr-FR")}
-                    </small>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className={styles.empty}>Aucun IfcBuildingStorey trouvé.</p>
-          )}
-          <button
-            className={styles.paletteButton}
-            disabled={!catalog.storeys.length}
-            onClick={onColorByStorey}
-            type="button"
-          >
-            Palette par niveau
-          </button>
-        </section>
-
-        <section>
-          <h2>Contexte d’isolation</h2>
-          <label className={styles.check}>
-            <input
-              checked={visual.showContext}
-              onChange={(event) =>
-                onSetContext(event.target.checked, visual.contextOpacity)
-              }
-              type="checkbox"
-            />
-            Afficher le reste en transparence
-          </label>
-          <div className={styles.opacity}>
-            <input
-              aria-label="Opacité du contexte"
-              disabled={!visual.showContext}
-              max="0.5"
-              min="0.02"
-              onChange={(event) =>
-                onSetContext(visual.showContext, Number(event.target.value))
-              }
-              step="0.01"
-              type="range"
-              value={visual.contextOpacity}
-            />
-            <strong>{Math.round(visual.contextOpacity * 100)} %</strong>
-          </div>
-          <p>
-            Ce réglage reste local. Désactivé, le contexte est réellement
-            masqué.
-          </p>
-        </section>
-
-        {visual.mode !== "all" ? (
-          <div className={styles.active} role="status">
-            <small>Vue active</small>
-            <strong>{visual.label}</strong>
-            <span>{visual.matchCount.toLocaleString("fr-FR")} éléments</span>
-          </div>
-        ) : null}
+    <div className="flex flex-col gap-4 p-4">
+      <Select
+        label="Classe IFC"
+        nativeSelectProps={{
+          value: ifcClass,
+          onChange: (event) => setIfcClass(event.target.value),
+        }}
+      >
+        <option value="">Toutes les classes</option>
+        {catalog.types.map((type) => (
+          <option key={type.ifcClass} value={type.ifcClass}>
+            {type.ifcClass} ({type.elementCount.toLocaleString("fr-FR")})
+          </option>
+        ))}
+      </Select>
+      <Select
+        label="Niveau"
+        nativeSelectProps={{
+          value: storeyId,
+          onChange: (event) => setStoreyId(event.target.value),
+        }}
+      >
+        <option value="">Tous les niveaux</option>
+        {catalog.storeys.map((storey) => (
+          <option key={storey.expressId} value={storey.expressId}>
+            {storey.name}
+          </option>
+        ))}
+      </Select>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          size="small"
+          disabled={!hasCriteria}
+          onClick={() => onIsolate(query, label)}
+        >
+          Isoler
+        </Button>
+        <Button
+          size="small"
+          priority="secondary"
+          disabled={!hasCriteria}
+          onClick={() => onHide(query, label)}
+        >
+          Masquer
+        </Button>
       </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="text-sm" htmlFor="viewer-color">
+          Couleur
+        </label>
+        <input
+          aria-label="Couleur des éléments"
+          className="h-9 w-9 cursor-pointer border border-[var(--border-default-grey)] bg-transparent p-1"
+          id="viewer-color"
+          type="color"
+          value={color}
+          onChange={(event) => setColor(event.target.value)}
+        />
+        <Button
+          size="small"
+          priority="secondary"
+          disabled={!hasCriteria}
+          onClick={() => onColor(query, color, label)}
+        >
+          Appliquer
+        </Button>
+      </div>
+      <Button
+        size="small"
+        priority="secondary"
+        disabled={!catalog.storeys.length}
+        onClick={onColorByStorey}
+      >
+        Colorer par niveau
+      </Button>
+      <Accordion label="Contexte de l’isolation">
+        <Checkbox
+          options={[
+            {
+              label: "Afficher le reste en transparence",
+              nativeInputProps: {
+                checked: visual.showContext,
+                onChange: (event) =>
+                  onSetContext(event.target.checked, visual.contextOpacity),
+              },
+            },
+          ]}
+        />
+        <Range
+          small
+          label="Opacité du contexte"
+          min={2}
+          max={50}
+          suffix=" %"
+          disabled={!visual.showContext}
+          nativeInputProps={{
+            value: Math.round(visual.contextOpacity * 100),
+            onChange: (event) =>
+              onSetContext(
+                visual.showContext,
+                Number(event.target.value) / 100,
+              ),
+          }}
+        />
+      </Accordion>
+      {visual.mode !== "all" ? (
+        <div
+          className="border-l-2 border-[var(--border-action-high-blue-france)] bg-[var(--background-alt-blue-france)] p-3 text-sm"
+          role="status"
+        >
+          <strong>{visual.label}</strong>
+          <p className="mb-2">
+            {visual.matchCount.toLocaleString("fr-FR")} éléments concernés
+          </p>
+          <Button size="small" priority="tertiary no outline" onClick={onReset}>
+            Réinitialiser l’affichage
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

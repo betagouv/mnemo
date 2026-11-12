@@ -4,7 +4,7 @@ import {
   createFloorPlanPropertyLookup,
   type FloorPlanDrawing,
 } from "./floor-plan-drawing";
-import { intersectsFloorPlan } from "./floor-plan-meshes";
+import { floorPlanCutHeight, intersectsFloorPlan } from "./floor-plan-meshes";
 import { computeFloorPlan } from "./floor-plan-worker-client";
 import type { IfcModelLoader, LoadedIfcModel } from "./ifc-model-loader";
 
@@ -59,7 +59,9 @@ export class FloorPlanGenerator {
       );
     }
     const elevation =
-      storey.elevation + 1.2 - context.modelLoader.renderOrigin.z;
+      storey.elevation +
+      floorPlanCutHeight -
+      context.modelLoader.renderOrigin.z;
     const key = `${assetId}/${storeyId}/${elevation}`;
     if (this.active?.key === key && this.active.model === model)
       return this.active.result;
@@ -135,11 +137,14 @@ export class FloorPlanGenerator {
     signal.throwIfAborted();
     if (!drawing.lines.length && !drawing.cutPolygons.length)
       throw new Error("Aucun contour disponible pour ce niveau.");
+    const getElementExpressId = (id: number) =>
+      context.federation.fromGlobalId(id)?.expressId ?? id;
     return {
       ...drawing,
+      getElementExpressId,
       getElementProperties: createFloorPlanPropertyLookup(
         model.store,
-        (id) => context.federation.fromGlobalId(id)?.expressId ?? id,
+        getElementExpressId,
       ),
     };
   }

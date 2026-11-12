@@ -6,14 +6,21 @@ import {
   Drawing2DGenerator,
   type Drawing2D,
 } from "@ifc-lite/drawing-2d";
-import { extractFloorPlanOutline } from "./floor-plan-outline";
-import { floorPlanProjectionDepth } from "./floor-plan-meshes";
+import {
+  assertFiniteFloorPlanMesh,
+  extractFloorPlanOutline,
+} from "./floor-plan-outline";
+import {
+  floorPlanProjectionAboveDepth,
+  floorPlanProjectionDepth,
+} from "./floor-plan-meshes";
 
 /** IFC-Lite owns section cuts, projection clipping, visibility and line merging. */
 export async function generateFloorPlanDrawing(
   meshes: MeshData[],
   elevation: number,
 ): Promise<Drawing2D> {
+  for (const mesh of meshes) assertFiniteFloorPlanMesh(mesh);
   const generator = new Drawing2DGenerator();
   try {
     await generator.initialize();
@@ -22,7 +29,7 @@ export async function generateFloorPlanDrawing(
       createSectionConfig("y", elevation, {
         projectionDepth: floorPlanProjectionDepth,
         // The printable plan uses the below-cut band only.
-        projectionAboveDepth: 0,
+        projectionAboveDepth: floorPlanProjectionAboveDepth,
         clipProjectionBands: true,
       }),
       {

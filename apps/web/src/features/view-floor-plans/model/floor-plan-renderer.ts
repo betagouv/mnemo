@@ -13,15 +13,9 @@ import {
   type PlanTransform,
 } from "./floor-plan-navigation";
 import { PlanSpatialIndex, type PlanBounds } from "./floor-plan-spatial-index";
-import { PlanSnapIndex, type PlanSnap } from "./floor-plan-snap";
+import type { PlanSnap } from "./floor-plan-snap";
+import type { PreparedFloorPlan } from "./floor-plan-geometry";
 
-type Polygon = FloorPlanDrawing["cutPolygons"][number];
-type Geometry = {
-  polygons: { path: Path2D; source: Polygon; bounds: PlanBounds }[];
-  lines: FloorPlanDrawing["lines"];
-  snapping: PlanSnapIndex;
-};
-const preparedPlans = new WeakMap<FloorPlanDrawing, Geometry>();
 type StyledPath = {
   bounds: PlanBounds;
   path: Path2D;
@@ -30,49 +24,9 @@ type StyledPath = {
   hatch?: Path2D;
 };
 
-function pointBounds(points: readonly PlanPoint[]): PlanBounds {
-  const bounds = {
-    minX: Infinity,
-    minY: Infinity,
-    maxX: -Infinity,
-    maxY: -Infinity,
-  };
-  for (const point of points) {
-    bounds.minX = Math.min(bounds.minX, point.x);
-    bounds.minY = Math.min(bounds.minY, point.y);
-    bounds.maxX = Math.max(bounds.maxX, point.x);
-    bounds.maxY = Math.max(bounds.maxY, point.y);
-  }
-  return bounds;
-}
-
-export function prepareFloorPlan(drawing: FloorPlanDrawing): Geometry {
-  const cached = preparedPlans.get(drawing);
-  if (cached) return cached;
-  const segments: PlanSegment[] = [];
-  const polygons: { path: Path2D; source: Polygon; bounds: PlanBounds }[] = [];
-  for (const source of drawing.cutPolygons) {
-    const path = new Path2D();
-    for (const ring of [source.polygon.outer, ...source.polygon.holes]) {
-      if (!ring.length) continue;
-      path.moveTo(ring[0].x, ring[0].y);
-      for (let i = 1; i < ring.length; i++) path.lineTo(ring[i].x, ring[i].y);
-      path.closePath();
-      for (let i = 0; i < ring.length; i++)
-        segments.push({ start: ring[i], end: ring[(i + 1) % ring.length] });
-    }
-    polygons.push({ path, source, bounds: pointBounds(source.polygon.outer) });
-  }
-  const lines = drawing.lines.filter((item) => item.visibility !== "hidden");
-  for (const item of lines) segments.push(item.line);
-  const geometry = { polygons, lines, snapping: new PlanSnapIndex(segments) };
-  preparedPlans.set(drawing, geometry);
-  return geometry;
-}
-
 /** Resolve styles and hatch paths on preset changes, outside navigation frames. */
 export function styleFloorPlan(
-  geometry: Geometry,
+  geometry: PreparedFloorPlan,
   drawing: FloorPlanDrawing,
   preset: FloorPlanPresetId,
   rules: readonly FloorPlanRule[] = [],
@@ -98,7 +52,7 @@ export function styleFloorPlan(
       drawing.bounds.max.y - drawing.bounds.min.y,
     ) / 32,
   );
-  for (const source of geometry.lines) {
+  for (const { source, bounds } of geometry.lines) {
     const style = resolve(source, source.category === "cut" ? 0.4 : 0.2);
     const { start, end } = source.line;
     const tileX = Math.floor((start.x + end.x) / 2 / tileSize);
@@ -106,7 +60,7 @@ export function styleFloorPlan(
     const key = `${tileX}/${tileY}/${JSON.stringify(style)}`;
     let group = groups.get(key);
     if (!group) {
-      group = { path: new Path2D(), style, bounds: pointBounds([start, end]) };
+      group = { path: new Path2D(), style, bounds: { ...bounds } };
       groups.set(key, group);
     }
     group.bounds.minX = Math.min(group.bounds.minX, start.x, end.x);
@@ -120,6 +74,7 @@ export function styleFloorPlan(
   paths.sort((a, b) => a.style.drawOrder - b.style.drawOrder);
   const ordered = paths.map((path, order) => ({ ...path, order }));
   return {
+    resolve,
     paths: ordered,
     index: new PlanSpatialIndex(ordered, (path) => path.bounds),
     maxStroke: paths.reduce(

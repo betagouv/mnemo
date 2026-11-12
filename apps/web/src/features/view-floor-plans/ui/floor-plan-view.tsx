@@ -21,6 +21,8 @@ export function FloorPlanView({
   preset,
   rules,
   onClose,
+  selectedIds,
+  onSelect,
 }: {
   title: string;
   exportTitle: string;
@@ -32,6 +34,8 @@ export function FloorPlanView({
   preset: FloorPlanPresetId;
   rules: readonly FloorPlanRule[];
   onClose: () => void;
+  selectedIds: readonly number[];
+  onSelect: (expressId: number | null) => void;
 }) {
   const [measuring, setMeasuring] = useState(false);
   const {
@@ -43,7 +47,14 @@ export function FloorPlanView({
     fit,
     undo,
     clear,
-  } = useFloorPlanCanvas(drawing, measuring, preset, rules);
+  } = useFloorPlanCanvas(
+    drawing,
+    measuring,
+    preset,
+    rules,
+    selectedIds,
+    onSelect,
+  );
   return (
     <div
       className="absolute inset-0 z-30 flex min-h-0 flex-col bg-[var(--background-default-grey)]"
@@ -131,7 +142,7 @@ export function FloorPlanView({
         <span id="floor-plan-help">
           {measuring
             ? "Deux points pour mesurer · Maj pour aligner · Alt pour un point libre · Échap pour annuler · Espace + glisser pour déplacer"
-            : "Glisser pour déplacer · Molette pour zoomer · Double-clic pour cadrer"}
+            : "Cliquer pour sélectionner · Glisser pour déplacer · Molette pour zoomer · Double-clic pour cadrer"}
         </span>
         <span ref={statusRef} />
         <span role="status">

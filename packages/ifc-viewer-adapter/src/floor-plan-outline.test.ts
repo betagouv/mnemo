@@ -3,6 +3,7 @@ import init from "@ifc-lite/wasm";
 import type { MeshData } from "@ifc-lite/geometry";
 import {
   createSectionConfig,
+  type SectionAxis,
   mergeDrawingLines,
   outlineToProjectionLines,
 } from "@ifc-lite/drawing-2d";
@@ -12,7 +13,7 @@ import { generateFloorPlanDrawing } from "./floor-plan-computation";
 
 beforeAll(async () => {
   const bytes = await readFile(
-    new URL(import.meta.resolve("@ifc-lite/wasm/ifc-lite_bg.wasm")),
+    new URL(import.meta.resolve("@ifc-lite/wasm").replace(/\.js$/, "_bg.wasm")),
   );
   await init({ module_or_path: bytes });
 });
@@ -33,6 +34,46 @@ function box(id = 1): MeshData {
   };
 }
 
+function frameWithOpening(width: number, axis: SectionAxis): MeshData {
+  const rectangles = [
+    [0, 0, 4, 1],
+    [0, 3, 4, 4],
+    [0, 1, 2 - width / 2, 3],
+    [2 + width / 2, 1, 4, 3],
+  ];
+  const positions: number[] = [];
+  const indices: number[] = [];
+  for (const [minX, minY, maxX, maxY] of rectangles) {
+    const start = positions.length / 3;
+    for (const [u, v] of [
+      [minX, minY],
+      [maxX, minY],
+      [maxX, maxY],
+      [minX, maxY],
+    ]) {
+      if (axis === "x") positions.push(0, v, u);
+      else if (axis === "y") positions.push(u, 0, v);
+      else positions.push(u, v, 0);
+    }
+    // Opposite triangle windings exercise the footprint's winding-independent union.
+    indices.push(start, start + 1, start + 2, start + 3, start + 2, start);
+  }
+  return {
+    ...box(),
+    positions: new Float32Array(positions),
+    indices: new Uint32Array(indices),
+  };
+}
+
+function contourArea(ring: ArrayLike<number>) {
+  let area = 0;
+  for (let i = 0; i < ring.length; i += 2) {
+    const next = (i + 2) % ring.length;
+    area += ring[i] * ring[next + 1] - ring[next] * ring[i + 1];
+  }
+  return Math.abs(area / 2);
+}
+
 function footprint(mesh: MeshData, elevation: number) {
   const plane = createSectionConfig("y", elevation).plane;
   const outline = extractFloorPlanOutline(mesh, "y", plane.flipped);
@@ -49,6 +90,64 @@ function footprint(mesh: MeshData, elevation: number) {
 }
 
 describe("floor plan footprints", () => {
+  it.each<SectionAxis>(["x", "y", "z"])(
+    "preserves holes and millimetre openings on axis %s",
+    (axis) => {
+      for (const flipped of [false, true]) {
+        for (const width of [2, 0.001]) {
+          const outline = extractFloorPlanOutline(
+            frameWithOpening(width, axis),
+            axis,
+            flipped,
+          )!;
+          expect(outline.contours).toHaveLength(2);
+          const [hole, outer] = outline.contours.toSorted(
+            (a, b) => contourArea(a) - contourArea(b),
+          );
+          expect(contourArea(outer)).toBeCloseTo(16, 6);
+          expect(contourArea(hole)).toBeCloseTo(width * 2, 6);
+          const xs = Array.from(hole).filter((_, i) => i % 2 === 0);
+          expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(width, 6);
+        }
+      }
+    },
+  );
+  it.each([NaN, Infinity, -Infinity])(
+    "rejects non-finite coordinates %s",
+    (coordinate) => {
+      const mesh = box();
+      mesh.positions[0] = coordinate;
+      expect(() => extractFloorPlanOutline(mesh, "y", false)).toThrow(
+        /coordonnées non finies/,
+      );
+    },
+  );
+
+  it.each([NaN, Infinity, -Infinity])(
+    "validates source geometry before clipping %s",
+    async (coordinate) => {
+      const malformed = box(2);
+      for (let i = 1; i < malformed.positions.length; i += 3)
+        malformed.positions[i] = coordinate;
+      await expect(
+        generateFloorPlanDrawing([box(), malformed], 1.2),
+      ).rejects.toThrow(/IFC #2.*coordonnées non finies/);
+      const misplaced = {
+        ...box(3),
+        origin: [0, coordinate, 0] as [number, number, number],
+      };
+      await expect(
+        generateFloorPlanDrawing([box(), misplaced], 1.2),
+      ).rejects.toThrow(/IFC #3.*coordonnées non finies/);
+    },
+  );
+
+  it("rejects a non-finite placement origin", () => {
+    const mesh = { ...box(), origin: [0, NaN, 0] as [number, number, number] };
+    expect(() => extractFloorPlanOutline(mesh, "y", false)).toThrow(
+      /coordonnées non finies/,
+    );
+  });
   it("returns the same boundary for both triangle windings", () => {
     const forward = box();
     const reversed = { ...forward, indices: forward.indices.slice() };
@@ -161,7 +260,7 @@ describe("floor plan footprints", () => {
     expect(actual.bounds).toEqual(expected.bounds);
   });
 
-  it("fails explicitly when IFC-Lite cannot compute a complete outline", async () => {
+  it("fails explicitly when Mnemo cannot compute a complete outline", async () => {
     const indices = new Uint32Array(50_001 * 3);
     for (let i = 0; i < indices.length; i++) indices[i] = i % 3;
     const mesh = {

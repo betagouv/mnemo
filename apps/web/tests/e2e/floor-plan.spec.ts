@@ -47,18 +47,15 @@ test("navigates and snaps measurements on a real storey plan", async ({
   await page.locator('input[type="file"]').setInputFiles(fixture);
   await page.locator(`a[href="${href}/viewer"]`).click();
   await expect(
-    page.locator('[role="status"]').filter({ hasText: "entités IFC" }),
+    page.locator('canvas[aria-label^="Vue 3D"][data-phase="ready"]'),
   ).toBeVisible({ timeout: 120_000 });
-  await page
-    .getByRole("button", { name: "Autres outils", exact: true })
-    .click();
   await page.getByRole("button", { name: "Vues en plan", exact: true }).click();
   const settings = page.getByRole("complementary", {
     name: "Vues en plan",
     exact: true,
   });
   await settings
-    .getByLabel("Niveau", { exact: true })
+    .getByRole("combobox", { name: "Niveau", exact: true })
     .selectOption({ label: "Ground Floor" });
   const plan = page.getByRole("group", {
     name: "Plan interactif du niveau Ground Floor",
@@ -92,7 +89,7 @@ test("navigates and snaps measurements on a real storey plan", async ({
     const stroke = CanvasRenderingContext2D.prototype.stroke;
     CanvasRenderingContext2D.prototype.stroke = function (path?: Path2D) {
       if (path) {
-        state.strokes++;
+        if (this.canvas.getAttribute("aria-hidden") !== "true") state.strokes++;
         stroke.call(this, path);
       } else Reflect.apply(stroke, this, []);
     };
@@ -177,6 +174,64 @@ test("navigates and snaps measurements on a real storey plan", async ({
       }
       return points;
     });
+  // A plan click must reveal the same IFC entity in the explorer and inspector.
+  await page.getByRole("button", { name: "Mesurer", exact: true }).click();
+  const selectionInk = await findInk();
+  expect(selectionInk.length).toBeGreaterThan(0);
+  const selectedTree = page.locator(
+    'button[aria-current="true"][aria-pressed="true"]',
+  );
+  await page.mouse.click(selectionInk[0].x, selectionInk[0].y);
+  await expect(selectedTree).toHaveCount(1);
+  await page
+    .getByRole("button", { name: "Afficher dans l’arborescence", exact: true })
+    .click();
+  await expect(selectedTree).toBeInViewport();
+  await page.getByRole("button", { name: "Vues en plan", exact: true }).click();
+  const selectedTitle = await selectedTree.getAttribute("title");
+  await expect(
+    page.getByRole("button", { name: "Effacer la sélection", exact: true }),
+  ).toBeVisible();
+  const selectionOverlay = plan.locator('canvas[aria-hidden="true"]');
+  await expect
+    .poll(() =>
+      selectionOverlay.evaluate((element) => {
+        const target = element as HTMLCanvasElement;
+        return target
+          .getContext("2d")!
+          .getImageData(0, 0, target.width, target.height)
+          .data.some((value, index) => index % 4 === 3 && value > 0);
+      }),
+    )
+    .toBe(true);
+  await page.screenshot({
+    path: "/tmp/mnemo-plan-selection-light.png",
+    animations: "disabled",
+  });
+  await page.evaluate(() =>
+    document.documentElement.setAttribute("data-fr-theme", "dark"),
+  );
+  await page.screenshot({
+    path: "/tmp/mnemo-plan-selection-dark.png",
+    animations: "disabled",
+  });
+  await page.evaluate(() =>
+    document.documentElement.setAttribute("data-fr-theme", "light"),
+  );
+  // Moving the plan must preserve the selection and use the cached raster.
+  await page.mouse.move(selectionInk[0].x, selectionInk[0].y);
+  await page.mouse.down();
+  await page.mouse.move(selectionInk[0].x + 30, selectionInk[0].y + 20, {
+    steps: 4,
+  });
+  await page.mouse.up();
+  await expect(selectedTree).toHaveAttribute("title", selectedTitle!);
+  await page
+    .getByRole("button", { name: "Effacer la sélection", exact: true })
+    .click();
+  await expect(selectedTree).toHaveCount(0);
+  await plan.dblclick();
+  await page.getByRole("button", { name: "Mesurer", exact: true }).click();
   let ink: { x: number; y: number }[] = [];
   await expect
     .poll(async () => {
@@ -241,7 +296,7 @@ test("navigates and snaps measurements on a real storey plan", async ({
     .getByLabel("Nom de la règle", { exact: true })
     .fill("Murs terre cuite");
   await settings
-    .getByLabel("Classe IFC", { exact: true })
+    .getByRole("combobox", { name: "Classe IFC", exact: true })
     .selectOption("IfcWall");
   const fillPalette = settings.getByRole("group", {
     name: "Couleurs du plan",
@@ -339,11 +394,8 @@ test("navigates and snaps measurements on a real storey plan", async ({
   await download.saveAs("/tmp/mnemo-floor-plan.pdf");
   await page.reload();
   await expect(
-    page.locator('[role="status"]').filter({ hasText: "entités IFC" }),
+    page.locator('canvas[aria-label^="Vue 3D"][data-phase="ready"]'),
   ).toBeVisible({ timeout: 120_000 });
-  await page
-    .getByRole("button", { name: "Autres outils", exact: true })
-    .click();
   await page.getByRole("button", { name: "Vues en plan", exact: true }).click();
   await settings
     .getByRole("combobox", { name: "Vue enregistrée", exact: true })
@@ -365,7 +417,9 @@ test("navigates and snaps measurements on a real storey plan", async ({
     .getByRole("button", { name: "Règles personnalisées (1)", exact: true })
     .click();
   await page.setViewportSize({ width: 1440, height: 760 });
-  await expect(settings.getByLabel("Niveau", { exact: true })).toBeInViewport();
+  await expect(
+    settings.getByRole("combobox", { name: "Niveau", exact: true }),
+  ).toBeInViewport();
   await expect(
     settings.getByLabel("Style du plan", { exact: true }),
   ).toBeInViewport();
@@ -404,7 +458,7 @@ test("navigates and snaps measurements on a real storey plan", async ({
   const savedId = await savedViewSelect.inputValue();
   const beforeNewLevel = workerCount;
   await settings
-    .getByLabel("Niveau", { exact: true })
+    .getByRole("combobox", { name: "Niveau", exact: true })
     .selectOption({ label: "Roof" });
   await expect(
     page.getByRole("group", {
@@ -420,7 +474,7 @@ test("navigates and snaps measurements on a real storey plan", async ({
       .filter({ hasText: "Modifications non enregistrées" }),
   ).toBeVisible();
   await settings
-    .getByLabel("Niveau", { exact: true })
+    .getByRole("combobox", { name: "Niveau", exact: true })
     .selectOption({ label: "Ground Floor" });
   await expect(plan).toBeVisible({ timeout: 60_000 });
   expect(workerCount).toBe(beforeNewLevel + 1);
@@ -469,14 +523,11 @@ test("navigates and snaps measurements on a real storey plan", async ({
   });
   await gotoHydrated(page, `${href}/viewer`);
   await expect(
-    page.locator('[role="status"]').filter({ hasText: "entités IFC" }),
+    page.locator('canvas[aria-label^="Vue 3D"][data-phase="ready"]'),
   ).toBeVisible({ timeout: 120_000 });
-  await page
-    .getByRole("button", { name: "Autres outils", exact: true })
-    .click();
   await page.getByRole("button", { name: "Vues en plan", exact: true }).click();
   await settings
-    .getByLabel("Niveau", { exact: true })
+    .getByRole("combobox", { name: "Niveau", exact: true })
     .selectOption({ label: "Ground Floor" });
   await expect(
     settings.getByRole("heading", { name: "Plan non généré", exact: true }),

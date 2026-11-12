@@ -41,14 +41,14 @@ test("reveals the object picked in the scene inside the collapsed model tree", a
     await page.locator('input[type="file"]').setInputFiles(fixture);
     await page.locator(`a[href="${href}/viewer"]`).click();
     await expect(
-      page.locator('[role="status"]').filter({ hasText: "entités IFC" }),
+      page.locator('canvas[aria-label^="Vue 3D"][data-phase="ready"]'),
     ).toBeVisible({ timeout: 120_000 });
     const notifications = page
       .locator('[aria-label="Notifications"]')
       .getByRole("button", { name: "Masquer le message" });
     while (await notifications.count()) await notifications.first().click();
     const tree = page.getByRole("complementary", {
-      name: "Explorateur du projet",
+      name: "Maquettes et relevés",
     });
     const model = tree.getByRole("button", {
       name: "Ifc4_SampleHouse.ifc",
@@ -80,11 +80,22 @@ test("reveals the object picked in the scene inside the collapsed model tree", a
     await expect
       .poll(() => selectedClass.getAttribute("aria-expanded"))
       .toBe("false");
-    await tree.getByRole("tab", { name: "Relevé 3D" }).click();
+    await tree.getByRole("tab", { name: /^Relevés/ }).click();
     await canvas.click({ position: pickedPoint });
-    await expect(
-      tree.getByRole("tab", { name: "BIM", exact: true }),
-    ).toHaveAttribute("aria-selected", "true", { timeout: 30_000 });
+    await expect(tree.getByRole("tab", { name: /^Relevés/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await page
+      .getByRole("button", {
+        name: "Afficher dans l’arborescence",
+        exact: true,
+      })
+      .click();
+    await expect(tree.getByRole("tab", { name: /^Maquettes/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
     await expect(selected).toBeInViewport();
     selectedTitle = await selected.getAttribute("title");
 
@@ -124,6 +135,56 @@ test("reveals the object picked in the scene inside the collapsed model tree", a
     await expect(thirdButton).toHaveAttribute("aria-pressed", "true");
     await expect(thirdButton).toBeInViewport();
     await expect(selectedRows).toHaveCount(3);
+    // Contextual creation snapshots the complete selection and starts a fresh
+    // draft only after the user accepts discarding an existing draft.
+    const selectionCard = page.getByRole("complementary", {
+      name: "Élément sélectionné",
+      exact: true,
+    });
+    const createFromSelection = selectionCard.getByRole("button", {
+      name: "Créer une remarque",
+      exact: true,
+    });
+    await createFromSelection.click();
+    const bcf = page.getByRole("complementary", {
+      name: "Remarques BCF",
+      exact: true,
+    });
+    await expect(
+      bcf.getByRole("radio", {
+        name: "Des objets de la maquette",
+        exact: true,
+      }),
+    ).toBeChecked();
+    await expect(
+      bcf.getByText("Objets concernés (3)", { exact: true }),
+    ).toBeVisible();
+    await bcf
+      .getByLabel("Titre", { exact: true })
+      .fill("Brouillon à conserver");
+    page.once("dialog", (dialog) => void dialog.dismiss());
+    await createFromSelection.click();
+    await expect(bcf.getByLabel("Titre", { exact: true })).toHaveValue(
+      "Brouillon à conserver",
+    );
+    page.once("dialog", (dialog) => void dialog.accept());
+    await createFromSelection.click();
+    await expect(bcf.getByLabel("Titre", { exact: true })).toHaveValue("");
+    await expect(
+      bcf.getByText("Objets concernés (3)", { exact: true }),
+    ).toBeVisible();
+    page.once("dialog", (dialog) => void dialog.accept());
+    await bcf.getByRole("button", { name: "Annuler", exact: true }).click();
+    await bcf
+      .getByRole("button", { name: "Nouvelle remarque", exact: true })
+      .click();
+    await expect(
+      bcf.getByRole("radio", { name: "Le projet en général", exact: true }),
+    ).toBeChecked();
+    await bcf.getByRole("button", { name: "Annuler", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Maquettes et relevés", exact: true })
+      .click();
     // Resolve the canvas target again after tree scrolling and await actionability.
     await canvas.click({ position: pickedPoint, modifiers: ["Control"] });
     // The sample contains overlapping surfaces: whichever surface is hit,
@@ -147,6 +208,30 @@ test("reveals the object picked in the scene inside the collapsed model tree", a
         originalCanvas,
       ),
     ).toBe(true);
+    await selectionCard
+      .getByRole("button", { name: "Voir les propriétés", exact: true })
+      .click();
+    const properties = selectionCard.getByRole("region", {
+      name: "Propriétés de l’élément",
+      exact: true,
+    });
+    await expect(
+      properties.getByRole("button", { name: "Identification", exact: true }),
+    ).toBeVisible();
+    await expect(
+      properties.getByText("Express ID", { exact: true }),
+    ).toBeVisible();
+    const inspector = await selectionCard.boundingBox();
+    const propertyBounds = await properties.boundingBox();
+    if (!inspector || !propertyBounds)
+      throw new Error("Missing property inspector bounds");
+    expect(propertyBounds.height).toBeGreaterThanOrEqual(
+      inspector.height * 0.49,
+    );
+    expect(propertyBounds.height).toBeGreaterThan(250);
+    await page.screenshot({
+      path: test.info().outputPath("properties-light.png"),
+    });
     await page.screenshot({
       path: test.info().outputPath("selection-light.png"),
     });
@@ -156,6 +241,95 @@ test("reveals the object picked in the scene inside the collapsed model tree", a
     await expect(selected).toBeVisible();
     await page.screenshot({
       path: test.info().outputPath("selection-dark.png"),
+    });
+    await page.screenshot({
+      path: test.info().outputPath("properties-dark.png"),
+    });
+    await selectionCard
+      .getByRole("button", { name: "Réduire les propriétés", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Filtres et couleurs", exact: true })
+      .click();
+    const filters = page.getByRole("complementary", {
+      name: "Filtres et couleurs",
+      exact: true,
+    });
+    await filters
+      .getByLabel("Classe IFC", { exact: true })
+      .selectOption("IfcWall");
+    await page.getByRole("button", { name: "Coupes", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Filtres et couleurs", exact: true })
+      .click();
+    await expect(filters.getByLabel("Classe IFC", { exact: true })).toHaveValue(
+      "IfcWall",
+    );
+    await filters.getByRole("button", { name: "Isoler", exact: true }).click();
+    await page.getByRole("button", { name: "Coupes", exact: true }).click();
+    await page.getByText("Coupe active", { exact: true }).click();
+    await selectionCard
+      .getByRole("button", { name: "Masquer", exact: true })
+      .click();
+    const modifiers = page.getByLabel("Modificateurs actifs", { exact: true });
+    await expect(
+      modifiers.getByRole("button", { name: /^Retirer / }),
+    ).toHaveCount(3);
+    const modifierLayout = await modifiers.evaluate((element) => ({
+      height: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+      width: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+    }));
+    expect(modifierLayout.scrollHeight).toBeLessThanOrEqual(
+      modifierLayout.height + 1,
+    );
+    expect(modifierLayout.scrollWidth).toBeLessThanOrEqual(
+      modifierLayout.width + 1,
+    );
+    await page.screenshot({
+      path: test.info().outputPath("modifiers-dark.png"),
+    });
+    await page.evaluate(() =>
+      document.documentElement.setAttribute("data-fr-theme", "light"),
+    );
+    await page.screenshot({
+      path: test.info().outputPath("modifiers-light.png"),
+    });
+    await page
+      .getByRole("button", { name: "Fermer le panneau", exact: true })
+      .click();
+    for (const width of [1440, 1024]) {
+      await page.setViewportSize({ width, height: 1000 });
+      const toolbar = page.getByRole("group", {
+        name: "Outils de la visionneuse",
+        exact: true,
+      });
+      const toolbarBounds = await toolbar.boundingBox();
+      const modifierBounds = await modifiers.boundingBox();
+      if (!toolbarBounds || !modifierBounds)
+        throw new Error("Missing toolbar or modifier bounds");
+      expect(modifierBounds.x).toBeGreaterThan(
+        toolbarBounds.x + toolbarBounds.width,
+      );
+      await expect(
+        modifiers.getByRole("button", { name: /^Retirer / }),
+      ).toHaveCount(3);
+      expect(
+        await canvas.evaluate(
+          (element, original) => element === original,
+          originalCanvas,
+        ),
+      ).toBe(true);
+    }
+    await page.screenshot({
+      path: test.info().outputPath("modifiers-closed-light.png"),
+    });
+    await page.evaluate(() =>
+      document.documentElement.setAttribute("data-fr-theme", "dark"),
+    );
+    await page.screenshot({
+      path: test.info().outputPath("modifiers-closed-dark.png"),
     });
   } catch (error) {
     console.error(error);

@@ -5,6 +5,7 @@ import type {
   PointCloudSnapshot,
   PointCloudTransform,
 } from "@mnemo/ifc-viewer-adapter";
+import Accordion from "@codegouvfr/react-dsfr/Accordion";
 import { useState } from "react";
 import { updatePointCloudSettings } from "@/server/point-clouds/actions";
 import { InlineDisclosure } from "@/shared/ui/inline-disclosure";
@@ -104,44 +105,46 @@ export function PointCloudPanel({
   return (
     <div className={styles.panel}>
       <div className={styles.body}>
-        <section className={styles.rendering}>
-          <h2>Rendu</h2>
-          <label>
-            <span>Taille des points</span>
-            <strong>{pointSize.toLocaleString("fr-FR")}</strong>
-            <input
-              max="8"
-              min="1"
-              onChange={(event) =>
-                onPointSizeChange(Number(event.target.value))
-              }
-              step="0.25"
-              type="range"
-              value={pointSize}
-            />
-          </label>
-          <label>
-            <span>Budget de points</span>
-            <strong>
-              {(budgetDraft / 1_000_000).toLocaleString("fr-FR")} M
-            </strong>
-            <input
-              max="10000000"
-              min="250000"
-              onChange={(event) => setBudgetDraft(Number(event.target.value))}
-              step="250000"
-              type="range"
-              value={budgetDraft}
-            />
-          </label>
-          <button
-            disabled={budgetDraft === maxPoints}
-            onClick={() => onReload(budgetDraft)}
-            type="button"
-          >
-            Appliquer le budget
-          </button>
-        </section>
+        <Accordion label="Qualité de rendu des relevés">
+          <section className={styles.rendering}>
+            <h2>Rendu</h2>
+            <label>
+              <span>Taille des points</span>
+              <strong>{pointSize.toLocaleString("fr-FR")}</strong>
+              <input
+                max="8"
+                min="1"
+                onChange={(event) =>
+                  onPointSizeChange(Number(event.target.value))
+                }
+                step="0.25"
+                type="range"
+                value={pointSize}
+              />
+            </label>
+            <label>
+              <span>Budget de points</span>
+              <strong>
+                {(budgetDraft / 1_000_000).toLocaleString("fr-FR")} M
+              </strong>
+              <input
+                max="10000000"
+                min="250000"
+                onChange={(event) => setBudgetDraft(Number(event.target.value))}
+                step="250000"
+                type="range"
+                value={budgetDraft}
+              />
+            </label>
+            <button
+              disabled={budgetDraft === maxPoints}
+              onClick={() => onReload(budgetDraft)}
+              type="button"
+            >
+              Appliquer le budget
+            </button>
+          </section>
+        </Accordion>
 
         {configurations.map((configuration, index) => {
           const pointCloud = pointClouds.find(
