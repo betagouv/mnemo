@@ -269,7 +269,7 @@ describe("floor plan footprints", () => {
       indices,
       normals: new Float32Array(9),
     };
-    await expect(generateFloorPlanDrawing([mesh], 1.2)).rejects.toThrow(
+    await expect(generateFloorPlanDrawing([mesh], 1)).rejects.toThrow(
       /Le maillage IFC #123 dépasse la limite de 50.*000 triangles projetés/,
     );
   });

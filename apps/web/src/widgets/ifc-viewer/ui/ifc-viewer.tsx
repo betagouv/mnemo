@@ -259,6 +259,9 @@ export function ProjectViewer({
                   (source) => source.assetId === floorPlans.plan?.assetId,
                 )?.fileName ?? "Maquette IFC",
               storeyName: floorPlans.plan.title,
+              verticalDatum: snapshot.models.find(
+                (model) => model.assetId === floorPlans.plan?.assetId,
+              )?.georeferencing?.verticalDatum,
               storeyElevation:
                 snapshot.models
                   .find((model) => model.assetId === floorPlans.plan?.assetId)

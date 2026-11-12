@@ -16,15 +16,15 @@ function mesh(min: number, max: number, origin = 0): MeshData {
 
 describe("floor plan vertical selection", () => {
   it("selects geometry between the floor and the cut", () => {
-    expect(intersectsFloorPlan(mesh(0.1, 0.8), 1.2)).toBe(true);
-    expect(intersectsFloorPlan(mesh(-1, -0.1), 1.2)).toBe(false);
-    expect(intersectsFloorPlan(mesh(1.3, 2), 1.2)).toBe(false);
+    expect(intersectsFloorPlan(mesh(0.1, 0.8), 1)).toBe(true);
+    expect(intersectsFloorPlan(mesh(-1, -0.1), 1)).toBe(false);
+    expect(intersectsFloorPlan(mesh(1.3, 2), 1)).toBe(false);
   });
 
   it("retains crossing elements regardless of their originating level", () => {
-    expect(intersectsFloorPlan(mesh(-5, 5), 1.2)).toBe(true);
-    expect(intersectsFloorPlan(mesh(-0.2, 0), 1.2)).toBe(true);
-    expect(intersectsFloorPlan(mesh(1.2, 3), 1.2)).toBe(true);
+    expect(intersectsFloorPlan(mesh(-5, 5), 1)).toBe(true);
+    expect(intersectsFloorPlan(mesh(-0.2, 0), 1)).toBe(true);
+    expect(intersectsFloorPlan(mesh(1, 3), 1)).toBe(true);
   });
 
   it("accounts for per-mesh origins and negative cut elevations", () => {
@@ -35,10 +35,10 @@ describe("floor plan vertical selection", () => {
   });
 
   it("allows one millimetre of rounding at both band boundaries", () => {
-    expect(intersectsFloorPlan(mesh(-0.1, -0.0009), 1.2)).toBe(true);
-    expect(intersectsFloorPlan(mesh(1.2009, 2), 1.2)).toBe(true);
-    expect(intersectsFloorPlan(mesh(-0.1, -0.002), 1.2)).toBe(false);
-    expect(intersectsFloorPlan(mesh(1.202, 2), 1.2)).toBe(false);
+    expect(intersectsFloorPlan(mesh(-0.1, -0.0009), 1)).toBe(true);
+    expect(intersectsFloorPlan(mesh(1.0009, 2), 1)).toBe(true);
+    expect(intersectsFloorPlan(mesh(-0.1, -0.002), 1)).toBe(false);
+    expect(intersectsFloorPlan(mesh(1.002, 2), 1)).toBe(false);
   });
 
   it("retains malformed bounds for the geometry processor to handle", () => {

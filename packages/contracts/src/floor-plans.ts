@@ -1,9 +1,10 @@
 import { z } from "zod";
 
+export const floorPlanCutHeight = 1;
+
 export const floorPlanPresetSchema = z.enum([
   "default",
   "architectural",
-  "fire-safety",
   "structural",
   "mep",
 ]);

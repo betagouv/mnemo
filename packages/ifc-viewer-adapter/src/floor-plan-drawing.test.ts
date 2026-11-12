@@ -24,23 +24,18 @@ describe("floor plan presets", () => {
     );
     expect(getElementProperties).not.toHaveBeenCalled();
   });
-  it("applies fire and structural styles from IFC properties and caches resolutions", () => {
+  it("applies structural styles from IFC properties and caches resolutions", () => {
     const getElementProperties = vi.fn(() => ({
-      Pset_WallCommon: { FireRating: 120, LoadBearing: true },
+      Pset_WallCommon: { LoadBearing: true },
     }));
-    const fire = createFloorPlanStyleResolver(
-      { getElementProperties },
-      "fire-safety",
-    );
     const wall = { entityId: 1, ifcType: "IfcWall" };
-    expect(fire(wall).strokeColor).toBe("#C62828");
-    fire(wall);
-    expect(getElementProperties).toHaveBeenCalledTimes(1);
     const structural = createFloorPlanStyleResolver(
       { getElementProperties },
       "structural",
     );
     expect(structural(wall).fillColor).toBe("#BBDEFB");
+    structural(wall);
+    expect(getElementProperties).toHaveBeenCalledTimes(1);
   });
   it("applies custom rules after presets, respects order and disabled rules", () => {
     const base = {
@@ -70,11 +65,11 @@ describe("floor plan presets", () => {
       "#1976D2",
     );
   });
-  it("converts numeric fire labels, merges duplicate sets and handles IFC names safely", () => {
+  it("merges duplicate sets and handles IFC names safely", () => {
     extract.mockReturnValue([
       {
         name: "Pset_WallCommon",
-        properties: [{ name: "FireRating", value: "120" }],
+        properties: [{ name: "IsExternal", value: true }],
       },
       {
         name: "Pset_WallCommon",
@@ -90,7 +85,7 @@ describe("floor plan presets", () => {
       (id) => id - 1000,
     );
     expect(getProperties(1042).Pset_WallCommon).toEqual({
-      FireRating: 120,
+      IsExternal: true,
       LoadBearing: true,
     });
     expect(Object.hasOwn(Object.prototype, "mnemoPolluted")).toBe(false);

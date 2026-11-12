@@ -18,11 +18,9 @@ export function FloorPlanStyleSelect({
       className="mb-0 min-w-48"
       label="Style du plan"
       hint={
-        value === "fire-safety"
-          ? "Selon les propriétés FireRating et OccupancyType de l’IFC."
-          : value === "structural"
-            ? "Selon les classes IFC et la propriété LoadBearing."
-            : undefined
+        value === "structural"
+          ? "Éléments porteurs selon les classes IFC et la propriété LoadBearing. Vue vers le plancher bas."
+          : undefined
       }
       nativeSelectProps={{
         "aria-label": "Style du plan",

@@ -1,9 +1,11 @@
-import type { FloorPlanRule } from "@mnemo/contracts/floor-plans";
+import type {
+  FloorPlanRule,
+  FloorPlanStyleSettings,
+} from "@mnemo/contracts/floor-plans";
 import { extractPropertiesOnDemand, type IfcDataStore } from "@ifc-lite/parser";
 import {
   createOverrideEngine,
   ARCHITECTURAL_PRESET,
-  FIRE_SAFETY_PRESET,
   STRUCTURAL_PRESET,
   MEP_PRESET,
   HatchGenerator,
@@ -18,19 +20,16 @@ export type FloorPlanDrawing = Drawing2D & {
   getElementProperties: (id: number) => NonNullable<ElementData["properties"]>;
 };
 export type FloorPlanStyle = ResolvedGraphicStyle;
-export type FloorPlanPresetId =
-  "default" | "architectural" | "fire-safety" | "structural" | "mep";
+export type FloorPlanPresetId = FloorPlanStyleSettings["preset"];
 export const floorPlanPresets = [
-  { id: "default", label: "Par défaut" },
-  { id: "architectural", label: "Normes architecturales" },
-  { id: "fire-safety", label: "Sécurité incendie" },
-  { id: "structural", label: "Structure" },
+  { id: "default", label: "Plan simple" },
+  { id: "architectural", label: "Plan architectural" },
+  { id: "structural", label: "Plan de structure (plancher bas)" },
   { id: "mep", label: "Réseaux techniques" },
 ] as const;
 const presets = {
   default: null,
   architectural: ARCHITECTURAL_PRESET,
-  "fire-safety": FIRE_SAFETY_PRESET,
   structural: STRUCTURAL_PRESET,
   mep: MEP_PRESET,
 };
@@ -53,16 +52,7 @@ export function createFloorPlanPropertyLookup(
       >);
       for (const property of set.properties) {
         if (Object.hasOwn(values, property.name)) continue;
-        let value = property.value;
-        // IFC FireRating is often an IfcLabel. Numeric minute values must
-        // reach the vendor's numeric comparison rules as numbers.
-        if (
-          property.name === "FireRating" &&
-          typeof value === "string" &&
-          /^\s*\d+(\.\d+)?\s*$/.test(value)
-        )
-          value = Number(value);
-        values[property.name] = value;
+        values[property.name] = property.value;
       }
     }
     cache.set(id, result);
@@ -81,8 +71,7 @@ export function createFloorPlanStyleResolver(
     const key = `${entity.entityId}/${entity.ifcType}/${lineWeight}`;
     let style = cache.get(key);
     if (!style) {
-      const needsProperties =
-        presetId === "fire-safety" || presetId === "structural";
+      const needsProperties = presetId === "structural";
       style = engine.applyOverrides(
         {
           expressId: entity.entityId,

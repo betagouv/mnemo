@@ -8,7 +8,10 @@ import {
 import type { FederationRegistry, Renderer } from "@ifc-lite/renderer";
 
 import type { IfcBimIndex } from "./bim-index";
-import { classifyIfcGeoreferencing } from "./georeferencing";
+import {
+  classifyIfcGeoreferencing,
+  classifyServerIfcGeoreferencing,
+} from "./georeferencing";
 import { createServerDataStore } from "./server-data-store";
 import { toBrowserMeshBatch } from "./server-geometry";
 import type {
@@ -167,13 +170,9 @@ export class IfcModelLoader {
           0,
           streamed.result.metadata.entity_count,
         );
-        const geo = streamed.result.metadata.georeferencing;
-        georeferencing =
-          geo?.source === "siteLocation"
-            ? { kind: "site-only" as const, crs: null }
-            : geo?.crs_name
-              ? { kind: "projected" as const, crs: geo.crs_name }
-              : { kind: "local" as const, crs: null };
+        georeferencing = classifyServerIfcGeoreferencing(
+          streamed.result.metadata.georeferencing,
+        );
         result = {
           engine: "rust",
           cacheKey: streamed.result.cache_key,

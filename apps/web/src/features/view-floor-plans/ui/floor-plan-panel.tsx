@@ -5,6 +5,10 @@ import Button from "@codegouvfr/react-dsfr/Button";
 import Alert from "@codegouvfr/react-dsfr/Alert";
 import Select from "@codegouvfr/react-dsfr/Select";
 import type { IfcViewerSnapshot } from "@mnemo/ifc-viewer-adapter";
+import {
+  floorPlanCutHeightLabel,
+  floorPlanElevationLabels,
+} from "../model/floor-plan-altimetry";
 import type { useFloorPlans } from "../model/use-floor-plans";
 import { FloorPlanRules } from "./floor-plan-rules";
 import {
@@ -34,6 +38,14 @@ export function FloorPlanPanel({
   const availableModels = models.filter(
     (model) => model.catalog?.storeys.length,
   );
+  const selectedModel = models.find((model) =>
+    model.catalog?.storeys.some(
+      (level) => `${model.assetId}/${level.expressId}` === selection,
+    ),
+  );
+  const selectedLevel = selectedModel?.catalog?.storeys.find(
+    (level) => `${selectedModel.assetId}/${level.expressId}` === selection,
+  );
   function selectLevel(value: string) {
     for (const model of availableModels) {
       const level = model.catalog?.storeys.find(
@@ -58,34 +70,46 @@ export function FloorPlanPanel({
         className={`${styles.fields} flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-4`}
       >
         <SavedFloorPlanSelect controller={controller} />
-        <Select
-          className="mb-0"
-          label="Niveau"
-          hint="Coupe à 1,20 m au-dessus du niveau."
-          nativeSelectProps={{
-            "aria-label": "Niveau",
-            value: selection,
-            onChange: (event) => selectLevel(event.target.value),
-          }}
-        >
-          <option value="" disabled>
-            Choisir un niveau
-          </option>
-          {availableModels.map((model) => (
-            <optgroup key={model.assetId} label={model.fileName}>
-              {model.catalog?.storeys.map((storey) => (
-                <option
-                  key={storey.expressId}
-                  value={`${model.assetId}/${storey.expressId}`}
-                  disabled={storey.elevation === null}
-                >
-                  {storey.name}
-                  {storey.elevation === null ? " — altitude indisponible" : ""}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </Select>
+        <div className={`${styles.level} flex flex-col gap-2`}>
+          <Select
+            className="mb-0"
+            label="Niveau"
+            hint={`Coupe à ${floorPlanCutHeightLabel} au-dessus du niveau.`}
+            nativeSelectProps={{
+              "aria-label": "Niveau",
+              value: selection,
+              onChange: (event) => selectLevel(event.target.value),
+            }}
+          >
+            <option value="" disabled>
+              Choisir un niveau
+            </option>
+            {availableModels.map((model) => (
+              <optgroup key={model.assetId} label={model.fileName}>
+                {model.catalog?.storeys.map((storey) => (
+                  <option
+                    key={storey.expressId}
+                    value={`${model.assetId}/${storey.expressId}`}
+                    disabled={storey.elevation === null}
+                  >
+                    {storey.name}
+                    {storey.elevation === null
+                      ? " — altitude indisponible"
+                      : ""}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </Select>
+          {selectedLevel ? (
+            <p className={styles.altitude} aria-live="polite">
+              {floorPlanElevationLabels(
+                selectedLevel.elevation,
+                selectedModel?.georeferencing?.verticalDatum,
+              ).join(" · ")}
+            </p>
+          ) : null}
+        </div>
         {pending ? (
           <div className={styles.loading}>
             <div className={styles.loadingStatus} role="status">

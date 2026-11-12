@@ -4,7 +4,8 @@ import {
   createFloorPlanPropertyLookup,
   type FloorPlanDrawing,
 } from "./floor-plan-drawing";
-import { floorPlanCutHeight, intersectsFloorPlan } from "./floor-plan-meshes";
+import { intersectsFloorPlan } from "./floor-plan-meshes";
+import { floorPlanCutHeight } from "@mnemo/contracts/floor-plans";
 import { computeFloorPlan } from "./floor-plan-worker-client";
 import type { IfcModelLoader, LoadedIfcModel } from "./ifc-model-loader";
 

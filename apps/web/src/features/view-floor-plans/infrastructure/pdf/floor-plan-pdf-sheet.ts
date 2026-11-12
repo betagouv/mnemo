@@ -1,3 +1,7 @@
+import {
+  floorPlanCutHeightLabel,
+  floorPlanElevationLabels,
+} from "../../model/floor-plan-altimetry";
 import type { FloorPlanLegendEntry } from "./floor-plan-pdf-legend";
 import type { jsPDF } from "jspdf";
 import { floorPlanHatches } from "@mnemo/ifc-viewer-adapter";
@@ -8,6 +12,7 @@ export type FloorPlanPdfInfo = {
   sourceName: string;
   storeyName: string;
   storeyElevation: number | null;
+  verticalDatum?: string;
   logo: Uint8Array;
   exportedAt?: Date;
 };
@@ -124,7 +129,7 @@ function drawSheetFrame(
   pdf.setTextColor(grey);
   text(
     pdf,
-    `Niveau ${info.storeyName} · Coupe à +1,20 m`,
+    `Niveau ${info.storeyName} · Coupe à ${floorPlanCutHeightLabel}`,
     74,
     34,
     width - 86,
@@ -143,16 +148,16 @@ function drawSheetFrame(
       margin + cellWidth * column,
       top + 31,
     );
-  const elevation =
-    info.storeyElevation === null
-      ? "Altitude du niveau non renseignée"
-      : `Altitude IFC du niveau ${info.storeyElevation.toLocaleString("fr-FR", { maximumFractionDigits: 3 })} m`;
+  const elevation = floorPlanElevationLabels(
+    info.storeyElevation,
+    info.verticalDatum,
+  ).join("\n");
   const fields = [
     ["PROJET", info.projectName],
     ["MAQUETTE SOURCE", info.sourceName],
     [
       "NIVEAU ET COUPE",
-      `${info.storeyName}\n${elevation}\nPlan de coupe à +1,20 m du niveau`,
+      `${info.storeyName}\n${elevation}\nCoupe à ${floorPlanCutHeightLabel} du niveau`,
     ],
     ["ÉCHELLE", `1:${denominator}`],
   ];

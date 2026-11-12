@@ -1,3 +1,4 @@
+import { floorPlanCutHeight } from "@mnemo/contracts/floor-plans";
 import { generateFloorPlan, type Drawing2D } from "@ifc-lite/drawing-2d";
 import type { MeshData } from "@ifc-lite/geometry";
 import { describe, expect, it, vi } from "vitest";
@@ -59,6 +60,7 @@ describe("floor plan lifecycle", () => {
     });
     expect(drawing.getElementExpressId(123)).toBe(42);
     expect(run.mock.calls[0][0]).toEqual([pieces[0]]);
+    expect(run.mock.calls[0][1]).toBe(floorPlanCutHeight);
     expect(await generator.generate(context, "asset", 1)).toBe(drawing);
     expect(getMeshDataPieces).toHaveBeenCalledTimes(1);
     expect(run).toHaveBeenCalledTimes(1);
@@ -106,17 +108,17 @@ describe("floor plan lifecycle", () => {
     });
     generator.cancel();
     expect(signals[0].aborted).toBe(true);
-    finish!(await generateFloorPlan([mesh(0, 3)], 1.2));
+    finish!(await generateFloorPlan([mesh(0, 3)], floorPlanCutHeight));
     await rejected;
     const second = generator.generate(context, "asset", 1);
-    finish!(await generateFloorPlan([mesh(0, 3)], 1.2));
+    finish!(await generateFloorPlan([mesh(0, 3)], floorPlanCutHeight));
     await second;
     expect(run).toHaveBeenCalledTimes(2);
   });
 
   it("does not retain oversized drawings in the cache", async () => {
     const { context } = scene();
-    const base = await generateFloorPlan([mesh(0, 3)], 1.2);
+    const base = await generateFloorPlan([mesh(0, 3)], floorPlanCutHeight);
     const drawing = { ...base, lines: Array(250_001).fill(base.lines[0]) };
     const run = vi.fn(async () => drawing);
     const generator = new FloorPlanGenerator(run);
