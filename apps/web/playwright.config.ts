@@ -58,7 +58,7 @@ export default defineConfig({
       name: "chromium",
       use: {
         ...devices["Desktop Chrome"],
-        channel: "chrome",
+        channel: process.env.CI ? "chromium" : "chrome",
         launchOptions: {
           args: process.env.CI
             ? [
