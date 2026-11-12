@@ -1,6 +1,6 @@
 import type { MeshData } from "@ifc-lite/geometry";
 
-export const floorPlanCutHeight = 1.2;
+import { floorPlanCutHeight } from "@mnemo/contracts/floor-plans";
 export const floorPlanProjectionDepth = floorPlanCutHeight;
 export const floorPlanProjectionAboveDepth = 0;
 const heights = new WeakMap<MeshData, { min: number; max: number }>();

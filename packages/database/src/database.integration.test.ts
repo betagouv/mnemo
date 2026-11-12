@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -83,5 +84,39 @@ describe("project membership persistence", () => {
     expect(columns.map(({ column_name }) => column_name)).toEqual([
       "copc_object_key",
     ]);
+  });
+
+  it("migrates the retired plan preset without losing custom rules", async () => {
+    const migration = await readFile(
+      new URL(
+        "../prisma/migrations/20261112113000_floor_plan_styles/migration.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    await database.db.$transaction(async (tx) => {
+      // A temporary table shadows the real table for this migration check.
+      await tx.$executeRaw`CREATE TEMPORARY TABLE project_floor_plans (
+        id integer PRIMARY KEY, style jsonb NOT NULL, version integer NOT NULL,
+        updated_at timestamptz NOT NULL
+      ) ON COMMIT DROP`;
+      const rules = [{ id: randomUUID(), name: "Murs", fillColor: "#808080" }];
+      const style = { preset: "fire-safety", rules };
+      await tx.$executeRaw`INSERT INTO project_floor_plans VALUES
+        (1, ${JSON.stringify(style)}::jsonb, 3, '2026-11-01'),
+        (2, '{"preset":"mep","rules":[]}'::jsonb, 2, '2026-11-01')`;
+      // Execute the checked-in migration verbatim, using only its static SQL.
+      await tx.$executeRawUnsafe(migration);
+      const rows = await tx.$queryRaw<
+        Array<{ id: number; style: unknown; version: number }>
+      >`
+        SELECT id, style, version FROM project_floor_plans ORDER BY id
+      `;
+      expect(rows).toEqual([
+        { id: 1, style: { preset: "architectural", rules }, version: 4 },
+        { id: 2, style: { preset: "mep", rules: [] }, version: 2 },
+      ]);
+      expect(await tx.$executeRawUnsafe(migration)).toBe(0);
+    });
   });
 });

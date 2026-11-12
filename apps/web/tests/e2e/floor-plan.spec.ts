@@ -63,6 +63,31 @@ test("navigates and snaps measurements on a real storey plan", async ({
   });
   await expect(plan).toBeVisible({ timeout: 60_000 });
   await expect(
+    settings.getByText("Coupe à +1 m au-dessus du niveau.", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    settings.getByText("Altitude relative IFC ±0,00 m", { exact: true }),
+  ).toBeVisible();
+  const levelBounds = await settings
+    .getByRole("combobox", { name: "Niveau", exact: true })
+    .boundingBox();
+  const altitudeBounds = await settings
+    .getByText("Altitude relative IFC ±0,00 m", { exact: true })
+    .boundingBox();
+  if (!levelBounds || !altitudeBounds)
+    throw new Error("Missing level altimetry bounds");
+  expect(
+    altitudeBounds.y - levelBounds.y - levelBounds.height,
+  ).toBeLessThanOrEqual(12);
+  await expect(
+    settings.getByLabel("Style du plan", { exact: true }).locator("option"),
+  ).toHaveText([
+    "Plan simple",
+    "Plan architectural",
+    "Plan de structure (plancher bas)",
+    "Réseaux techniques",
+  ]);
+  await expect(
     page.getByRole("button", { name: "Zoom +", exact: true }),
   ).toHaveCount(0);
   const canvas = page.getByLabel("Dessin du niveau Ground Floor", {
@@ -275,8 +300,7 @@ test("navigates and snaps measurements on a real storey plan", async ({
   await expect(
     page.getByRole("status").filter({ hasText: /^1 mesure$/ }),
   ).toBeVisible();
-  for (const preset of ["fire-safety", "structural", "mep"])
-    await style.selectOption(preset);
+  for (const preset of ["structural", "mep"]) await style.selectOption(preset);
   await style.selectOption("default");
   await expect.poll(checksum).toBe(defaultInk);
   await page.mouse.wheel(0, -400);

@@ -24,7 +24,11 @@ export function FloorPlanPdfButton({
   title: string;
   context: Pick<
     FloorPlanPdfInfo,
-    "projectName" | "sourceName" | "storeyName" | "storeyElevation"
+    | "projectName"
+    | "sourceName"
+    | "storeyName"
+    | "storeyElevation"
+    | "verticalDatum"
   >;
 }) {
   const [busy, setBusy] = useState(false);

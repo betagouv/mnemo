@@ -1,3 +1,4 @@
+import { floorPlanCutHeight } from "@mnemo/contracts/floor-plans";
 import { readFile } from "node:fs/promises";
 
 import {
@@ -67,13 +68,13 @@ it("parses the versioned SampleHouse fixture into 47,309 entities and 223 meshes
   const level = levels.find((item) => item.elevation !== null)!;
   const drawing = await generateFloorPlan(
     meshes,
-    level.elevation! + 1.2 - originZ,
+    level.elevation! + floorPlanCutHeight - originZ,
     {
       includeProjection: true,
       includeHiddenLines: false,
     },
   );
-  const elevation = level.elevation! + 1.2 - originZ;
+  const elevation = level.elevation! + floorPlanCutHeight - originZ;
   const selected = meshes.filter((mesh) =>
     intersectsFloorPlan(mesh, elevation),
   );
@@ -97,7 +98,7 @@ it("parses the versioned SampleHouse fixture into 47,309 entities and 223 meshes
     await reference.initialize();
     for (const storey of levels) {
       if (storey.elevation === null) continue;
-      const cutElevation = storey.elevation + 1.2 - originZ;
+      const cutElevation = storey.elevation + floorPlanCutHeight - originZ;
       const levelMeshes = meshes.filter((mesh) =>
         intersectsFloorPlan(mesh, cutElevation),
       );

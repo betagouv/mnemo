@@ -9,6 +9,10 @@ import {
   projectPointToPlan,
   type PlanMeasurementViewer,
 } from "../model/plan-measurement-coordinates";
+import {
+  floorPlanCutHeightLabel,
+  floorPlanElevationLabels,
+} from "../model/floor-plan-altimetry";
 import { formatMeasurement, distanceBetween } from "@mnemo/domain/measurement";
 import type { FloorPlanRule } from "@mnemo/contracts/floor-plans";
 import { FloorPlanPdfButton } from "./floor-plan-pdf-button";
@@ -44,7 +48,11 @@ export function FloorPlanView({
   exportTitle: string;
   exportContext: Pick<
     FloorPlanPdfInfo,
-    "projectName" | "sourceName" | "storeyName" | "storeyElevation"
+    | "projectName"
+    | "sourceName"
+    | "storeyName"
+    | "storeyElevation"
+    | "verticalDatum"
   >;
   drawing: FloorPlanDrawing;
   preset: FloorPlanPresetId;
@@ -102,7 +110,11 @@ export function FloorPlanView({
         <div>
           <h2 className="mb-0 text-base">{title}</h2>
           <span className="text-xs text-[var(--text-mention-grey)]">
-            Plan de coupe à +1,20 m
+            Coupe à {floorPlanCutHeightLabel} ·{" "}
+            {floorPlanElevationLabels(
+              exportContext.storeyElevation,
+              exportContext.verticalDatum,
+            ).join(" · ")}
           </span>
         </div>
         <div

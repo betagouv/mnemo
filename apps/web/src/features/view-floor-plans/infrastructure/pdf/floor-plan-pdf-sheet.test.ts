@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { jsPDF } from "jspdf";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createFloorPlanStyleResolver } from "@mnemo/ifc-viewer-adapter";
 import { drawFloorPlanSheet, floorPlanPdfLayout } from "./floor-plan-pdf-sheet";
 
@@ -29,6 +29,7 @@ describe("floor plan PDF sheets", () => {
     "paginates long legends on %s sheets",
     async (orientation) => {
       const pdf = new jsPDF({ orientation, unit: "mm", format: "a3" });
+      const write = vi.spyOn(pdf, "text");
       const style = createFloorPlanStyleResolver(
         { getElementProperties: () => ({}) },
         "default",
@@ -48,6 +49,7 @@ describe("floor plan PDF sheets", () => {
           sourceName: "maquette-".repeat(50) + ".ifc",
           storeyName: "Rez-de-chaussée",
           storeyElevation: 0,
+          verticalDatum: "NGF-IGN69",
           logo: await readFile(
             new URL(
               "../../../../../public/mnemo-operator.png",
@@ -67,6 +69,12 @@ describe("floor plan PDF sheets", () => {
       expect(pdf.getNumberOfPages()).toBeGreaterThan(1);
       expect(pdf.getNumberOfPages()).toBeLessThanOrEqual(4);
       expect(pdf.output()).not.toMatch(/NaN|Infinity/);
+      const printedText = write.mock.calls
+        .flatMap(([value]) => (Array.isArray(value) ? value : [value]))
+        .join("\n");
+      expect(printedText).toContain("Coupe à +1 m");
+      expect(printedText).toContain("Altitude relative IFC ±0,00 m");
+      expect(printedText).toContain("Référentiel du fichier NGF-IGN69");
     },
   );
 });

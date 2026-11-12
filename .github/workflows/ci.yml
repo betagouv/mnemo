@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   quality:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, erwan-laptop]
     services:
       postgres:
         image: postgres:17-alpine
@@ -51,7 +51,7 @@ jobs:
       - run: docker compose --env-file .env.local.example config
 
   browser:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, erwan-laptop]
     services:
       postgres:
         image: postgres:17-alpine
@@ -70,8 +70,11 @@ jobs:
       DATABASE_URL: postgresql://mnemo:mnemo@localhost:5432/mnemo
       BETTER_AUTH_URL: http://127.0.0.1:3100
       BETTER_AUTH_SECRET: ci-only-better-auth-secret-at-least-32-characters
-      S3_ENDPOINT: http://localhost:9200
-      S3_PUBLIC_ENDPOINT: http://localhost:9200
+      COMPOSE_PROJECT_NAME: mnemo-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      MNEMO_MINIO_PORT: 19200
+      MNEMO_MINIO_CONSOLE_PORT: 19201
+      S3_ENDPOINT: http://localhost:19200
+      S3_PUBLIC_ENDPOINT: http://localhost:19200
       S3_REGION: us-east-1
       S3_BUCKET: mnemo-files
       S3_ACCESS_KEY: mnemo
@@ -91,3 +94,6 @@ jobs:
       - run: pnpm --filter @mnemo/web exec playwright install --with-deps chromium
       - run: pnpm build
       - run: pnpm test:e2e
+      - name: Clean up browser storage
+        if: always()
+        run: docker compose --env-file .env.local.example down --volumes
