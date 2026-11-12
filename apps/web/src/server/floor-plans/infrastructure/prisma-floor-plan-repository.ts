@@ -65,6 +65,10 @@ export class PrismaFloorPlanRepository implements FloorPlanRepository {
             data: { ...data, project_id: input.projectId },
           }),
         );
+      const previous = await tx.project_floor_plans.findFirst({
+        where: { id: input.target.id, project_id: input.projectId },
+        select: { asset_id: true, storey_id: true },
+      });
       const { count } = await tx.project_floor_plans.updateMany({
         where: {
           id: input.target.id,
@@ -74,6 +78,19 @@ export class PrismaFloorPlanRepository implements FloorPlanRepository {
         data: { ...data, version: { increment: 1 } },
       });
       if (!count) throw new FloorPlanConflictError();
+      // The update holds the plan row lock until commit. Measurement inserts
+      // take a shared lock, so a source change cannot race a new measurement.
+      if (
+        previous &&
+        (previous.asset_id !== input.assetId ||
+          previous.storey_id !== input.storeyId) &&
+        (await tx.project_measurements.count({
+          where: { floor_plan_id: input.target.id },
+        }))
+      )
+        throw new FloorPlanSourceError(
+          "Cette vue contient des mesures. Dupliquez-la pour changer de niveau ou de maquette.",
+        );
       return toPlan(
         await tx.project_floor_plans.findUniqueOrThrow({
           where: { id: input.target.id },

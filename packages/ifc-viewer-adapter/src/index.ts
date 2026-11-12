@@ -55,3 +55,5 @@ export {
   type FloorPlanPresetId,
   type FloorPlanStyle,
 } from "./floor-plan-drawing";
+
+export type { MeasurementPoint } from "./measurement-picking";

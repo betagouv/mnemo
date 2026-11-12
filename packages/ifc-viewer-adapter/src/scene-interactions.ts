@@ -4,6 +4,7 @@ type SceneInteractionsHost = {
   canvas: HTMLCanvasElement;
   renderer: Renderer;
   onPick: (x: number, y: number, additive: boolean) => void;
+  getCursor?: () => string;
 };
 
 /** Owns canvas gestures; BIM selection is delegated to the scene controller. */
@@ -105,7 +106,7 @@ export class SceneInteractions {
     }
     this.pointerId = null;
     this.mode = null;
-    this.host.canvas.style.cursor = "grab";
+    this.host.canvas.style.cursor = this.host.getCursor?.() ?? "grab";
     this.host.renderer.requestRender();
 
     if (shouldPick) {

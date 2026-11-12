@@ -15,6 +15,7 @@ export function ViewerPanelContent({
   hasActiveIfc,
   onSectionModeChange,
   floorPlans,
+  measurements,
 }: {
   panel: ViewerPanelId | null;
   snapshot: IfcViewerSnapshot;
@@ -22,6 +23,7 @@ export function ViewerPanelContent({
   hasActiveIfc: boolean;
   onSectionModeChange: (mode: "plane" | "box") => void;
   floorPlans: ReactNode;
+  measurements: ReactNode;
 }) {
   switch (panel) {
     case "assistant":
@@ -44,6 +46,9 @@ export function ViewerPanelContent({
           section={snapshot.section}
         />
       );
+    case "distance":
+    case "surface":
+      return measurements;
     case "floor-plan":
       return floorPlans;
     case "information":

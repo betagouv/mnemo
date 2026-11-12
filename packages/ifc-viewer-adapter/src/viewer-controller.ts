@@ -1,4 +1,9 @@
 import {
+  measurementToProject,
+  measurementFromProject,
+} from "./measurement-coordinates";
+import { MeasurementPicking } from "./measurement-picking";
+import {
   captureSceneBcfViewpoint,
   applySceneBcfViewpoint,
   computeSceneBcfMarkers,
@@ -98,6 +103,9 @@ function errorMessage(error: unknown) {
 
 export class IfcViewerController {
   private readonly renderer: Renderer;
+  private readonly measurementPicking: MeasurementPicking;
+  private measurementPickHandler: ((x: number, y: number) => void) | null =
+    null;
   private readonly floorPlans = new FloorPlanGenerator();
   private readonly modelLoader: IfcModelLoader;
   private readonly listeners = new Set<(snapshot: IfcViewerSnapshot) => void>();
@@ -142,6 +150,7 @@ export class IfcViewerController {
   ) {
     this.runtime = runtime;
     this.renderer = runtime.createRenderer(canvas);
+    this.measurementPicking = new MeasurementPicking(this.renderer);
     this.modelLoader = new IfcModelLoader({
       renderer: this.renderer,
       federation: this.federation,
@@ -186,6 +195,7 @@ export class IfcViewerController {
       canvas,
       renderer: this.renderer,
       onPick: (x, y, additive) => this.pickEntity(x, y, additive),
+      getCursor: () => (this.measurementPickHandler ? "crosshair" : "grab"),
     });
   }
 
@@ -240,6 +250,46 @@ export class IfcViewerController {
 
   setSectionCustomDistance(distance: number) {
     this.sections.setCustomDistance(distance);
+  }
+
+  onMeasurementPick(handler: (x: number, y: number) => void) {
+    this.measurementPicking.reset();
+    this.measurementPickHandler = handler;
+    this.canvas.style.cursor = "crosshair";
+    return () => {
+      if (this.measurementPickHandler === handler) {
+        this.measurementPickHandler = null;
+        this.canvas.style.cursor = "grab";
+        this.measurementPicking.reset();
+      }
+    };
+  }
+
+  pickMeasurementPoint(x: number, y: number, magnetic: boolean) {
+    if (this.disposed || this.snapshot.phase !== "ready") return null;
+    return this.measurementPicking.pick(x, y, magnetic, {
+      hiddenIds: new Set([
+        ...this.hiddenIds,
+        ...this.layerVisibility.hiddenIds,
+      ]),
+      isolatedIds: this.isolatedIds,
+    });
+  }
+
+  measurementToProject(point: { x: number; y: number; z: number }) {
+    return measurementToProject(point, this.modelLoader.renderOrigin);
+  }
+
+  measurementFromProject(point: { x: number; y: number; z: number }) {
+    return measurementFromProject(point, this.modelLoader.renderOrigin);
+  }
+
+  getMeasurementRay(x: number, y: number) {
+    const bounds = this.canvas.getBoundingClientRect();
+    if (this.disposed || bounds.width <= 0 || bounds.height <= 0) return null;
+    return this.renderer
+      .getCamera()
+      .unprojectToRay(x, y, bounds.width, bounds.height);
   }
 
   projectWorldPoint(point: { x: number; y: number; z: number }) {
@@ -825,6 +875,8 @@ export class IfcViewerController {
       this.frameHandle = null;
     }
 
+    this.measurementPickHandler = null;
+    this.measurementPicking.reset();
     this.renderer.destroy();
     this.models.clear();
     this.federation.clear();
@@ -968,6 +1020,10 @@ export class IfcViewerController {
   }
 
   private pickEntity(x: number, y: number, additive = false) {
+    if (this.measurementPickHandler) {
+      this.measurementPickHandler(x, y);
+      return;
+    }
     if (this.sections.pick(x, y)) return;
     const generation = this.modelLoader.generation;
     void this.renderer

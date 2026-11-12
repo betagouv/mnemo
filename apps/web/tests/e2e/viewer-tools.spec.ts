@@ -32,7 +32,7 @@ test("uses contextual panels without empty properties or unavailable tools", asy
     ).toHaveCount(0);
     await expect(
       tools.getByRole("button", { name: "Mesures", exact: true }),
-    ).toHaveCount(0);
+    ).toBeVisible();
     const iconMasks = await tools
       .locator(":scope > ul > li > button")
       .evaluateAll((buttons) =>

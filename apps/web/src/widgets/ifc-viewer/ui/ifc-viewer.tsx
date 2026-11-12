@@ -1,5 +1,13 @@
 "use client";
 
+import { MeasurementEditor } from "@/features/manage-measurements";
+import { ProjectMeasurementsProvider } from "@/entities/measurement";
+import type { SavedMeasurement } from "@mnemo/contracts/measurements";
+import {
+  SceneMeasurementProvider,
+  MeasurementPanel,
+  MeasurementOverlay,
+} from "@/features/measure-scene";
 import { useState, type CSSProperties } from "react";
 
 import { useViewerFeedback } from "../model/use-viewer-feedback";
@@ -57,6 +65,7 @@ export function ProjectViewer({
   ifcSources,
   initialBcfTopics,
   initialFloorPlans,
+  initialMeasurements,
   canManageFloorPlans,
   pointCloudFailures,
   pointCloudSources,
@@ -76,6 +85,7 @@ export function ProjectViewer({
   ifcSources: ViewerIfcSource[];
   initialBcfTopics: BcfTopicSummary[];
   initialFloorPlans: SavedFloorPlan[];
+  initialMeasurements: SavedMeasurement[];
   canManageFloorPlans: boolean;
   pointCloudFailures: ViewerPointCloudFailure[];
   pointCloudSources: ViewerPointCloudSource[];
@@ -126,6 +136,12 @@ export function ProjectViewer({
     createBcfFromSelection,
   } = useBcfViewer(getViewer, activePanel === "bcf", initialBcfTopics);
 
+  const measurementMode =
+    activePanel === "distance" || activePanel === "surface"
+      ? activePanel
+      : null;
+  const measurementsEnabled = snapshot.phase === "ready" && !floorPlans.plan;
+
   const activeModelId = snapshot.activeModelId;
   const activeIfcSource = ifcSources.find(
     (source) => source.assetId === activeModelId,
@@ -160,7 +176,7 @@ export function ProjectViewer({
   const showExplorer = activePanel === "layers" || explorerPinned;
   const hasToolPanel = activePanel !== null && activePanel !== "layers";
 
-  return (
+  const content = (
     <main
       className={`${styles.shell} relative h-full w-full min-h-0 min-w-0 overflow-hidden`}
       style={
@@ -223,10 +239,14 @@ export function ProjectViewer({
           data-phase={snapshot.phase}
           className={`${styles.canvas} ${snapshot.section.pickMode ? styles.pickingCanvas : ""}`}
           ref={canvasRef}
+          tabIndex={0}
         />
+
+        {measurementsEnabled ? <MeasurementOverlay /> : null}
 
         {floorPlans.plan ? (
           <FloorPlanView
+            Editor={MeasurementEditor}
             key={floorPlans.plan.id}
             title={floorPlans.plan.title}
             exportTitle={
@@ -247,6 +267,13 @@ export function ProjectViewer({
                   )?.elevation ?? null,
             }}
             drawing={floorPlans.plan.drawing}
+            savedPlanId={
+              floorPlans.saved.selected?.assetId === floorPlans.plan.assetId &&
+              floorPlans.saved.selected.storeyId === floorPlans.plan.storeyId
+                ? floorPlans.saved.selected.id
+                : null
+            }
+            getViewer={getViewer}
             preset={floorPlans.preset}
             rules={floorPlans.rules}
             selectedIds={snapshot.selectedElements
@@ -435,6 +462,7 @@ export function ProjectViewer({
             }
             setActivePanel(mode === "box" ? "cut-box" : "cut-plane");
           }}
+          measurements={<MeasurementPanel />}
           floorPlans={
             <FloorPlanPanel
               models={snapshot.models}
@@ -445,5 +473,24 @@ export function ProjectViewer({
         />
       </ViewerSidePanel>
     </main>
+  );
+
+  return (
+    <ProjectMeasurementsProvider
+      projectId={projectId}
+      initial={initialMeasurements}
+      canManage={canManageFloorPlans}
+    >
+      <SceneMeasurementProvider
+        Editor={MeasurementEditor}
+        onModeChange={setActivePanel}
+        getViewer={getViewer}
+        canvasRef={canvasRef}
+        mode={measurementMode}
+        enabled={measurementsEnabled}
+      >
+        {content}
+      </SceneMeasurementProvider>
+    </ProjectMeasurementsProvider>
   );
 }

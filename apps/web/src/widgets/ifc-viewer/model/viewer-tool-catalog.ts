@@ -9,6 +9,8 @@ export const viewerPanels = {
   assistant: { title: "Assistant", icon: "fr-icon-sparkling-line" },
   "cut-plane": { title: "Coupes", icon: "fr-icon-crop-line" },
   "cut-box": { title: "Coupes", icon: "fr-icon-crop-line" },
+  distance: { title: "Mesure de distance", icon: "fr-icon-ruler-line" },
+  surface: { title: "Mesure de surface", icon: "fr-icon-ruler-line" },
   colorization: { title: "Filtres et couleurs", icon: "fr-icon-palette-line" },
   "floor-plan": { title: "Vues en plan", icon: "fr-icon-layout-grid-line" },
 } as const;
@@ -25,6 +27,12 @@ export const viewerToolGroups = [
     label: "Coupes",
     icon: "fr-icon-crop-line",
     panel: "cut-plane",
+  },
+  {
+    id: "measurements",
+    label: "Mesures",
+    icon: "fr-icon-ruler-line",
+    panel: "distance",
   },
   {
     id: "views",
