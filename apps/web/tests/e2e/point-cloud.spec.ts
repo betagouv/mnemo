@@ -79,23 +79,25 @@ test("uploads, processes and range-loads the versioned COPC fixture", async ({
     await expect(
       page.locator('[aria-label="Visionneuse 3D du projet"]'),
     ).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Relevé 3D" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: /^Relevés/ })).toBeVisible();
 
     // Software WebGPU is unreliable in hosted CI; local headed runs validate
     // actual rendering and budget changes, as for the IFC fixture.
     if (process.env.CI) return;
 
-    const stats = page
-      .locator('[aria-label="Visionneuse 3D du projet"] [role="status"]')
-      .filter({ hasText: "points" });
-    await expect(stats).toContainText(/1\s*800\s*points/, {
+    await page.getByRole("tab", { name: /^Relevés/ }).click();
+    await expect(page.getByText(/1\s*800 pts/)).toBeVisible({
       timeout: 120_000,
     });
-    await page.getByRole("tab", { name: "Relevé 3D" }).click();
-    await expect(page.getByText("tiny.copc.laz")).toBeVisible();
+    await page
+      .getByRole("button", {
+        name: "Qualité de rendu des relevés",
+        exact: true,
+      })
+      .click();
     await page.getByLabel("Budget de points").fill("500000");
     await page.getByRole("button", { name: "Appliquer le budget" }).click();
-    await expect(stats).toContainText(/1\s*800\s*points/);
+    await expect(page.getByText(/1\s*800 pts/)).toBeVisible();
   } finally {
     await gotoHydrated(page, projectHref);
     page.once("dialog", (dialog) => void dialog.accept());

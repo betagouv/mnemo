@@ -15,12 +15,37 @@ describe("getActiveViewerModifiers", () => {
     expect(getActiveViewerModifiers(snapshot)).toEqual([
       {
         id: "section",
+        reset: "section",
         label: "Plan de coupe actif",
         icon: "fr-icon-crop-line",
         panel: "cut-plane",
         group: "cuts",
       },
     ]);
+  });
+
+  it("keeps filters and layer visibility visible independently", () => {
+    const snapshot = createEmptyViewerSnapshot();
+    snapshot.visual = {
+      ...snapshot.visual,
+      mode: "isolate",
+      label: "R+2",
+      matchCount: 25,
+    };
+    expect(getActiveViewerModifiers(snapshot, true)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "visual",
+          label: "R+2",
+          reset: "visual",
+        }),
+        expect.objectContaining({
+          id: "visibility",
+          panel: "layers",
+          reset: "visibility",
+        }),
+      ]),
+    );
   });
 
   it("routes a clipping box to its own controls, but hides the indicator when disabled", () => {

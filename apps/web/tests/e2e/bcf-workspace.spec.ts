@@ -48,16 +48,14 @@ test("creates a multi-object remark with a preview, comments, restores and expor
       .getByRole("link", { name: "Ouvrir la vue", exact: true })
       .click();
     await expect(
-      page
-        .locator('[aria-label="Visionneuse 3D du projet"] [role="status"]')
-        .filter({ hasText: "entités IFC" }),
+      page.locator('canvas[aria-label^="Vue 3D"][data-phase="ready"]'),
     ).toBeVisible({ timeout: 120000 });
     const notifications = page
       .locator('[aria-label="Notifications"]')
       .getByRole("button", { name: "Masquer le message" });
     while (await notifications.count()) await notifications.first().click();
     await page
-      .getByRole("button", { name: "Annotations", exact: true })
+      .getByRole("button", { name: "Remarques BCF", exact: true })
       .click();
     const panel = page.getByRole("complementary", { name: "Remarques BCF" });
     await panel.getByRole("button", { name: "Nouvelle remarque" }).click();

@@ -123,3 +123,15 @@
 .left {
   transform: rotateY(-90deg) translateZ(2rem);
 }
+
+.container .fit {
+  width: 100%;
+  justify-content: center;
+  padding: 0.35rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+.container .fit::before {
+  --icon-size: 1rem;
+  margin-right: 0.25rem;
+}

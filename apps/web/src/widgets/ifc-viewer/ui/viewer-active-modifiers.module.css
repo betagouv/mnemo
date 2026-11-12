@@ -1,18 +1,17 @@
 .root {
   position: absolute;
   z-index: 3;
-  top: 3.15rem;
+  top: 0.75rem;
   left: 0.875rem;
   display: flex;
   max-width: min(18rem, calc(100% - 1.75rem));
-  max-height: 5.25rem;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 0.35rem;
-  overflow: auto;
 }
 
 .modifier {
   display: flex;
+  max-width: 100%;
   min-width: 0;
   min-height: 2rem;
   align-items: center;
@@ -50,4 +49,27 @@
     left: 0.5rem;
     max-width: min(14rem, calc(100% - 1rem));
   }
+}
+
+.open {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  min-width: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+.remove {
+  display: grid;
+  flex: none;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  place-items: center;
+  color: inherit;
+}
+.remove::before {
+  --icon-size: 1rem;
 }
