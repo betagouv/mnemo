@@ -1,11 +1,5 @@
 export type Point3 = { x: number; y: number; z: number };
 export type MeasurementKind = "distance" | "surface";
-export type SceneMeasurement = {
-  id: string;
-  kind: MeasurementKind;
-  points: Point3[];
-  value: number;
-};
 
 export function distanceBetween(a: Point3, b: Point3) {
   return Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);

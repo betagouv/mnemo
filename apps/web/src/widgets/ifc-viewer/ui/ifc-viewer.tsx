@@ -1,5 +1,8 @@
 "use client";
 
+import { MeasurementEditor } from "@/features/manage-measurements";
+import { ProjectMeasurementsProvider } from "@/entities/measurement";
+import type { SavedMeasurement } from "@mnemo/contracts/measurements";
 import {
   SceneMeasurementProvider,
   MeasurementPanel,
@@ -63,6 +66,7 @@ export function ProjectViewer({
   ifcSources,
   initialBcfTopics,
   initialFloorPlans,
+  initialMeasurements,
   canManageFloorPlans,
   pointCloudFailures,
   pointCloudSources,
@@ -82,6 +86,7 @@ export function ProjectViewer({
   ifcSources: ViewerIfcSource[];
   initialBcfTopics: BcfTopicSummary[];
   initialFloorPlans: SavedFloorPlan[];
+  initialMeasurements: SavedMeasurement[];
   canManageFloorPlans: boolean;
   pointCloudFailures: ViewerPointCloudFailure[];
   pointCloudSources: ViewerPointCloudSource[];
@@ -213,6 +218,7 @@ export function ProjectViewer({
 
         {floorPlans.plan ? (
           <FloorPlanView
+            Editor={MeasurementEditor}
             key={floorPlans.plan.id}
             title={floorPlans.plan.title}
             exportTitle={
@@ -233,6 +239,13 @@ export function ProjectViewer({
                   )?.elevation ?? null,
             }}
             drawing={floorPlans.plan.drawing}
+            savedPlanId={
+              floorPlans.saved.selected?.assetId === floorPlans.plan.assetId &&
+              floorPlans.saved.selected.storeyId === floorPlans.plan.storeyId
+                ? floorPlans.saved.selected.id
+                : null
+            }
+            getViewer={getViewer}
             preset={floorPlans.preset}
             rules={floorPlans.rules}
             selectedIds={snapshot.selectedElements
@@ -432,13 +445,20 @@ export function ProjectViewer({
   );
 
   return (
-    <SceneMeasurementProvider
-      getViewer={getViewer}
-      canvasRef={canvasRef}
-      mode={measurementMode}
-      enabled={measurementsEnabled}
+    <ProjectMeasurementsProvider
+      projectId={projectId}
+      initial={initialMeasurements}
+      canManage={canManageFloorPlans}
     >
-      {content}
-    </SceneMeasurementProvider>
+      <SceneMeasurementProvider
+        Editor={MeasurementEditor}
+        getViewer={getViewer}
+        canvasRef={canvasRef}
+        mode={measurementMode}
+        enabled={measurementsEnabled}
+      >
+        {content}
+      </SceneMeasurementProvider>
+    </ProjectMeasurementsProvider>
   );
 }

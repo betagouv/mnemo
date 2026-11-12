@@ -23,7 +23,7 @@ import { prepareFloorPlan } from "./floor-plan-geometry";
 import { FloorPlanSelection } from "./floor-plan-selection";
 import { FloorPlanRaster } from "./floor-plan-raster";
 
-type Measurement = PlanSegment;
+export type PlanMeasurement = PlanSegment & { id: string };
 type Commands = {
   style: (preset: FloorPlanPresetId, rules: readonly FloorPlanRule[]) => void;
   fit: () => void;
@@ -31,6 +31,7 @@ type Commands = {
   undo: () => void;
   cancel: () => void;
   refreshSelection: () => void;
+  remove: (id: string) => void;
 };
 
 export function useFloorPlanCanvas(
@@ -40,6 +41,7 @@ export function useFloorPlanCanvas(
   rules: readonly FloorPlanRule[],
   selectedIds: readonly number[],
   onSelect: (expressId: number | null) => void,
+  savedMeasurements: readonly PlanSegment[],
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -50,7 +52,10 @@ export function useFloorPlanCanvas(
   const styledDrawing = useRef<FloorPlanDrawing | null>(null);
   const selectionRef = useRef(selectedIds);
   const onSelectRef = useRef(onSelect);
-  const [count, setCount] = useState(0);
+  const [draftMeasurements, setDraftMeasurements] = useState<PlanMeasurement[]>(
+    [],
+  );
+  const savedRef = useRef(savedMeasurements);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -94,7 +99,7 @@ export function useFloorPlanCanvas(
       dragged: boolean;
     } | null = null;
     let space = false;
-    const measurements: Measurement[] = [];
+    const measurements: PlanMeasurement[] = [];
     function resolvePointer() {
       if (!hover || !modeRef.current || down?.pan) {
         snap = null;
@@ -121,7 +126,7 @@ export function useFloorPlanCanvas(
       drawPlanMarks(
         marks!,
         view,
-        measurements,
+        [...savedRef.current, ...measurements],
         start,
         current,
         snap,
@@ -188,14 +193,20 @@ export function useFloorPlanCanvas(
       fit,
       cancel,
       refreshSelection: () => schedule(),
+      remove: (id) => {
+        const index = measurements.findIndex((item) => item.id === id);
+        if (index >= 0) measurements.splice(index, 1);
+        setDraftMeasurements([...measurements]);
+        schedule();
+      },
       clear: () => {
         measurements.length = 0;
-        setCount(0);
+        setDraftMeasurements([]);
         cancel();
       },
       undo: () => {
         measurements.pop();
-        setCount(measurements.length);
+        setDraftMeasurements([...measurements]);
         cancel();
       },
     };
@@ -286,8 +297,8 @@ export function useFloorPlanCanvas(
           current &&
           planDistance(start, current) * view.scale > 1
         ) {
-          measurements.push({ start, end: current });
-          setCount(measurements.length);
+          measurements.push({ id: crypto.randomUUID(), start, end: current });
+          setDraftMeasurements([...measurements]);
           start = null;
         }
       }
@@ -425,6 +436,11 @@ export function useFloorPlanCanvas(
   }, [selectedIds, onSelect]);
 
   useEffect(() => {
+    savedRef.current = savedMeasurements;
+    commands.current?.refreshSelection();
+  }, [savedMeasurements]);
+
+  useEffect(() => {
     modeRef.current = measuring;
     commands.current?.cancel();
   }, [measuring]);
@@ -433,7 +449,9 @@ export function useFloorPlanCanvas(
     canvasRef,
     overlayRef,
     statusRef,
-    count,
+    count: draftMeasurements.length + savedMeasurements.length,
+    draftMeasurements,
+    remove: (id: string) => commands.current?.remove(id),
     fit: () => commands.current?.fit(),
     undo: () => commands.current?.undo(),
     clear: () => commands.current?.clear(),

@@ -34,7 +34,7 @@ export class MeasurementPicking {
         ? camera.getOrthoSize() /
           (camera.getDistance() * Math.tan(camera.getFOV() / 2))
         : 1;
-    const result = this.renderer.raycastSceneMagnetic(x, y, this.lock, {
+    const options = {
       ...visibility,
       snapOptions: {
         snapToVertices: magnetic,
@@ -43,7 +43,19 @@ export class MeasurementPicking {
         snapToPointClouds: magnetic,
         screenSnapRadius: magnetic ? 12 * radiusScale : 0,
       },
-    });
+    };
+    // IFC-Lite's magnetic mesh query does not filter section clipping.
+    // The regular query rejects clipped intersections and snap targets.
+    if (this.renderer.hasActiveClipping()) {
+      this.reset();
+      const result = this.renderer.raycastScene(x, y, options);
+      const snap = magnetic ? result?.snap : undefined;
+      return measurementPoint(
+        snap?.position ?? result?.intersection.point,
+        snap?.type,
+      );
+    }
+    const result = this.renderer.raycastSceneMagnetic(x, y, this.lock, options);
     if (magnetic && result.edgeLock.shouldLock && result.edgeLock.edge) {
       this.lock = {
         edge: result.edgeLock.edge,
@@ -52,17 +64,24 @@ export class MeasurementPicking {
       };
     } else if (result.edgeLock.shouldRelease) this.reset();
     const snap = magnetic ? result.snapTarget : null;
-    const point = snap?.position ?? result.intersection?.point;
-    if (!point || ![point.x, point.y, point.z].every(Number.isFinite))
-      return null;
-    return {
-      point: { ...point },
-      kind:
-        snap?.type === "vertex" ||
-        snap?.type === "edge" ||
-        snap?.type === "point_cloud"
-          ? snap.type
-          : "surface",
-    };
+    return measurementPoint(
+      snap?.position ?? result.intersection?.point,
+      snap?.type,
+    );
   }
+}
+
+function measurementPoint(
+  point: { x: number; y: number; z: number } | undefined,
+  type?: string,
+): MeasurementPoint | null {
+  if (!point || ![point.x, point.y, point.z].every(Number.isFinite))
+    return null;
+  return {
+    point: { ...point },
+    kind:
+      type === "vertex" || type === "edge" || type === "point_cloud"
+        ? type
+        : "surface",
+  };
 }

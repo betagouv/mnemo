@@ -1,11 +1,14 @@
+import type { SceneMeasurement } from "./measurement-types";
 import { describe, expect, it, vi } from "vitest";
 import { snapMeasurement } from "./measurement-snapping";
 import type { MeasurementViewer } from "./viewer-target";
-import type { Point3, SceneMeasurement } from "./measurement-geometry";
+import type { Point3 } from "@mnemo/domain/measurement";
 
 const start = { x: 0, y: 0, z: 0 };
 function viewer(point: Point3, zoom = 100) {
   return {
+    measurementToProject: (point) => point,
+    measurementFromProject: (point) => point,
     projectWorldPoints: (points) =>
       points.map((p) => ({ x: p.x * zoom, y: p.y * zoom })),
     pickMeasurementPoint: vi.fn(() => ({ point, kind: "surface" as const })),

@@ -1,16 +1,16 @@
 "use client";
 
+import { useProjectMeasurements } from "@/entities/measurement";
 import Button from "@codegouvfr/react-dsfr/Button";
 import { ToggleSwitch } from "@codegouvfr/react-dsfr/ToggleSwitch";
-import {
-  formatMeasurement,
-  distanceBetween,
-} from "../model/measurement-geometry";
+import { formatMeasurement, distanceBetween } from "@mnemo/domain/measurement";
 import { useMeasurementContext } from "../model/measurement-context";
 
 export function MeasurementPanel() {
-  const { controller, mode, enabled } = useMeasurementContext();
+  const { controller, mode, enabled, getViewer, Editor } =
+    useMeasurementContext();
   const { draft, cursor, measurements } = controller;
+  const stored = useProjectMeasurements();
   if (!enabled)
     return (
       <p className="p-4">Chargez une maquette pour mesurer dans la scène.</p>
@@ -48,6 +48,11 @@ export function MeasurementPanel() {
           </strong>
         ) : null}
       </div>
+      {stored.error ? (
+        <p className="fr-error-text m-0" role="alert">
+          {stored.error}
+        </p>
+      ) : null}
       {controller.error ? (
         <p className="fr-error-text m-0" role="alert">
           {controller.error}
@@ -91,7 +96,7 @@ export function MeasurementPanel() {
         className="border-t border-[var(--border-default-grey)] pt-4"
       >
         <h3 id="scene-measurements-heading" className="fr-h6 mb-3">
-          Mesures de la session ({measurements.length})
+          Mesures ({measurements.length})
         </h3>
         {measurements.length ? (
           <>
@@ -101,31 +106,43 @@ export function MeasurementPanel() {
                   key={item.id}
                   className="flex items-center justify-between gap-2 border-b border-[var(--border-default-grey)] py-3"
                 >
-                  <span>
-                    <span className="block text-sm">
-                      {item.kind === "distance" ? "Distance" : "Surface"}{" "}
-                      {index + 1}
-                    </span>
-                    <strong>{formatMeasurement(item.value, item.kind)}</strong>
-                  </span>
-                  <Button
-                    priority="tertiary no outline"
-                    size="small"
-                    iconId="fr-icon-delete-line"
-                    title={`Supprimer la mesure ${index + 1}`}
-                    onClick={() => controller.remove(item.id)}
-                  />
+                  <div className="min-w-0 flex-1">
+                    <strong className="mb-2 block">
+                      {formatMeasurement(item.value, item.kind)}
+                    </strong>
+                    <Editor
+                      measurement={{
+                        id: item.id,
+                        version: stored.items.find(
+                          (saved) => saved.id === item.id,
+                        )?.version,
+                        name:
+                          stored.items.find((saved) => saved.id === item.id)
+                            ?.name ??
+                          `${item.kind === "distance" ? "Distance" : "Surface"} ${index + 1}`,
+                        kind: item.kind,
+                        floorPlanId: null,
+                        points: item.points.map((point) =>
+                          getViewer()!.measurementToProject(point),
+                        ),
+                      }}
+                      onSaved={() => controller.remove(item.id)}
+                      onDiscard={() => controller.remove(item.id)}
+                    />
+                  </div>
                 </li>
               ))}
             </ul>
-            <Button
-              className="mt-3"
-              size="small"
-              priority="secondary"
-              onClick={controller.clear}
-            >
-              Effacer les mesures
-            </Button>
+            {controller.localMeasurements.length ? (
+              <Button
+                className="mt-3"
+                size="small"
+                priority="secondary"
+                onClick={controller.clear}
+              >
+                Effacer les mesures non enregistrées
+              </Button>
+            ) : null}
           </>
         ) : (
           <p className="fr-text--sm m-0">Les mesures apparaîtront ici.</p>

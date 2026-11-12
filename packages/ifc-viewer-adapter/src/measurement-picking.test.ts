@@ -17,6 +17,7 @@ describe("MeasurementPicking", () => {
     });
     const picker = new MeasurementPicking({
       raycastSceneMagnetic,
+      hasActiveClipping: () => false,
       getCamera: () => ({ getProjectionMode: () => "perspective" }),
     } as unknown as Renderer);
     const visibility = { hiddenIds: new Set([1]), isolatedIds: new Set([42]) };
@@ -51,6 +52,7 @@ describe("MeasurementPicking", () => {
   });
   it("handles a cursor in empty space", () => {
     const picker = new MeasurementPicking({
+      hasActiveClipping: () => false,
       getCamera: () => ({ getProjectionMode: () => "perspective" }),
       raycastSceneMagnetic: () => ({
         snapTarget: null,
@@ -71,6 +73,7 @@ describe("MeasurementPicking", () => {
     });
     const picker = new MeasurementPicking({
       raycastSceneMagnetic,
+      hasActiveClipping: () => false,
       getCamera: () => ({
         getProjectionMode: () => "orthographic",
         getOrthoSize: () => size,
@@ -88,5 +91,36 @@ describe("MeasurementPicking", () => {
     expect(
       raycastSceneMagnetic.mock.lastCall?.[3].snapOptions.screenSnapRadius,
     ).toBeCloseTo(0.12);
+  });
+  it("uses the clipping-aware mesh query for sections and cut boxes", () => {
+    const point = { x: 1, y: 2, z: 3 };
+    const raycastScene = vi.fn().mockReturnValue({
+      intersection: { point },
+      snap: { type: "vertex", position: { x: 1, y: 2, z: 4 } },
+    });
+    const raycastSceneMagnetic = vi.fn();
+    const picker = new MeasurementPicking({
+      hasActiveClipping: () => true,
+      getCamera: () => ({ getProjectionMode: () => "perspective" }),
+      raycastScene,
+      raycastSceneMagnetic,
+    } as unknown as Renderer);
+    const visibility = { hiddenIds: new Set([7]), isolatedIds: null };
+    expect(picker.pick(10, 20, true, visibility)).toEqual({
+      kind: "vertex",
+      point: { x: 1, y: 2, z: 4 },
+    });
+    expect(raycastScene).toHaveBeenCalledWith(
+      10,
+      20,
+      expect.objectContaining(visibility),
+    );
+    expect(picker.pick(10, 20, false, visibility)).toEqual({
+      kind: "surface",
+      point,
+    });
+    raycastScene.mockReturnValueOnce(null);
+    expect(picker.pick(10, 20, true, visibility)).toBeNull();
+    expect(raycastSceneMagnetic).not.toHaveBeenCalled();
   });
 });

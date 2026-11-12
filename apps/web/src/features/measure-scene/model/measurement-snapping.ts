@@ -1,9 +1,6 @@
+import type { SceneMeasurement } from "./measurement-types";
 import type { MeasurementPoint } from "@mnemo/ifc-viewer-adapter";
-import type {
-  MeasurementKind,
-  Point3,
-  SceneMeasurement,
-} from "./measurement-geometry";
+import type { MeasurementKind, Point3 } from "@mnemo/domain/measurement";
 import type { MeasurementViewer } from "./viewer-target";
 
 export type MeasurementTarget = {

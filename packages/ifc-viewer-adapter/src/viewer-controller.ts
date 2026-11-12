@@ -1,3 +1,7 @@
+import {
+  measurementToProject,
+  measurementFromProject,
+} from "./measurement-coordinates";
 import { MeasurementPicking } from "./measurement-picking";
 import {
   captureSceneBcfViewpoint,
@@ -270,6 +274,14 @@ export class IfcViewerController {
       ]),
       isolatedIds: this.isolatedIds,
     });
+  }
+
+  measurementToProject(point: { x: number; y: number; z: number }) {
+    return measurementToProject(point, this.modelLoader.renderOrigin);
+  }
+
+  measurementFromProject(point: { x: number; y: number; z: number }) {
+    return measurementFromProject(point, this.modelLoader.renderOrigin);
   }
 
   getMeasurementRay(x: number, y: number) {

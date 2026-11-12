@@ -20,7 +20,7 @@ test.use({
   },
 });
 
-test("measures 3D geometry with snapping, drafts and session results", async ({
+test("measures and persists 3D geometry with snapping and shared results", async ({
   page,
 }) => {
   test.setTimeout(180_000);
@@ -106,7 +106,7 @@ test("measures 3D geometry with snapping, drafts and session results", async ({
     await canvas.click({ position: points[0] });
     await canvas.click({ position: points[1] });
     await expect(
-      panel.getByRole("heading", { name: "Mesures de la session (1)" }),
+      panel.getByRole("heading", { name: "Mesures (1)" }),
     ).toBeVisible();
     await expect(panel.locator("li strong")).toContainText(/\d.* m$/);
     const anchor = await page
@@ -127,7 +127,7 @@ test("measures 3D geometry with snapping, drafts and session results", async ({
     await tools.getByRole("button", { name: "Surface", exact: true }).click();
     panel = page.getByRole("complementary", { name: "Mesure de surface" });
     await expect(
-      panel.getByRole("heading", { name: "Mesures de la session (1)" }),
+      panel.getByRole("heading", { name: "Mesures (1)" }),
     ).toBeVisible();
     await panel.getByText("Accrochage et alignements", { exact: true }).click();
     await expect(
@@ -146,7 +146,7 @@ test("measures 3D geometry with snapping, drafts and session results", async ({
     await canvas.click({ position: points[2] });
     await page.keyboard.press("Enter");
     await expect(
-      panel.getByRole("heading", { name: "Mesures de la session (2)" }),
+      panel.getByRole("heading", { name: "Mesures (2)" }),
     ).toBeVisible();
     await expect(panel.locator("li strong").last()).toContainText(/\d.* m²$/);
     const values = await panel.locator("li strong").allTextContents();
@@ -179,9 +179,51 @@ test("measures 3D geometry with snapping, drafts and session results", async ({
         animations: "disabled",
       });
     }
-    await panel.getByRole("button", { name: "Effacer les mesures" }).click();
+    await panel
+      .getByRole("button", { name: "Enregistrer la mesure", exact: true })
+      .first()
+      .click();
     await expect(
-      panel.getByRole("heading", { name: "Mesures de la session (0)" }),
+      panel.getByText("Enregistrée dans le dossier", { exact: true }),
+    ).toHaveCount(1);
+    await panel
+      .getByRole("button", { name: "Enregistrer la mesure", exact: true })
+      .click();
+    await expect(
+      panel.getByText("Enregistrée dans le dossier", { exact: true }),
+    ).toHaveCount(2);
+    const savedValues = await panel.locator("li strong").allTextContents();
+    await page.reload();
+    await expect(
+      page.getByRole("status").filter({ hasText: "entités IFC" }),
+    ).toBeVisible({ timeout: 120_000 });
+    await tools.getByRole("button", { name: "Mesures", exact: true }).click();
+    await tools.getByRole("button", { name: "Distance", exact: true }).click();
+    panel = page.getByRole("complementary", { name: "Mesure de distance" });
+    await expect(
+      panel.getByRole("heading", { name: "Mesures (2)" }),
+    ).toBeVisible();
+    await expect(panel.locator("li strong")).toHaveText(savedValues);
+    await panel
+      .getByRole("button", { name: "Renommer la mesure" })
+      .first()
+      .click();
+    await panel.getByLabel("Nom de la mesure").fill("Largeur façade");
+    await panel
+      .getByRole("button", { name: "Enregistrer le nom", exact: true })
+      .click();
+    await expect(
+      panel.getByText("Largeur façade", { exact: true }),
+    ).toBeVisible();
+    await panel
+      .getByRole("button", { name: "Supprimer la mesure", exact: true })
+      .first()
+      .click();
+    await panel
+      .getByRole("button", { name: "Confirmer la suppression", exact: true })
+      .click();
+    await expect(
+      panel.getByRole("heading", { name: "Mesures (1)" }),
     ).toBeVisible();
   } catch (error) {
     await page

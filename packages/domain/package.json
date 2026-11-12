@@ -8,7 +8,8 @@
     ".": "./src/index.ts",
     "./asset": "./src/asset.ts",
     "./project": "./src/project.ts",
-    "./processing-job": "./src/processing-job.ts"
+    "./processing-job": "./src/processing-job.ts",
+    "./measurement": "./src/measurement.ts"
   },
   "scripts": {
     "lint": "eslint src",

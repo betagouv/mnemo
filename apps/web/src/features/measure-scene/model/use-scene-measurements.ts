@@ -1,18 +1,26 @@
 "use client";
 
-import { useCallback, useEffect, useState, type RefObject } from "react";
+import type { SceneMeasurement } from "./measurement-types";
+
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type RefObject,
+} from "react";
 import {
   snapMeasurement,
   type MeasurementTarget,
 } from "./measurement-snapping";
+import { useProjectMeasurements } from "@/entities/measurement";
 import type { MeasurementViewer } from "./viewer-target";
 import {
   distanceBetween,
   surfaceArea,
   type MeasurementKind,
   type Point3,
-  type SceneMeasurement,
-} from "./measurement-geometry";
+} from "@mnemo/domain/measurement";
 
 export function useSceneMeasurements(
   getViewer: () => MeasurementViewer | null,
@@ -20,7 +28,48 @@ export function useSceneMeasurements(
   mode: MeasurementKind | null,
   enabled: boolean,
 ) {
-  const [measurements, setMeasurements] = useState<SceneMeasurement[]>([]);
+  const [localMeasurements, setMeasurements] = useState<SceneMeasurement[]>([]);
+  const stored = useProjectMeasurements();
+  const restored = useMemo(() => {
+    const viewer = getViewer();
+    let restoreError: string | null = null;
+    const saved =
+      enabled && viewer
+        ? stored.items
+            .filter((item) => item.floorPlanId === null)
+            .flatMap((item) => {
+              const points = item.points.map((point) =>
+                viewer.measurementFromProject(point),
+              );
+              const area = item.kind === "surface" ? surfaceArea(points) : null;
+              if (area && "error" in area) {
+                restoreError =
+                  "Une surface enregistrée ne peut pas être calculée. Rechargez la page et vérifiez ses points.";
+                return [];
+              }
+              return [
+                {
+                  id: item.id,
+                  kind: item.kind,
+                  points,
+                  value: area
+                    ? area.value
+                    : distanceBetween(points[0]!, points[1]!),
+                },
+              ];
+            })
+        : [];
+    return {
+      restoreError,
+      items: [
+        ...saved,
+        ...localMeasurements.filter(
+          (item) => !stored.items.some((saved) => saved.id === item.id),
+        ),
+      ],
+    };
+  }, [stored.items, localMeasurements, getViewer, enabled]);
+  const measurements = restored.items;
   const [draft, setDraft] = useState<Point3[]>([]);
   const [cursor, setCursor] = useState<MeasurementTarget | null>(null);
   const [magnetic, setMagnetic] = useState(true);
@@ -167,10 +216,11 @@ export function useSceneMeasurements(
 
   return {
     measurements,
+    localMeasurements,
     draft,
     cursor,
     magnetic,
-    error,
+    error: error ?? restored.restoreError,
     cancel,
     undo,
     finish,

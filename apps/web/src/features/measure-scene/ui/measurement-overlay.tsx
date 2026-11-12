@@ -2,10 +2,7 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import { useMeasurementContext } from "../model/measurement-context";
-import {
-  distanceBetween,
-  formatMeasurement,
-} from "../model/measurement-geometry";
+import { distanceBetween, formatMeasurement } from "@mnemo/domain/measurement";
 import styles from "./measurement-overlay.module.css";
 
 const cursorLabels = {

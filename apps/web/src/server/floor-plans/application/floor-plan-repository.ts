@@ -17,7 +17,7 @@ export class FloorPlanConflictError extends Error {
   }
 }
 export class FloorPlanSourceError extends Error {
-  constructor() {
-    super("La maquette IFC de cette vue n'est plus disponible.");
+  constructor(message = "La maquette IFC de cette vue n'est plus disponible.") {
+    super(message);
   }
 }

@@ -1,5 +1,15 @@
 "use client";
 
+import {
+  type MeasurementEditorSlot,
+  useProjectMeasurements,
+} from "@/entities/measurement";
+import {
+  planPointToProject,
+  projectPointToPlan,
+  type PlanMeasurementViewer,
+} from "../model/plan-measurement-coordinates";
+import { formatMeasurement, distanceBetween } from "@mnemo/domain/measurement";
 import type { FloorPlanRule } from "@mnemo/contracts/floor-plans";
 import { FloorPlanPdfButton } from "./floor-plan-pdf-button";
 import Button from "@codegouvfr/react-dsfr/Button";
@@ -8,13 +18,16 @@ import type {
   FloorPlanPresetId,
 } from "@mnemo/ifc-viewer-adapter";
 import type { FloorPlanPdfInfo } from "../infrastructure/pdf/floor-plan-pdf-sheet";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useFloorPlanCanvas } from "../model/use-floor-plan-canvas";
 
 export type { FloorPlanDrawing } from "@mnemo/ifc-viewer-adapter";
 
 export function FloorPlanView({
   title,
+  savedPlanId,
+  Editor,
+  getViewer,
   exportTitle,
   exportContext,
   drawing,
@@ -25,6 +38,9 @@ export function FloorPlanView({
   onSelect,
 }: {
   title: string;
+  Editor: MeasurementEditorSlot;
+  savedPlanId: string | null;
+  getViewer: () => PlanMeasurementViewer | null;
   exportTitle: string;
   exportContext: Pick<
     FloorPlanPdfInfo,
@@ -37,6 +53,25 @@ export function FloorPlanView({
   selectedIds: readonly number[];
   onSelect: (expressId: number | null) => void;
 }) {
+  const stored = useProjectMeasurements();
+  const saved = useMemo(
+    () =>
+      stored.items.filter(
+        (item) => item.floorPlanId === savedPlanId && savedPlanId !== null,
+      ),
+    [stored.items, savedPlanId],
+  );
+  const savedSegments = useMemo(() => {
+    const viewer = getViewer();
+    return viewer
+      ? saved
+          .filter((item) => item.kind === "distance")
+          .map((item) => ({
+            start: projectPointToPlan(viewer, drawing, item.points[0]!),
+            end: projectPointToPlan(viewer, drawing, item.points[1]!),
+          }))
+      : [];
+  }, [saved, drawing, getViewer]);
   const [measuring, setMeasuring] = useState(false);
   const {
     containerRef,
@@ -44,6 +79,8 @@ export function FloorPlanView({
     overlayRef,
     statusRef,
     count,
+    draftMeasurements,
+    remove,
     fit,
     undo,
     clear,
@@ -54,6 +91,7 @@ export function FloorPlanView({
     rules,
     selectedIds,
     onSelect,
+    savedSegments,
   );
   return (
     <div
@@ -88,7 +126,7 @@ export function FloorPlanView({
             iconId="fr-icon-focus-3-line"
             onClick={fit}
           />
-          {count > 0 ? (
+          {draftMeasurements.length > 0 ? (
             <Button
               size="small"
               priority="tertiary no outline"
@@ -97,7 +135,7 @@ export function FloorPlanView({
               iconId="fr-icon-arrow-go-back-line"
             />
           ) : null}
-          {count > 1 ? (
+          {draftMeasurements.length > 1 ? (
             <Button
               size="small"
               priority="tertiary no outline"
@@ -118,6 +156,71 @@ export function FloorPlanView({
           </Button>
         </div>
       </div>
+      {measuring || count ? (
+        <details className="flex-none border-b border-[var(--border-default-grey)] px-4 py-2">
+          <summary className="cursor-pointer text-sm">
+            Mesures du plan ({count})
+          </summary>
+          {!savedPlanId ? (
+            <p className="mt-2 text-sm">
+              Enregistrez cette vue en plan pour pouvoir y conserver des
+              mesures.
+            </p>
+          ) : null}
+          {stored.error ? (
+            <p className="fr-error-text" role="alert">
+              {stored.error}
+            </p>
+          ) : null}
+          <ul className="m-0 max-h-64 list-none overflow-y-auto p-0">
+            {saved.map((item) => (
+              <li
+                key={item.id}
+                className="border-t border-[var(--border-default-grey)] py-2"
+              >
+                <strong className="mb-1 block">
+                  {formatMeasurement(
+                    distanceBetween(item.points[0]!, item.points[1]!),
+                    "distance",
+                  )}
+                </strong>
+                <Editor measurement={item} />
+              </li>
+            ))}
+            {draftMeasurements.map((item, index) => (
+              <li
+                key={item.id}
+                className="border-t border-[var(--border-default-grey)] py-2"
+              >
+                <strong className="mb-1 block">
+                  {formatMeasurement(
+                    Math.hypot(
+                      item.end.x - item.start.x,
+                      item.end.y - item.start.y,
+                    ),
+                    "distance",
+                  )}
+                </strong>
+                {savedPlanId ? (
+                  <Editor
+                    measurement={{
+                      id: item.id,
+                      name: `Distance ${saved.length + index + 1}`,
+                      kind: "distance",
+                      floorPlanId: savedPlanId,
+                      points: [item.start, item.end].map((point) =>
+                        planPointToProject(getViewer()!, drawing, point),
+                      ),
+                    }}
+                    onSaved={() => remove(item.id)}
+                    onDiscard={() => remove(item.id)}
+                  />
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
       <div
         ref={containerRef}
         tabIndex={0}

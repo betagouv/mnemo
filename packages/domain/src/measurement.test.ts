@@ -4,7 +4,7 @@ import {
   formatMeasurement,
   surfaceArea,
   type Point3,
-} from "./measurement-geometry";
+} from "./measurement";
 
 const rectangle = [
   { x: 0, y: 0, z: 0 },

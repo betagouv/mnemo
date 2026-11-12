@@ -184,8 +184,17 @@ test("navigates and snaps measurements on a real storey plan", async ({
   const selectedTree = page.locator(
     'button[aria-current="true"][aria-pressed="true"]',
   );
-  await page.mouse.click(selectionInk[0].x, selectionInk[0].y);
-  await expect(selectedTree).toHaveCount(1);
+  // Toggling measurement mode resizes the canvas. Resolve the target again
+  // until the rendered geometry and pointer coordinates have settled.
+  await expect
+    .poll(async () => {
+      if ((await selectedTree.count()) === 1) return true;
+      const targets = await findInk();
+      if (!targets[0]) return false;
+      await page.mouse.click(targets[0].x, targets[0].y);
+      return (await selectedTree.count()) === 1;
+    })
+    .toBe(true);
   await expect(selectedTree).toBeInViewport();
   const selectedTitle = await selectedTree.getAttribute("title");
   await expect(
@@ -384,6 +393,32 @@ test("navigates and snaps measurements on a real storey plan", async ({
   await expect(
     settings.getByRole("status").filter({ hasText: "Vue à jour" }),
   ).toBeVisible();
+  // Persist a plan measurement on the saved view, then restore it after reload.
+  const measureBounds = await canvas.boundingBox();
+  if (!measureBounds) throw new Error("Missing plan bounds");
+  await page.keyboard.down("Alt");
+  await page.mouse.click(
+    measureBounds.x + measureBounds.width * 0.4,
+    measureBounds.y + measureBounds.height * 0.45,
+  );
+  await page.mouse.click(
+    measureBounds.x + measureBounds.width * 0.6,
+    measureBounds.y + measureBounds.height * 0.45,
+  );
+  await page.keyboard.up("Alt");
+  const planMeasures = page
+    .locator("details")
+    .filter({ hasText: "Mesures du plan" });
+  await planMeasures.locator("summary").click();
+  await planMeasures
+    .getByRole("button", { name: "Enregistrer la mesure", exact: true })
+    .click();
+  await expect(
+    planMeasures.getByText("Enregistrée dans le dossier", { exact: true }),
+  ).toBeVisible();
+  const savedMeasureValue = await planMeasures
+    .locator("li strong")
+    .textContent();
   const downloadEvent = page.waitForEvent("download");
   await page
     .getByRole("button", { name: "Télécharger le PDF", exact: true })
@@ -403,6 +438,18 @@ test("navigates and snaps measurements on a real storey plan", async ({
     .getByRole("combobox", { name: "Vue enregistrée", exact: true })
     .selectOption({ label: "RDC terre cuite" });
   await expect(plan).toBeVisible({ timeout: 60_000 });
+  await expect(
+    page.getByRole("status").filter({ hasText: /^1 mesure$/ }),
+  ).toBeVisible();
+  await planMeasures.locator("summary").click();
+  await expect(planMeasures.locator("li strong")).toHaveText(
+    savedMeasureValue!,
+  );
+  await expect(
+    planMeasures.getByText("Enregistrée dans le dossier", { exact: true }),
+  ).toBeVisible();
+  await planMeasures.locator("summary").click();
+
   await settings
     .getByRole("button", { name: "Règles personnalisées (1)", exact: true })
     .click();
