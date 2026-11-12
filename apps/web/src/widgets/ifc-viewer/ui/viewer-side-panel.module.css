@@ -57,10 +57,10 @@
 }
 
 .root[data-docked="true"] {
-  width: 20rem;
+  width: var(--viewer-explorer-width);
 }
 :global([data-explorer-pinned="true"]) .root:not([data-docked="true"]) {
-  left: 25.25rem;
+  left: calc(4.5rem + var(--viewer-explorer-width) + 0.75rem);
 }
 @media (width < 90rem) {
   .root[data-docked="true"] {

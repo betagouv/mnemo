@@ -16,6 +16,8 @@ function createSnapshot(): IfcViewerSnapshot {
     message: null,
     selection: null,
     selectedElements: [],
+    selectionIsolationActive: false,
+    visualRevision: 0,
     selectionPhase: "idle",
     selectionMessage: null,
     catalog: {

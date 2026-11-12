@@ -8,7 +8,7 @@ export type ViewerActiveModifier = {
   icon: string;
   panel: ViewerPanelId;
   group: ViewerToolGroupId;
-  reset?: "section" | "visual" | "visibility";
+  reset?: "section" | "visual" | "visibility" | "selection-isolation";
 };
 
 type ModifierSource = {
@@ -54,7 +54,7 @@ export function getActiveViewerModifiers(
   });
   if (snapshot.visual.mode !== "all")
     modifiers.push({
-      id: "visual",
+      id: snapshot.selectionIsolationActive ? "selection-isolation" : "visual",
       label: snapshot.visual.label || "Affichage modifié",
       icon:
         snapshot.visual.mode === "color"
@@ -62,7 +62,9 @@ export function getActiveViewerModifiers(
           : "fr-icon-filter-line",
       panel: "filters",
       group: "filters",
-      reset: "visual",
+      reset: snapshot.selectionIsolationActive
+        ? "selection-isolation"
+        : "visual",
     });
   if (visibilityChanged)
     modifiers.push({

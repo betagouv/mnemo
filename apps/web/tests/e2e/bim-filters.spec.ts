@@ -1,4 +1,5 @@
 import { fileURLToPath } from "node:url";
+import { readFile } from "node:fs/promises";
 import { expect, test } from "./fixtures";
 import { gotoHydrated } from "./hydration";
 
@@ -20,7 +21,7 @@ test.use({
   },
 });
 
-test("builds and edits compact filter rules with searchable multi-selects", async ({
+test("persists named filter groups, duplicates and independent activation", async ({
   page,
 }) => {
   test.setTimeout(180_000);
@@ -36,33 +37,80 @@ test("builds and edits compact filter rules with searchable multi-selects", asyn
   try {
     await gotoHydrated(page, href);
     await page.locator('input[type="file"]').setInputFiles(fixture);
-    await page.locator(`a[href="${href}/viewer"]`).click();
+    await expect(
+      page.getByRole("heading", { name: "Ifc4_SampleHouse.ifc", exact: true }),
+    ).toBeVisible();
+    await gotoHydrated(page, href);
+    await expect(
+      page.getByRole("button", {
+        name: "Sélectionner un fichier",
+        exact: true,
+      }),
+    ).toBeEnabled();
+    await page.locator('input[type="file"]').setInputFiles({
+      name: "Second.ifc",
+      mimeType: "application/octet-stream",
+      buffer: await readFile(fixture),
+    });
+    await expect(
+      page.getByRole("heading", { name: "Second.ifc", exact: true }),
+    ).toBeVisible();
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.stack ?? error.message));
+    await gotoHydrated(page, `${href}/viewer`);
     const canvas = page.locator(
       'canvas[aria-label^="Vue 3D"][data-phase="ready"]',
     );
     await expect(canvas).toBeVisible({ timeout: 120_000 });
     const originalCanvas = await canvas.elementHandle();
-    const errors: string[] = [];
-    page.on("pageerror", (error) => errors.push(error.stack ?? error.message));
     const notifications = page
       .locator('[aria-label="Notifications"]')
       .getByRole("button", { name: "Masquer le message" });
     while (await notifications.count()) await notifications.first().click();
     const tools = page.getByRole("group", { name: "Outils de la visionneuse" });
-    await tools
-      .getByRole("button", { name: "Filtres IFC", exact: true })
-      .click();
+    const filterTool = tools.getByRole("button", {
+      name: "Filtres IFC",
+      exact: true,
+    });
+    const filterBadge = filterTool.getByText(/^\d+$/);
+    await filterTool.click();
     const panel = page.getByRole("complementary", {
       name: "Filtres IFC",
       exact: true,
     });
-    const form = panel.getByRole("form");
-    const rules = panel.getByRole("list", { name: "Filtres configurés" });
-    const classes = panel.getByRole("combobox", {
+    const modelSelect = panel.getByRole("combobox", {
+      name: "Maquette ciblée",
+    });
+    await expect(modelSelect.locator("option")).toHaveCount(2, {
+      timeout: 120_000,
+    });
+    const initialModelId = await modelSelect.inputValue();
+    const otherModelId = await modelSelect
+      .locator("option")
+      .evaluateAll(
+        (options, current) =>
+          (
+            options.find(
+              (option) => (option as HTMLOptionElement).value !== current,
+            ) as HTMLOptionElement
+          ).value,
+        initialModelId,
+      );
+    const group = panel.getByRole("region", {
+      name: "Groupe Mes filtres",
+      exact: true,
+    });
+    const palette = panel.getByRole("region", {
+      name: "Groupe Couleurs par niveau",
+      exact: true,
+    });
+    const form = group.getByRole("form", { name: /un filtre/ });
+    const rules = group.getByRole("list", { name: "Filtres configurés" });
+    const classes = group.getByRole("combobox", {
       name: "Classes IFC",
       exact: true,
     });
-    const levels = panel.getByRole("combobox", {
+    const levels = group.getByRole("combobox", {
       name: "Niveaux",
       exact: true,
     });
@@ -72,87 +120,212 @@ test("builds and edits compact filter rules with searchable multi-selects", asyn
       await expect(input).toHaveAttribute("aria-expanded", "true");
       await input.press("Escape");
     };
-    const formBounds = await form.boundingBox();
-    expect(formBounds!.height).toBeLessThan(360);
+    const toggle = async (checkbox: ReturnType<typeof panel.getByRole>) =>
+      checkbox.locator("..").locator("label").click();
     await expect(
-      panel.getByRole("button", { name: "Ajouter le filtre", exact: true }),
-    ).toBeDisabled();
+      panel.getByRole("slider", { name: "Opacité du contexte" }),
+    ).not.toBeVisible();
+    await expect(
+      palette.getByRole("checkbox", { name: /^Activer le groupe/ }),
+    ).not.toBeChecked();
+    await expect(filterBadge).toHaveCount(0);
+    expect((await form.boundingBox())!.height).toBeLessThan(360);
     await selectOption(classes, "IfcWall");
     await classes.fill("IfcDoor");
     await classes.press("Enter");
     await expect(
       page.getByRole("option", { name: "IfcWall", exact: true }),
     ).toHaveAttribute("aria-selected", "true");
-    await expect(
-      page.getByRole("option", { name: "IfcDoor", exact: true }),
-    ).toHaveAttribute("aria-selected", "true");
     await classes.press("Escape");
+    await expect(
+      group.getByRole("button", {
+        name: "Retirer IfcWall de Classes IFC",
+        exact: true,
+      }),
+    ).toBeVisible();
+    const doorChip = group.getByRole("button", {
+      name: "Retirer IfcDoor de Classes IFC",
+      exact: true,
+    });
+    await doorChip.click();
+    await expect(doorChip).toHaveCount(0);
+    await expect(classes).toHaveAttribute("aria-expanded", "false");
+    await expect(
+      group.getByRole("button", {
+        name: "Retirer IfcWall de Classes IFC",
+        exact: true,
+      }),
+    ).toBeFocused();
+    await classes.focus();
+    await classes.press("ArrowDown");
+    await expect(classes).toHaveAttribute("aria-expanded", "true");
+    await selectOption(classes, "IfcDoor");
     await selectOption(levels, "Ground Floor");
-    await selectOption(levels, "Roof");
-    await levels.blur();
-    await page.screenshot({ path: "/tmp/mnemo-74-editor-light.png" });
-    await panel
+    for (const theme of ["light", "dark"]) {
+      await page.evaluate(
+        (value) =>
+          document.documentElement.setAttribute("data-fr-theme", value),
+        theme,
+      );
+      await page.screenshot({
+        path: `/tmp/mnemo-74-chips-editor-${theme}.png`,
+      });
+    }
+    await form
       .getByRole("button", { name: "Ajouter le filtre", exact: true })
       .click();
     await expect(rules.getByRole("listitem")).toHaveCount(1);
-    await expect(form).toHaveCount(0);
-    const isolation = rules.getByRole("listitem", { name: /^Isoler/ });
-    await expect(isolation).toContainText("IfcWall, IfcDoor");
-    await expect(isolation).toContainText("Ground Floor, Roof");
-
-    await panel
+    await expect(filterBadge).toHaveText("1");
+    await expect(filterTool).toHaveAccessibleDescription(
+      "1 groupe de filtres actif",
+    );
+    const parent = group.getByRole("checkbox", { name: /^Activer le groupe/ });
+    await page
+      .getByRole("button", { name: "Retirer 1 filtre actif", exact: true })
+      .click();
+    await expect(parent).not.toBeChecked();
+    await expect(filterBadge).toHaveCount(0);
+    await page.getByRole("button", { name: "Annuler", exact: true }).click();
+    await expect(parent).toBeChecked();
+    await expect(filterBadge).toHaveText("1");
+    await expect(
+      page.getByRole("button", { name: "Retirer 1 filtre actif", exact: true }),
+    ).toBeVisible();
+    await toggle(parent);
+    await expect(
+      page.getByRole("button", { name: "Retirer 1 filtre actif", exact: true }),
+    ).toHaveCount(0);
+    await expect(filterBadge).toHaveCount(0);
+    await toggle(parent);
+    await expect(filterBadge).toHaveText("1");
+    await group
       .getByRole("button", { name: "Ajouter un filtre", exact: true })
       .click();
+    await expect(classes).toBeFocused();
+    await expect(classes).toHaveAttribute("aria-expanded", "false");
+    await expect(page.getByRole("listbox")).toHaveCount(0);
     await selectOption(classes, "IfcWall");
     await form.getByText("Coloriser", { exact: true }).click();
-    await panel
+    await form
       .getByRole("button", { name: "Ajouter le filtre", exact: true })
       .click();
-    await expect(rules.getByRole("listitem")).toHaveCount(2);
-    let colored = rules.getByRole("listitem", { name: /^Coloriser/ });
-    await colored.getByRole("button", { name: /^Modifier/ }).click();
+    let color = rules.getByRole("listitem", { name: /^Coloriser/ });
+    await color.getByRole("button", { name: /^Modifier/ }).click();
+    await expect(classes).toHaveAttribute("aria-expanded", "false");
+    await expect(
+      group.getByRole("button", {
+        name: "Retirer IfcWall de Classes IFC",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await form
+      .getByRole("button", { name: "Annuler le filtre", exact: true })
+      .click();
+    await color.getByRole("button", { name: /^Dupliquer/ }).click();
+    await expect(rules.getByRole("listitem")).toHaveCount(3);
+    await expect(filterBadge).toHaveText("1");
     await expect(classes).toBeFocused();
-    await expect(classes).toHaveAccessibleDescription(/IfcWall/);
-    await panel
+    await group
       .getByRole("button", { name: "Vider Classes IFC", exact: true })
       .click();
     await selectOption(classes, "IfcDoor");
     await form
       .getByRole("button", { name: "Enregistrer", exact: true })
       .click();
-    colored = rules.getByRole("listitem", { name: /^Coloriser/ });
-    await expect(colored).toContainText("IfcDoor");
-    await colored.getByRole("checkbox").locator("..").locator("label").click();
-    await expect(colored.getByRole("checkbox")).not.toBeChecked();
-    await expect(isolation.getByRole("checkbox")).toBeChecked();
-    await colored.getByRole("checkbox").locator("..").locator("label").click();
-    await expect(colored.getByRole("checkbox")).toBeChecked();
-
-    await panel
-      .getByRole("button", { name: "Ajouter un filtre", exact: true })
+    color = rules.getByRole("listitem", {
+      name: "Coloriser · IfcDoor",
+      exact: true,
+    });
+    await toggle(color.getByRole("checkbox"));
+    await expect(color.getByRole("checkbox")).not.toBeChecked();
+    await toggle(group.getByRole("checkbox", { name: /^Activer le groupe/ }));
+    await expect(filterBadge).toHaveCount(0);
+    await expect(
+      rules.getByRole("checkbox", { name: /^Isoler/ }),
+    ).toBeChecked();
+    await toggle(group.getByRole("checkbox", { name: /^Activer le groupe/ }));
+    await expect(filterBadge).toHaveText("1");
+    await expect(color.getByRole("checkbox")).not.toBeChecked();
+    await group
+      .getByLabel("Actions du groupe Mes filtres", { exact: true })
       .click();
-    await selectOption(classes, "IfcDoor");
-    await form.getByText("Masquer", { exact: true }).click();
+    await group.getByTitle("Renommer Mes filtres", { exact: true }).click();
+    await group.getByLabel("Nom du groupe").fill("Structure");
+    await group.getByRole("button", { name: "Renommer", exact: true }).click();
+    const structure = panel.getByRole("region", {
+      name: "Groupe Structure",
+      exact: true,
+    });
+    await structure
+      .getByLabel("Actions du groupe Structure", { exact: true })
+      .click();
+    await structure
+      .getByTitle("Dupliquer le groupe Structure", { exact: true })
+      .click();
+    const copy = panel.getByRole("region", {
+      name: "Groupe Structure (copie)",
+      exact: true,
+    });
+    await expect(copy.getByRole("listitem")).toHaveCount(3);
+    await expect(filterBadge).toHaveText("2");
+    await expect(filterTool).toHaveAccessibleDescription(
+      "2 groupes de filtres actifs",
+    );
+    await copy
+      .getByLabel("Actions du groupe Structure (copie)", { exact: true })
+      .click();
+    await copy
+      .getByTitle("Supprimer le groupe Structure (copie)", { exact: true })
+      .click();
+    await expect(copy).toHaveCount(0);
+    await expect(filterBadge).toHaveText("1");
     await panel
+      .getByRole("button", { name: "Créer un groupe", exact: true })
+      .click();
+    const newGroup = panel.getByRole("form", {
+      name: "Nouveau groupe",
+      exact: true,
+    });
+    await newGroup.getByLabel("Nom du groupe").fill("Portes");
+    await newGroup
+      .getByRole("button", { name: "Créer le groupe", exact: true })
+      .click();
+    const doors = panel.getByRole("region", {
+      name: "Groupe Portes",
+      exact: true,
+    });
+    await selectOption(
+      doors.getByRole("combobox", { name: "Classes IFC", exact: true }),
+      "IfcDoor",
+    );
+    await doors.getByText("Masquer", { exact: true }).click();
+    await doors
       .getByRole("button", { name: "Ajouter le filtre", exact: true })
       .click();
-    await expect(rules.getByRole("listitem")).toHaveCount(3);
-    await rules
-      .getByRole("listitem", { name: /^Masquer/ })
-      .getByRole("button", { name: /^Supprimer/ })
+    await expect(filterBadge).toHaveText("2");
+    await toggle(doors.getByRole("checkbox", { name: /^Activer le groupe/ }));
+    await expect(filterBadge).toHaveText("1");
+    await palette
+      .getByRole("button", { name: "Déplier Couleurs par niveau", exact: true })
       .click();
-    await expect(rules.getByRole("listitem")).toHaveCount(2);
-    const deletes = await rules
-      .getByRole("button", { name: /^Supprimer/ })
-      .evaluateAll((buttons) =>
-        buttons.map((button) => button.getBoundingClientRect().right),
-      );
-    expect(deletes[0]).toBe(deletes[1]);
-    await tools.getByRole("button", { name: "Coupes", exact: true }).click();
-    await tools
-      .getByRole("button", { name: "Filtres IFC", exact: true })
+    await expect(palette.getByRole("listitem")).toHaveCount(2);
+    await toggle(palette.getByRole("checkbox", { name: /^Activer le groupe/ }));
+    await expect(filterBadge).toHaveText("2");
+    await toggle(palette.getByRole("checkbox", { name: /^Activer le groupe/ }));
+    await expect(filterBadge).toHaveText("1");
+    await palette
+      .getByRole("button", { name: "Replier Couleurs par niveau", exact: true })
       .click();
-    await expect(rules.getByRole("listitem")).toHaveCount(2);
+    await panel
+      .getByRole("button", { name: "Réglages du contexte", exact: true })
+      .click();
+    await expect(
+      panel.getByRole("slider", { name: "Opacité du contexte" }),
+    ).toBeVisible();
+    await panel.getByRole("slider", { name: "Opacité du contexte" }).fill("24");
+    await panel
+      .getByRole("button", { name: "Réglages du contexte", exact: true })
+      .click();
     for (const theme of ["light", "dark"]) {
       await page.evaluate(
         (value) =>
@@ -160,90 +333,130 @@ test("builds and edits compact filter rules with searchable multi-selects", asyn
         theme,
       );
       await page.mouse.move(700, 500);
-      await page.screenshot({ path: `/tmp/mnemo-74-rules-${theme}.png` });
+      await page.screenshot({ path: `/tmp/mnemo-74-groups-${theme}.png` });
     }
-    await panel
-      .getByRole("button", { name: "Ajouter un filtre", exact: true })
-      .click();
-    await classes.fill("introuvable");
-    await expect(
-      page.getByText("Aucun résultat", { exact: true }),
-    ).toBeVisible();
-    await classes.press("Escape");
-    await classes.fill("IfcWall");
-    await page.screenshot({ path: "/tmp/mnemo-74-dropdown.png" });
-    await classes.press("Escape");
-    await form
-      .getByRole("button", { name: "Annuler le filtre", exact: true })
-      .click();
     await page.setViewportSize({ width: 390, height: 844 });
-    await panel
-      .getByRole("button", { name: "Ajouter un filtre", exact: true })
-      .click();
-    await selectOption(classes, "IfcWall");
-    await expect(
-      form.getByRole("button", { name: "Ajouter le filtre", exact: true }),
-    ).toBeInViewport();
-    await classes.click();
-    const popup = page.getByRole("listbox");
-    await expect(popup).toBeInViewport();
-    const popupBounds = await popup.boundingBox();
-    expect(popupBounds!.x).toBeGreaterThanOrEqual(0);
-    expect(popupBounds!.x + popupBounds!.width).toBeLessThanOrEqual(390);
-    await page.screenshot({ path: "/tmp/mnemo-74-rules-mobile.png" });
-    await classes.press("Escape");
-    await form
-      .getByRole("button", { name: "Annuler le filtre", exact: true })
-      .click();
-    await expect(
-      panel.getByRole("button", { name: "Ajouter un filtre", exact: true }),
-    ).toBeFocused();
-    const mobilePanel = await panel.boundingBox();
-    const mobileDelete = await rules
-      .getByRole("button", { name: /^Supprimer/ })
-      .first()
-      .boundingBox();
-    expect(mobileDelete!.x + mobileDelete!.width).toBeLessThanOrEqual(
-      mobilePanel!.x + mobilePanel!.width,
-    );
-    await panel
-      .getByRole("button", { name: "Options d’affichage", exact: true })
-      .click();
-    await panel
-      .getByRole("button", { name: "Coloriser par niveau", exact: true })
-      .click();
-    const palette = rules.getByRole("listitem", {
-      name: /^Coloriser par niveau/,
-    });
-    await expect(palette.getByRole("checkbox")).toBeChecked();
-    await palette.getByRole("button", { name: /^Supprimer/ }).click();
-    await expect(rules.getByRole("listitem")).toHaveCount(2);
-    // External visual resets also remove the corresponding configured rules.
+    const bounds = await panel.boundingBox();
+    for (const button of await structure.getByRole("button").all()) {
+      if (!(await button.isVisible())) continue;
+      const buttonBounds = await button.boundingBox();
+      expect(buttonBounds!.x + buttonBounds!.width).toBeLessThanOrEqual(
+        bounds!.x + bounds!.width,
+      );
+    }
+    const save = panel
+      .locator("footer")
+      .getByRole("button", { name: "Enregistrer", exact: true });
+    await expect(save).toBeInViewport();
+    await page.screenshot({ path: "/tmp/mnemo-74-groups-mobile.png" });
     await page.setViewportSize({ width: 1440, height: 1000 });
-    await page
-      .locator('[aria-label="Modificateurs actifs"]')
-      .getByRole("button", { name: /^Retirer/ })
-      .click();
-    await expect(rules).toHaveCount(0);
-    await panel
-      .getByRole("button", { name: "Ajouter un filtre", exact: true })
-      .click();
-    await selectOption(classes, "IfcWall");
-    await form
-      .getByRole("button", { name: "Ajouter le filtre", exact: true })
-      .click();
-    await expect(rules.getByRole("listitem")).toHaveCount(1);
-    await panel
-      .getByRole("button", { name: "Réinitialiser les filtres", exact: true })
-      .click();
-    await expect(rules).toHaveCount(0);
+    await modelSelect.selectOption(otherModelId);
+    await expect(filterBadge).toHaveCount(0);
+    await modelSelect.selectOption(initialModelId);
+    await expect(filterBadge).toHaveText("1");
+    await expect(
+      structure.getByRole("checkbox", { name: /^Activer le groupe/ }),
+    ).toBeChecked();
+    await expect(save).toBeEnabled();
     expect(
       await canvas.evaluate(
         (node, original) => node === original,
         originalCanvas,
       ),
     ).toBe(true);
+    // A failed save retains the local draft and can be retried.
+    await page.route("**/viewer", async (route) => {
+      if (route.request().method() === "POST") await route.abort();
+      else await route.continue();
+    });
+    await save.click();
+    await expect(panel.getByText(/Enregistrement impossible/)).toBeVisible();
+    await page.unroute("**/viewer");
+    await save.click();
+    await expect(
+      panel.getByText("Filtres enregistrés dans le dossier.", { exact: true }),
+    ).toBeVisible();
+    await expect(save).toBeDisabled();
+    await modelSelect.selectOption(otherModelId);
+    await expect(
+      panel.getByRole("region", { name: "Groupe Mes filtres", exact: true }),
+    ).toBeVisible();
+    await modelSelect.selectOption(initialModelId);
+    await expect(
+      structure.getByRole("checkbox", { name: /^Activer le groupe/ }),
+    ).toBeChecked();
+    await expect(save).toBeDisabled();
+    await gotoHydrated(page, `${href}/viewer`);
+    await expect(canvas).toBeVisible({ timeout: 120_000 });
+    await expect(filterBadge).toHaveText("1");
+    await tools
+      .getByRole("button", { name: "Filtres IFC", exact: true })
+      .click();
+    await expect(
+      structure.getByRole("checkbox", { name: /^Activer le groupe/ }),
+    ).toBeChecked();
+    await expect(structure.getByRole("listitem")).toHaveCount(3);
+    await expect(
+      structure.getByRole("checkbox", {
+        name: "Coloriser · IfcDoor",
+        exact: true,
+      }),
+    ).not.toBeChecked();
+    await expect(
+      doors.getByRole("checkbox", { name: /^Activer le groupe/ }),
+    ).not.toBeChecked();
+    await expect(
+      palette.getByRole("checkbox", { name: /^Activer le groupe/ }),
+    ).not.toBeChecked();
+    await expect(
+      page
+        .locator('[aria-label="Modificateurs actifs"]')
+        .getByRole("button", { name: /^2 filtres actifs/ }),
+    ).toBeVisible();
+    await panel
+      .getByRole("button", { name: "Réglages du contexte", exact: true })
+      .click();
+    await expect(
+      panel.getByRole("slider", { name: "Opacité du contexte" }),
+    ).toHaveValue("24");
+    await panel
+      .getByRole("button", { name: "Réglages du contexte", exact: true })
+      .click();
+    await page
+      .locator('[aria-label="Modificateurs actifs"]')
+      .getByRole("button", { name: /^Retirer/ })
+      .click();
+    await expect(
+      structure.getByRole("checkbox", { name: /^Activer le groupe/ }),
+    ).not.toBeChecked();
+    await expect(structure.getByRole("listitem")).toHaveCount(3);
+    await expect(filterBadge).toHaveCount(0);
+    await structure
+      .getByRole("listitem", { name: /^Isoler/ })
+      .getByRole("button", { name: /^Modifier/ })
+      .click();
+    while (await notifications.count()) await notifications.first().click();
+    await page
+      .getByRole("button", { name: "Fermer le message", exact: true })
+      .click();
+    await page.setViewportSize({ width: 390, height: 844 });
+    const selectedClasses = structure.getByRole("list", {
+      name: "Sélection de Classes IFC",
+      exact: true,
+    });
+    await selectedClasses.scrollIntoViewIfNeeded();
+    await expect(selectedClasses.getByRole("button")).toHaveCount(2);
+    const chipBounds = await selectedClasses.boundingBox();
+    expect(chipBounds!.x + chipBounds!.width).toBeLessThanOrEqual(390);
+    await page.screenshot({ path: "/tmp/mnemo-74-chips-mobile.png" });
+    await structure
+      .getByRole("form")
+      .getByRole("button", { name: "Annuler le filtre", exact: true })
+      .click();
     expect(errors).toEqual([]);
+  } catch (error) {
+    await page.screenshot({ path: "/tmp/mnemo-74-groups-failure.png" });
+    throw error;
   } finally {
     await gotoHydrated(page, href);
     page.once("dialog", (dialog) => void dialog.accept());

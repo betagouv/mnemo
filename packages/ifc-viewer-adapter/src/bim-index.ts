@@ -76,6 +76,8 @@ export function createIfcBimIndex(
   }
 
   const findIds = (query: IfcBimQuery) => {
+    const classes = query.ifcClasses?.filter((name) => typeCounts.has(name));
+    if (query.ifcClasses?.length && !classes?.length) return [];
     const byStorey = query.storeyIds?.length
       ? new Set(
           query.storeyIds.flatMap((id) =>
@@ -90,7 +92,7 @@ export function createIfcBimIndex(
       ? [
           ...queryApi
             .ofType(
-              ...query.ifcClasses.map((name) =>
+              ...(classes ?? []).map((name) =>
                 name === "IfcEntity" ? "Unknown" : name,
               ),
             )

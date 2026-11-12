@@ -37,8 +37,6 @@ import type {
   IfcViewerRuntime,
   IfcViewerSnapshot,
   IfcVisualPlan,
-  IfcVisualColorGroup,
-  IfcVisualSnapshot,
   LayerVisibility,
   LoadIfcInput,
   LoadPointCloudInput,
@@ -139,6 +137,7 @@ export class IfcViewerController {
   private isolatedIds: Set<number> | null = null;
   private ghostExceptIds: Set<number> | null = null;
   private colorOverrides = new Map<number, [number, number, number, number]>();
+  private selectionIsolationBase: IfcVisualPlan | null = null;
   private readonly pointCloudLayers: PointCloudLayers;
   private projectionSwitchGeneration = 0;
   private backgroundColor: [number, number, number, number] = [
@@ -389,13 +388,13 @@ export class IfcViewerController {
   setActiveModel(assetId: string) {
     const model = this.models.get(assetId);
     if (!model || this.snapshot.activeModelId === assetId) return;
-    this.resetVisuals();
     this.selectEntity(null);
     this.updateSnapshot({
       activeModelId: assetId,
       catalog: model.bimIndex.catalog,
       processing: model.processing,
     });
+    this.resetVisuals();
   }
 
   getBimElements(
@@ -761,43 +760,70 @@ export class IfcViewerController {
     });
   }
 
-  getStoreyColorGroups(): IfcVisualColorGroup[] {
-    const storeys = this.snapshot.catalog?.storeys ?? [];
-    const palette = [
-      [0.24, 0.62, 0.98, 1],
-      [0.93, 0.32, 0.3, 1],
-      [0.55, 0.36, 0.96, 1],
-      [0.12, 0.72, 0.48, 1],
-      [0.96, 0.65, 0.18, 1],
-      [0.91, 0.3, 0.66, 1],
-    ] as const;
-    return storeys.map((storey, index) => ({
-      ids: this.findBimIds({ storeyIds: [storey.expressId] }),
-      color: palette[index % palette.length],
-    }));
-  }
-
-  colorByStorey() {
-    this.applyVisualPlan({
-      ...this.getVisualPlan(),
-      colors: this.getStoreyColorGroups(),
-      label: "Palette par niveau",
-    });
-  }
-
   setIsolationContext(showContext: boolean, contextOpacity: number) {
-    const opacity = Math.min(0.9, Math.max(0.02, contextOpacity));
-    const focusIds = this.ghostExceptIds ?? this.isolatedIds;
-    this.updateVisualSnapshot({ showContext, contextOpacity: opacity });
-
-    if (this.snapshot.visual.mode === "isolate" && focusIds) {
-      this.isolatedIds = showContext ? null : new Set(focusIds);
-      this.ghostExceptIds = showContext ? new Set(focusIds) : null;
-      this.renderer.requestRender();
+    const context = {
+      showContext,
+      contextOpacity: Math.min(0.9, Math.max(0.02, contextOpacity)),
+    };
+    if (this.selectionIsolationBase) {
+      this.selectionIsolationBase = {
+        ...this.selectionIsolationBase,
+        ...context,
+      };
     }
+    const focusIds = this.ghostExceptIds ?? this.isolatedIds;
+    const previousContext = this.ghostExceptIds;
+    this.isolatedIds = focusIds && !showContext ? focusIds : null;
+    this.ghostExceptIds = focusIds && showContext ? focusIds : null;
+    if (previousContext !== this.ghostExceptIds) this.syncColorOverrides();
+    this.updateSnapshot({
+      visual: { ...this.snapshot.visual, ...context },
+      visualRevision: this.snapshot.visualRevision + 1,
+    });
+    this.renderer.requestRender();
   }
 
   applyVisualPlan(plan: IfcVisualPlan) {
+    this.selectionIsolationBase = null;
+    this.commitVisualPlan(plan, false, this.snapshot.visualRevision + 1);
+  }
+
+  isolateSelection() {
+    if (this.disposed) return;
+    const ids = [...this.selectedEntityIds].filter(
+      (id) =>
+        this.federation.fromGlobalId(id)?.modelId ===
+        this.snapshot.activeModelId,
+    );
+    if (!ids.length) return;
+    this.selectionIsolationBase ??= this.getVisualPlan();
+    const selected = new Set(ids);
+    const plan = this.selectionIsolationBase;
+    this.commitVisualPlan(
+      {
+        ...plan,
+        focusIds: ids,
+        hiddenIds: [...(plan.hiddenIds ?? [])].filter(
+          (id) => !selected.has(id),
+        ),
+        label: "Sélection isolée",
+      },
+      true,
+    );
+  }
+
+  clearSelectionIsolation() {
+    const previous = this.selectionIsolationBase;
+    if (!previous) return;
+    this.selectionIsolationBase = null;
+    this.commitVisualPlan(previous, false);
+  }
+
+  private commitVisualPlan(
+    plan: IfcVisualPlan,
+    selectionIsolationActive: boolean,
+    visualRevision = this.snapshot.visualRevision,
+  ) {
     this.hiddenIds = new Set(plan.hiddenIds ?? []);
     const focusIds = plan.focusIds ? new Set(plan.focusIds) : null;
     const showContext = plan.showContext ?? this.snapshot.visual.showContext;
@@ -821,6 +847,8 @@ export class IfcViewerController {
 
     this.syncColorOverrides();
     this.updateSnapshot({
+      selectionIsolationActive,
+      visualRevision,
       visual: {
         mode: focusIds
           ? "isolate"
@@ -874,6 +902,7 @@ export class IfcViewerController {
     if (this.disposed) return;
 
     this.disposed = true;
+    this.selectionIsolationBase = null;
     this.floorPlans.clear();
     this.modelLoader.dispose();
     this.selectionGeneration += 1;
@@ -1065,7 +1094,19 @@ export class IfcViewerController {
 
   private syncColorOverrides() {
     const scene = this.renderer.getScene();
-    if (this.colorOverrides.size === 0) {
+    // IFC-Lite promotes entity color overrides to the opaque render pass.
+    // Keep the full requested palette in the visual plan, and send colors
+    // only for focused elements while the surrounding model is ghosted.
+    const colors = this.ghostExceptIds
+      ? new Map<number, [number, number, number, number]>()
+      : this.colorOverrides;
+    if (this.ghostExceptIds && this.colorOverrides.size) {
+      for (const id of this.ghostExceptIds) {
+        const color = this.colorOverrides.get(id);
+        if (color) colors.set(id, color);
+      }
+    }
+    if (colors.size === 0) {
       scene.clearColorOverrides();
       return;
     }
@@ -1073,7 +1114,7 @@ export class IfcViewerController {
     const device = this.renderer.getGPUDevice();
     const pipeline = this.renderer.getPipeline();
     if (device && pipeline) {
-      scene.setColorOverrides(this.colorOverrides, device, pipeline);
+      scene.setColorOverrides(colors, device, pipeline);
     }
   }
 
@@ -1168,13 +1209,6 @@ export class IfcViewerController {
         next,
       ],
     });
-  }
-
-  private updateVisualSnapshot(update: Partial<IfcVisualSnapshot>) {
-    this.updateSnapshot({
-      visual: { ...this.snapshot.visual, ...update },
-    });
-    this.renderer.requestRender();
   }
 
   private updatePointCloudSnapshot(

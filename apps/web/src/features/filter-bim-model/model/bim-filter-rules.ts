@@ -1,25 +1,18 @@
-import type { IfcBimQuery, IfcVisualPlan } from "@mnemo/ifc-viewer-adapter";
+import type { IfcVisualPlan } from "@mnemo/ifc-viewer-adapter";
+import type { BimFilterRule } from "@mnemo/contracts/bim-filters";
 import type { BimFilterViewer } from "./viewer-target";
 
-export type BimFilterAction = "isolate" | "hide" | "color";
-export type BimFilterDraft = {
-  query: IfcBimQuery;
-  action: BimFilterAction;
-  color: string;
-};
-export type BimFilterRule = { id: string; enabled: boolean } & (
-  BimFilterDraft | { action: "storey-colors" }
-);
+export type { BimFilterRule } from "@mnemo/contracts/bim-filters";
+export type BimFilterDraft = Omit<BimFilterRule, "id" | "enabled">;
 export const bimFilterActionLabels = {
   isolate: "Isoler",
   hide: "Masquer",
   color: "Coloriser",
-  "storey-colors": "Coloriser par niveau",
 } as const;
 
 export function buildBimFilterPlan(
   rules: readonly BimFilterRule[],
-  viewer: Pick<BimFilterViewer, "findBimIds" | "getStoreyColorGroups">,
+  viewer: Pick<BimFilterViewer, "findBimIds">,
   base: IfcVisualPlan,
 ): IfcVisualPlan {
   const enabled = rules.filter((rule) => rule.enabled);
@@ -27,10 +20,6 @@ export function buildBimFilterPlan(
   let focusIds = base.focusIds ? new Set(base.focusIds) : null;
   const colors = Array.from(base.colors ?? []);
   for (const rule of enabled) {
-    if (rule.action === "storey-colors") {
-      colors.push(...viewer.getStoreyColorGroups());
-      continue;
-    }
     const ids = viewer.findBimIds(rule.query);
     switch (rule.action) {
       case "isolate":

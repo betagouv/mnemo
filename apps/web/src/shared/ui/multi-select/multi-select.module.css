@@ -1,6 +1,26 @@
 .root {
   min-width: 0;
 }
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  list-style: none;
+  margin: 0.375rem 0 0;
+  padding: 0;
+}
+.chips > li {
+  min-width: 0;
+  max-width: 100%;
+  padding: 0;
+  margin: 0;
+}
+.chip:global(.fr-tag) {
+  max-width: 100%;
+  height: auto;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 .label {
   margin-bottom: 0.25rem;
   font-size: 0.875rem;

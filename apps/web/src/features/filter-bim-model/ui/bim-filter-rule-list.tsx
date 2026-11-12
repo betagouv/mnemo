@@ -16,21 +16,20 @@ export function BimFilterRuleList({
   onToggle,
   onEdit,
   onRemove,
+  onDuplicate,
 }: {
   rules: BimFilterRule[];
   catalog: IfcBimCatalog;
   onToggle: (id: string) => void;
   onEdit: (id: string) => void;
   onRemove: (id: string) => void;
+  onDuplicate: (id: string) => void;
 }) {
   return (
     <ul className={styles.rules} aria-label="Filtres configurés">
       {rules.map((rule) => {
         const action = bimFilterActionLabels[rule.action];
-        const criteria =
-          rule.action === "storey-colors"
-            ? "Tous les niveaux"
-            : bimFilterLabel(catalog, rule.query);
+        const criteria = bimFilterLabel(catalog, rule.query);
         const label = `${action} · ${criteria}`;
         return (
           <li
@@ -68,15 +67,20 @@ export function BimFilterRuleList({
               ]}
             />
             <div className={styles.ruleActions}>
-              {rule.action !== "storey-colors" ? (
-                <Button
-                  size="small"
-                  priority="tertiary no outline"
-                  iconId="fr-icon-edit-line"
-                  title={`Modifier ${label}`}
-                  onClick={() => onEdit(rule.id)}
-                />
-              ) : null}
+              <Button
+                size="small"
+                priority="tertiary no outline"
+                iconId="fr-icon-edit-line"
+                title={`Modifier ${label}`}
+                onClick={() => onEdit(rule.id)}
+              />
+              <Button
+                size="small"
+                priority="tertiary no outline"
+                iconId="ri-file-copy-line"
+                title={`Dupliquer ${label}`}
+                onClick={() => onDuplicate(rule.id)}
+              />
               <Button
                 size="small"
                 priority="tertiary no outline"

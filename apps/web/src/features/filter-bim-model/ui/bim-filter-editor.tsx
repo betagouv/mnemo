@@ -77,6 +77,7 @@ export function BimFilterEditor({
       </div>
       <MultiSelect
         label="Classes IFC"
+        showSelectedChips
         autoFocus={autoFocus}
         options={classes}
         value={Array.from(draft.query.ifcClasses ?? [])}
@@ -87,6 +88,7 @@ export function BimFilterEditor({
       />
       <MultiSelect
         label="Niveaux"
+        showSelectedChips
         options={levels}
         value={(draft.query.storeyIds ?? []).map(String)}
         placeholder="Tous les niveaux"

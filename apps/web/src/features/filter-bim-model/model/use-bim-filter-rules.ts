@@ -1,93 +1,137 @@
 "use client";
-
-import { useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
+import type { IfcVisualPlan } from "@mnemo/ifc-viewer-adapter";
 import type {
-  IfcVisualPlan,
-  IfcVisualSnapshot,
-} from "@mnemo/ifc-viewer-adapter";
+  BimFilterGroup,
+  BimFilterSettings,
+} from "@mnemo/contracts/bim-filters";
+import type { BimFilterControls } from "./bim-filter-controls";
 import type { BimFilterViewer } from "./viewer-target";
+import { buildBimFilterPlan } from "./bim-filter-rules";
 import {
-  buildBimFilterPlan,
-  type BimFilterDraft,
-  type BimFilterRule,
-} from "./bim-filter-rules";
-
-type FilterState = {
-  rules: BimFilterRule[];
-  base: IfcVisualPlan | null;
-  visual: IfcVisualSnapshot;
-};
+  activeBimFilterRules,
+  haveSameBimFilterEffects,
+} from "./bim-filter-groups";
 
 export function useBimFilterRules(
   getViewer: () => BimFilterViewer | null,
-  visual: IfcVisualSnapshot,
+  assetId: string,
+  initial: BimFilterSettings,
+  onChange: (settings: BimFilterSettings) => void,
 ) {
-  const [state, setState] = useState<FilterState>({
-    rules: [],
-    base: null,
-    visual,
+  const [settings, setSettings] = useState(initial);
+  const current = useRef(initial);
+  const base = useRef<IfcVisualPlan | null>(null);
+  const applying = useRef(false);
+  function publish(next: BimFilterSettings) {
+    current.current = next;
+    setSettings(next);
+    onChange(next);
+  }
+  const onExternalVisualChange = useEffectEvent(() => {
+    publish({
+      ...current.current,
+      groups: current.current.groups.map((group) => ({
+        ...group,
+        enabled: false,
+      })),
+    });
   });
-  // A viewpoint, undo or external reset replaces the scene's visual plan.
-  if (state.visual !== visual) setState({ rules: [], base: null, visual });
+  useEffect(() => {
+    const viewer = getViewer();
+    if (!viewer) return;
+    base.current ??= viewer.getVisualPlan();
+    let lastRevision = viewer.getSnapshot().visualRevision;
+    const unsubscribe = viewer.subscribe((snapshot) => {
+      if (snapshot.activeModelId !== assetId) return;
+      if (snapshot.visualRevision === lastRevision) return;
+      lastRevision = snapshot.visualRevision;
+      if (applying.current) return;
+      // Scene resets and BCF viewpoints retain definitions and disable effects.
+      base.current = viewer.getVisualPlan();
+      onExternalVisualChange();
+    });
+    applying.current = true;
+    viewer.applyVisualPlan(
+      buildBimFilterPlan(activeBimFilterRules(current.current), viewer, {
+        ...base.current,
+        showContext: current.current.showContext,
+        contextOpacity: current.current.contextOpacity,
+      }),
+    );
+    applying.current = false;
+    return () => {
+      unsubscribe();
+    };
+  }, [getViewer, assetId]);
 
-  function apply(rules: BimFilterRule[], base = state.base) {
+  function changeGroups(groups: BimFilterGroup[]) {
     const viewer = getViewer();
     if (!viewer) return;
-    const baseline = base ?? viewer.getVisualPlan();
-    viewer.applyVisualPlan(buildBimFilterPlan(rules, viewer, baseline));
-    setState({
-      rules,
-      base: rules.length ? baseline : null,
-      visual: viewer.getSnapshot().visual,
-    });
-  }
-  function save(draft: BimFilterDraft, id?: string) {
-    if (id) {
-      apply(
-        state.rules.map((rule) =>
-          rule.id === id ? { ...draft, id, enabled: rule.enabled } : rule,
-        ),
-      );
-    } else {
-      apply([
-        ...state.rules,
-        { ...draft, id: crypto.randomUUID(), enabled: true },
-      ]);
+    const next = { ...current.current, groups };
+    if (!haveSameBimFilterEffects(current.current, next)) {
+      applying.current = true;
+      try {
+        viewer.applyVisualPlan(
+          buildBimFilterPlan(activeBimFilterRules(next), viewer, {
+            ...base.current,
+            showContext: next.showContext,
+            contextOpacity: next.contextOpacity,
+          }),
+        );
+      } finally {
+        applying.current = false;
+      }
     }
+    publish(next);
   }
-  function reset() {
+
+  function changeContext(
+    context: Pick<BimFilterSettings, "showContext" | "contextOpacity">,
+  ) {
     const viewer = getViewer();
     if (!viewer) return;
-    viewer.resetVisuals();
-    setState({ rules: [], base: null, visual: viewer.getSnapshot().visual });
-  }
-  function setContext(show: boolean, opacity: number) {
-    const viewer = getViewer();
-    if (!viewer) return;
-    const base = state.base ?? viewer.getVisualPlan();
-    viewer.setIsolationContext(show, opacity);
-    setState({
-      ...state,
-      base: { ...base, showContext: show, contextOpacity: opacity },
-      visual: viewer.getSnapshot().visual,
+    applying.current = true;
+    try {
+      viewer.setIsolationContext(context.showContext, context.contextOpacity);
+    } finally {
+      applying.current = false;
+    }
+    publish({
+      ...current.current,
+      showContext: context.showContext,
+      contextOpacity: context.contextOpacity,
     });
   }
-  return {
-    rules: state.rules,
-    save,
-    reset,
-    setContext,
-    addStoreyColors: () =>
-      apply([
-        ...state.rules,
-        { id: crypto.randomUUID(), enabled: true, action: "storey-colors" },
-      ]),
-    remove: (id: string) => apply(state.rules.filter((rule) => rule.id !== id)),
-    toggle: (id: string) =>
-      apply(
-        state.rules.map((rule) =>
-          rule.id === id ? { ...rule, enabled: !rule.enabled } : rule,
-        ),
-      ),
+
+  const resetVisuals: BimFilterControls["resetVisuals"] = () => {
+    const viewer = getViewer();
+    if (!viewer) return null;
+    const previousSettings = current.current;
+    const previousBase = base.current;
+    const previousPlan = viewer.getVisualPlan();
+    viewer.resetVisuals();
+    const expectedVisual = viewer.getSnapshot().visual;
+    const expectedSettings = current.current;
+    const canUndo = () =>
+      getViewer() === viewer &&
+      viewer.getSnapshot().activeModelId === assetId &&
+      viewer.getSnapshot().visual === expectedVisual &&
+      current.current === expectedSettings;
+    return {
+      canUndo,
+      undo() {
+        if (!canUndo()) return;
+        applying.current = true;
+        try {
+          base.current = previousBase;
+          viewer.applyVisualPlan(previousPlan);
+        } finally {
+          applying.current = false;
+        }
+        publish(previousSettings);
+      },
+    };
   };
+  return { settings, changeGroups, changeContext, resetVisuals };
 }

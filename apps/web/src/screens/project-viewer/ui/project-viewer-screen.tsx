@@ -1,5 +1,6 @@
 import { getMeasurementService } from "@/server/measurements/measurement-service-factory";
 import { getFloorPlanService } from "@/server/floor-plans/floor-plan-service-factory";
+import { getBimFilterService } from "@/server/bim-filters/bim-filter-service-factory";
 import { projectIdSchema } from "@mnemo/contracts/projects";
 import { hasProjectPermission } from "@mnemo/domain/project";
 import { notFound } from "next/navigation";
@@ -30,14 +31,16 @@ export async function ProjectViewerScreen({
   if (!project) notFound();
 
   const canReadBcf = hasProjectPermission(project, "bcf:read");
-  const [assets, floorPlans, measurements, bcfTopics] = await Promise.all([
-    getAssetService().list(actorId, project.id),
-    getFloorPlanService().list(actorId, project.id),
-    getMeasurementService().list(actorId, project.id),
-    canReadBcf
-      ? getBcfTopicService().summaries(actorId, project.id)
-      : Promise.resolve([]),
-  ]);
+  const [assets, floorPlans, measurements, bimFilters, bcfTopics] =
+    await Promise.all([
+      getAssetService().list(actorId, project.id),
+      getFloorPlanService().list(actorId, project.id),
+      getMeasurementService().list(actorId, project.id),
+      getBimFilterService().list(actorId, project.id),
+      canReadBcf
+        ? getBcfTopicService().summaries(actorId, project.id)
+        : Promise.resolve([]),
+    ]);
   const ifcSources = assets
     .filter((asset) => asset.kind === "ifc" && asset.status === "ready")
     .map((asset) => ({
@@ -149,8 +152,10 @@ export async function ProjectViewerScreen({
           assistantSessions={assistantSessions}
           initialBcfTopics={bcfTopics}
           initialFloorPlans={floorPlans}
+          initialBimFilters={bimFilters}
           initialMeasurements={measurements}
           canManageFloorPlans={hasProjectPermission(project, "project:update")}
+          canManageBimFilters={hasProjectPermission(project, "project:update")}
           bcfPermissions={{
             read: canReadBcf,
             createTopic: hasProjectPermission(project, "bcf:topic:create"),

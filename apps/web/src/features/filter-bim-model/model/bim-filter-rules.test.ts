@@ -2,16 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 import type { IfcVisualPlan } from "@mnemo/ifc-viewer-adapter";
 import { buildBimFilterPlan, type BimFilterRule } from "./bim-filter-rules";
 
-const walls = { ifcClasses: ["IfcWall"] };
-const doors = { ifcClasses: ["IfcDoor"] };
+const walls = { ifcClasses: ["IfcWall"], storeyIds: [] };
+const doors = { ifcClasses: ["IfcDoor"], storeyIds: [] };
 function source() {
   return {
     findBimIds: vi.fn((query: { ifcClasses?: readonly string[] }) =>
       query.ifcClasses?.includes("IfcWall") ? [1, 2] : [3],
     ),
-    getStoreyColorGroups: vi.fn(() => [
-      { ids: [1, 2, 3], color: [0.2, 0.4, 0.6, 1] as const },
-    ]),
   };
 }
 const rules = [
@@ -74,18 +71,13 @@ describe("BIM filter rule composition", () => {
     expect(viewer.findBimIds).not.toHaveBeenCalledWith(doors);
   });
 
-  it("uses rule order for colors and supports the storey palette", () => {
+  it("uses rule order for overlapping colors", () => {
     const plan = buildBimFilterPlan(
-      [
-        { id: "palette", enabled: true, action: "storey-colors" },
-        rules[3],
-        { ...rules[3], id: "green", color: "#00ff00" },
-      ],
+      [rules[3], { ...rules[3], id: "green", color: "#00ff00" }],
       source(),
       {},
     );
     expect(Array.from(plan.colors ?? []).map((group) => group.color)).toEqual([
-      [0.2, 0.4, 0.6, 1],
       [1, 0, 0, 1],
       [0, 1, 0, 1],
     ]);

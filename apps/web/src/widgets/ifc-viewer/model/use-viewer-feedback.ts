@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useState } from "react";
 import type { IfcViewerController } from "@mnemo/ifc-viewer-adapter";
+import type { BimFilterControls } from "@/features/filter-bim-model";
 import type { ViewerActiveModifier } from "./viewer-active-modifiers";
 export type ViewerFeedback = {
   message: string;
@@ -11,6 +12,7 @@ export function useViewerFeedback(
   getViewer: () => IfcViewerController | null,
   hiddenCloudIds: ReadonlySet<string>,
   showCloud: (id: string, visible: boolean) => void,
+  resetBimFilters: BimFilterControls["resetVisuals"],
 ) {
   const [feedback, setFeedback] = useState<ViewerFeedback | null>(null);
   const dismiss = useCallback(() => setFeedback(null), []);
@@ -29,17 +31,15 @@ export function useViewerFeedback(
             ? viewer.showSectionBox()
             : viewer.showSectionPlane(),
       });
+    } else if (modifier.reset === "selection-isolation") {
+      viewer.clearSelectionIsolation();
+      setFeedback(null);
     } else if (modifier.reset === "visual") {
-      const plan = viewer.getVisualPlan();
-      const assetId = viewer.getSnapshot().activeModelId;
-      viewer.resetVisuals();
-      const expected = viewer.getSnapshot().visual;
+      const restoration = resetBimFilters();
+      if (!restoration) return;
       setFeedback({
         message: "Affichage réinitialisé",
-        canUndo: () =>
-          viewer.getSnapshot().activeModelId === assetId &&
-          viewer.getSnapshot().visual === expected,
-        undo: () => viewer.applyVisualPlan(plan),
+        ...restoration,
       });
     } else {
       viewer.resetLayerVisibility();

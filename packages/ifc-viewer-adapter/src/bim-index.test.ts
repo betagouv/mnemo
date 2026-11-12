@@ -168,6 +168,10 @@ describe("createIfcBimIndex", () => {
     const partial = createIfcBimIndex(createStore(), [1, 3]);
     expect(partial.count({ ifcClasses: ["IfcDoor"] })).toBe(0);
     expect(partial.findIds({ ifcClasses: ["IfcDoor"] })).toEqual([]);
+    expect(index.findIds({ ifcClasses: ["IfcObsoleteType"] })).toEqual([]);
+    expect(
+      index.findIds({ ifcClasses: ["IfcObsoleteType", "IfcWall"] }),
+    ).toEqual([1, 3]);
   });
 
   it("groups unassigned elements even when their IFC class is unavailable", () => {

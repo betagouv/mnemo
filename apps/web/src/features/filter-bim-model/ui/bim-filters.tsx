@@ -1,138 +1,167 @@
 "use client";
-
-import { useState } from "react";
+import { useId, useImperativeHandle, useState, type Ref } from "react";
 import Button from "@codegouvfr/react-dsfr/Button";
-import Accordion from "@codegouvfr/react-dsfr/Accordion";
-import Checkbox from "@codegouvfr/react-dsfr/Checkbox";
-import Range from "@codegouvfr/react-dsfr/Range";
-import type {
-  IfcBimCatalog,
-  IfcVisualSnapshot,
-} from "@mnemo/ifc-viewer-adapter";
+import Alert from "@codegouvfr/react-dsfr/Alert";
+import type { IfcBimCatalog } from "@mnemo/ifc-viewer-adapter";
+import {
+  bimFilterSettingsSchema,
+  type BimFilterSettings,
+} from "@mnemo/contracts/bim-filters";
 import type { BimFilterViewer } from "../model/viewer-target";
 import { useBimFilterRules } from "../model/use-bim-filter-rules";
-import { BimFilterEditor } from "./bim-filter-editor";
-import { BimFilterRuleList } from "./bim-filter-rule-list";
+import type { BimFilterControls } from "../model/bim-filter-controls";
+import { duplicateBimFilterGroup } from "../model/bim-filter-groups";
+import { BimFilterGroup } from "./bim-filter-group";
+import { BimFilterGroupName } from "./bim-filter-group-name";
+import { BimFilterContext } from "./bim-filter-context";
 import styles from "./bim-filter-panel.module.css";
 
 export function BimFilters({
   catalog,
-  visual,
+  assetId,
   getViewer,
+  initial,
+  saved,
+  hasDraft,
+  canSave,
+  busy,
+  message,
+  onChange,
+  onSave,
+  ref,
 }: {
   catalog: IfcBimCatalog;
-  visual: IfcVisualSnapshot;
+  assetId: string;
   getViewer: () => BimFilterViewer | null;
+  initial: BimFilterSettings;
+  saved?: BimFilterSettings;
+  hasDraft: boolean;
+  canSave: boolean;
+  busy: boolean;
+  message?: { error: boolean; text: string } | null;
+  onChange: (settings: BimFilterSettings) => void;
+  onSave: (settings: BimFilterSettings) => void;
+  ref?: Ref<BimFilterControls>;
 }) {
-  const filters = useBimFilterRules(getViewer, visual);
-  const [editor, setEditor] = useState<{
-    id: string;
-    autoFocus: boolean;
-  } | null>({ id: "new", autoFocus: false });
-  const editing = filters.rules.find((rule) => rule.id === editor?.id);
-  const showEditor = editor?.id === "new" || Boolean(editing);
-  const hasIsolation =
-    filters.rules.some((rule) => rule.enabled && rule.action === "isolate") ||
-    visual.mode === "isolate";
+  const { settings, changeGroups, changeContext, resetVisuals } =
+    useBimFilterRules(getViewer, assetId, initial, onChange);
+  useImperativeHandle(ref, () => ({ resetVisuals }), [resetVisuals]);
+  const [adding, setAdding] = useState(false);
+  const [contextOpen, setContextOpen] = useState(false);
+  const contextId = useId();
+  const validated = bimFilterSettingsSchema.safeParse(settings);
+  const previous = bimFilterSettingsSchema.safeParse(saved ?? initial);
+  const dirty =
+    !validated.success ||
+    !previous.success ||
+    (saved
+      ? JSON.stringify(validated.data) !== JSON.stringify(previous.data)
+      : hasDraft);
   return (
-    <div
-      className={`${styles.fields} flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4`}
-    >
-      <div className={styles.listHeading}>
-        <h3>Filtres ({filters.rules.length})</h3>
-        {filters.rules.length || visual.mode !== "all" ? (
-          <Button
-            size="small"
-            priority="tertiary no outline"
-            iconId="fr-icon-refresh-line"
-            title="Réinitialiser les filtres"
-            onClick={() => {
-              filters.reset();
-              setEditor({ id: "new", autoFocus: true });
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className={styles.workspaceHeading}>
+        <span className={styles.hint}>
+          Les groupes et leurs filtres se cumulent.
+        </span>
+        <Button
+          size="small"
+          priority="tertiary no outline"
+          iconId={
+            contextOpen ? "fr-icon-settings-5-fill" : "fr-icon-settings-5-line"
+          }
+          title="Réglages du contexte"
+          nativeButtonProps={{
+            "aria-expanded": contextOpen,
+            "aria-controls": contextId,
+          }}
+          onClick={() => setContextOpen(!contextOpen)}
+        />
+      </div>
+      <fieldset disabled={busy} className={styles.workspace}>
+        <legend className="fr-sr-only">Groupes de filtres</legend>
+        <div id={contextId} hidden={!contextOpen}>
+          <BimFilterContext settings={settings} onChange={changeContext} />
+        </div>
+        {settings.groups.map((group) => (
+          <BimFilterGroup
+            key={group.id}
+            group={group}
+            catalog={catalog}
+            getViewer={getViewer}
+            onChange={(updated) =>
+              changeGroups(
+                settings.groups.map((item) =>
+                  item.id === updated.id ? updated : item,
+                ),
+              )
+            }
+            onDuplicate={() =>
+              changeGroups([...settings.groups, duplicateBimFilterGroup(group)])
+            }
+            onRemove={() =>
+              changeGroups(
+                settings.groups.filter((item) => item.id !== group.id),
+              )
+            }
+          />
+        ))}
+        {adding ? (
+          <BimFilterGroupName
+            onCancel={() => setAdding(false)}
+            onSave={(name) => {
+              changeGroups([
+                ...settings.groups,
+                { id: crypto.randomUUID(), name, enabled: true, rules: [] },
+              ]);
+              setAdding(false);
             }}
           />
-        ) : null}
-      </div>
-      <p className={styles.hint}>Les filtres se cumulent dans la scène.</p>
-      {filters.rules.length ? (
-        <BimFilterRuleList
-          rules={filters.rules}
-          catalog={catalog}
-          onToggle={filters.toggle}
-          onEdit={(id) => setEditor({ id, autoFocus: true })}
-          onRemove={filters.remove}
-        />
-      ) : null}
-      {showEditor && editing?.action !== "storey-colors" ? (
-        <BimFilterEditor
-          key={editor?.id}
-          catalog={catalog}
-          getViewer={getViewer}
-          initial={editing}
-          editing={Boolean(editing)}
-          autoFocus={editor?.autoFocus}
-          onCancel={() => setEditor(null)}
-          onSave={(draft) => {
-            filters.save(draft, editing?.id);
-            setEditor(null);
-          }}
-        />
-      ) : (
-        <Button
-          className={styles.addButton}
-          nativeButtonProps={{ autoFocus: editor === null }}
-          size="small"
-          priority="secondary"
-          iconId="fr-icon-add-line"
-          onClick={() => setEditor({ id: "new", autoFocus: true })}
-        >
-          Ajouter un filtre
-        </Button>
-      )}
-      <Accordion label="Options d’affichage">
-        <div className="flex flex-col gap-3">
+        ) : (
           <Button
             size="small"
             priority="secondary"
-            disabled={!catalog.storeys.length}
-            onClick={filters.addStoreyColors}
+            iconId="fr-icon-add-line"
+            className={styles.addButton}
+            onClick={() => setAdding(true)}
           >
-            Coloriser par niveau
+            Créer un groupe
           </Button>
-          <Checkbox
-            options={[
-              {
-                label: "Garder le reste en transparence",
-                nativeInputProps: {
-                  disabled: !hasIsolation,
-                  checked: visual.showContext,
-                  onChange: (event) =>
-                    filters.setContext(
-                      event.target.checked,
-                      visual.contextOpacity,
-                    ),
-                },
-              },
-            ]}
-          />
-          <Range
+        )}
+      </fieldset>
+      <footer className={styles.saveBar}>
+        {!validated.success ? (
+          <Alert
             small
-            label="Opacité du contexte"
-            min={2}
-            max={50}
-            suffix=" %"
-            disabled={!hasIsolation || !visual.showContext}
-            nativeInputProps={{
-              value: Math.round(visual.contextOpacity * 100),
-              onChange: (event) =>
-                filters.setContext(
-                  visual.showContext,
-                  Number(event.target.value) / 100,
-                ),
-            }}
+            severity="error"
+            description="Vérifiez les filtres. Limite de 50 groupes et 500 filtres par maquette."
           />
-        </div>
-      </Accordion>
+        ) : null}
+        {message?.error ? (
+          <Alert small severity="error" description={message.text} />
+        ) : null}
+        <span className={styles.hint} role="status">
+          {busy
+            ? "Enregistrement…"
+            : dirty
+              ? "Modifications non enregistrées"
+              : (message?.text ?? "Filtres partagés dans le dossier")}
+        </span>
+        {canSave ? (
+          <Button
+            size="small"
+            iconId="fr-icon-save-line"
+            disabled={!dirty || busy || !validated.success}
+            onClick={() => onSave(settings)}
+          >
+            Enregistrer
+          </Button>
+        ) : (
+          <span className={styles.hint}>
+            Activation locale. L’enregistrement nécessite le droit de modifier
+            le dossier.
+          </span>
+        )}
+      </footer>
     </div>
   );
 }

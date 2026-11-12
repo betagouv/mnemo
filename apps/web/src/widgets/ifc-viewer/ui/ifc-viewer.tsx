@@ -8,10 +8,14 @@ import {
   MeasurementPanel,
   MeasurementOverlay,
 } from "@/features/measure-scene";
-import { useState, type CSSProperties } from "react";
+import { useRef, useState, type CSSProperties } from "react";
 
 import { useViewerFeedback } from "../model/use-viewer-feedback";
-import { BimFilterPanel } from "@/features/filter-bim-model";
+import {
+  BimFilterPanel,
+  type BimFilterControls,
+} from "@/features/filter-bim-model";
+import type { SavedBimFilters } from "@mnemo/contracts/bim-filters";
 import { useViewerPanels } from "../model/use-viewer-panels";
 import { useBcfViewer } from "@/features/manage-bcf-topics";
 import { ViewerLoadStatus } from "./viewer-load-status";
@@ -65,8 +69,10 @@ export function ProjectViewer({
   ifcSources,
   initialBcfTopics,
   initialFloorPlans,
+  initialBimFilters,
   initialMeasurements,
   canManageFloorPlans,
+  canManageBimFilters,
   pointCloudFailures,
   pointCloudSources,
   projectId,
@@ -85,8 +91,10 @@ export function ProjectViewer({
   ifcSources: ViewerIfcSource[];
   initialBcfTopics: BcfTopicSummary[];
   initialFloorPlans: SavedFloorPlan[];
+  initialBimFilters: SavedBimFilters[];
   initialMeasurements: SavedMeasurement[];
   canManageFloorPlans: boolean;
+  canManageBimFilters: boolean;
   pointCloudFailures: ViewerPointCloudFailure[];
   pointCloudSources: ViewerPointCloudSource[];
   projectId: string;
@@ -109,6 +117,8 @@ export function ProjectViewer({
     retry,
   } = useProjectScene({ ifcSources, pointCloudSources, projectId });
   const floorPlans = useFloorPlans(getViewer, projectId, initialFloorPlans);
+  const [activeFilterGroupCount, setActiveFilterGroupCount] = useState(0);
+  const bimFilterControls = useRef<BimFilterControls>(null);
 
   const {
     activePanel,
@@ -162,7 +172,12 @@ export function ProjectViewer({
     feedback,
     dismiss: dismissFeedback,
     reset: resetModifier,
-  } = useViewerFeedback(getViewer, hiddenPointCloudIds, setPointCloudVisible);
+  } = useViewerFeedback(
+    getViewer,
+    hiddenPointCloudIds,
+    setPointCloudVisible,
+    () => bimFilterControls.current?.resetVisuals() ?? null,
+  );
 
   const failedSource = ifcSources.find(
     (source) =>
@@ -182,11 +197,8 @@ export function ProjectViewer({
       style={
         {
           "--viewer-panel-width":
-            activePanel === "bcf" ||
-            activePanel === "floor-plan" ||
-            activePanel === "assistant"
-              ? "24rem"
-              : "20rem",
+            activePanelConfig?.width ?? viewerPanels.layers.width,
+          "--viewer-explorer-width": viewerPanels.layers.width,
         } as CSSProperties
       }
       data-explorer-pinned={(explorerPinned && hasToolPanel) || undefined}
@@ -379,6 +391,7 @@ export function ProjectViewer({
 
       <ViewerToolBar
         activeGroupId={activeToolGroup}
+        activeFilterGroupCount={activeFilterGroupCount}
         layerCount={ifcSources.length + pointCloudSources.length}
         sectionActive={snapshot.section.active !== null}
         bcfTopicCount={bcfTopicCount}
@@ -449,7 +462,15 @@ export function ProjectViewer({
           </div>
         ) : null}
         <div className="h-full min-h-0" hidden={activePanel !== "filters"}>
-          <BimFilterPanel snapshot={snapshot} getViewer={getViewer} />
+          <BimFilterPanel
+            ref={bimFilterControls}
+            snapshot={snapshot}
+            getViewer={getViewer}
+            projectId={projectId}
+            initial={initialBimFilters}
+            canSave={canManageBimFilters}
+            onActiveGroupCountChange={setActiveFilterGroupCount}
+          />
         </div>
         <ViewerPanelContent
           panel={activePanel}
