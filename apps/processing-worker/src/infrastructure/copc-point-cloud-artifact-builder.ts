@@ -6,6 +6,7 @@ import { join } from "node:path";
 import type { ObjectStorage } from "@mnemo/storage";
 
 import type {
+  ReportProcessingProgress,
   PointCloudArtifactBuilder,
   PointCloudAssetForProcessing,
   PointCloudProcessingResult,
@@ -60,7 +61,10 @@ export class CopcPointCloudArtifactBuilder implements PointCloudArtifactBuilder 
     private readonly outputPrefix: string,
   ) {}
 
-  async build(asset: PointCloudAssetForProcessing) {
+  async build(
+    asset: PointCloudAssetForProcessing,
+    reportProgress?: ReportProcessingProgress,
+  ) {
     if (!/\.(las|laz)$/i.test(asset.originalFileName)) return null;
     const workspace = await mkdtemp(join(tmpdir(), "mnemo-copc-"));
     const sourcePath = join(
@@ -71,7 +75,10 @@ export class CopcPointCloudArtifactBuilder implements PointCloudArtifactBuilder 
     const objectKey = `${this.outputPrefix}/cloud.copc.laz`;
     try {
       const stagedAt = Date.now();
-      await stageOriginal(this.storage, asset, sourcePath);
+      reportProgress?.({ phase: "downloading", percent: 0 });
+      await stageOriginal(this.storage, asset, sourcePath, (percent) =>
+        reportProgress?.({ phase: "downloading", percent }),
+      );
       console.info("Point cloud source staged", {
         assetId: asset.id,
         bytes: asset.sizeBytes,
@@ -81,10 +88,13 @@ export class CopcPointCloudArtifactBuilder implements PointCloudArtifactBuilder 
       if (!sourceInfo) {
         const conversionStartedAt = Date.now();
         console.info("COPC conversion started", { assetId: asset.id });
+        reportProgress?.({ phase: "converting", percent: 0 });
         await this.converter.convert({
           sourcePath,
           outputPath,
           tempDirectory: join(workspace, "untwine-temp"),
+          onProgress: (percent) =>
+            reportProgress?.({ phase: "converting", percent }),
         });
         console.info("COPC conversion completed", {
           assetId: asset.id,
@@ -97,6 +107,7 @@ export class CopcPointCloudArtifactBuilder implements PointCloudArtifactBuilder 
       const info = sourceInfo ?? (await inspectCopc(publishedPath));
       if (!info) throw new Error("Converter output is not a valid COPC file");
       const { size } = await stat(publishedPath);
+      reportProgress?.({ phase: "publishing", percent: null });
       await this.storage.writeObjectStream({
         objectKey,
         contentType: "application/vnd.laszip",

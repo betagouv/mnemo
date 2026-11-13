@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { processingProgressSchema } from "@mnemo/contracts/assets";
 
 const uuid = z.uuid();
 
@@ -56,4 +57,14 @@ export function remotePointCloudPrefix(job: RemotePointCloudJob) {
 
 export function remotePointCloudOutcomeKey(job: RemotePointCloudJob) {
   return `${remotePointCloudPrefix(job)}/result.json`;
+}
+
+export const remotePointCloudProgressSchema = z.strictObject({
+  jobId: uuid,
+  attempt: z.number().int().positive(),
+  sequence: z.number().int().positive().safe(),
+  progress: processingProgressSchema,
+});
+export function remotePointCloudProgressKey(job: RemotePointCloudJob) {
+  return `${remotePointCloudPrefix(job)}/progress.json`;
 }

@@ -218,6 +218,7 @@ model point_cloud_settings {
 }
 
 model processing_jobs {
+  progress     Json?
   id           String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   asset_id     String                @db.Uuid
   type         processing_job_type

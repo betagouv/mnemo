@@ -36,6 +36,7 @@ function toAssetSummary(asset: AssetForActor): AssetSummary {
     sizeBytes: asset.sizeBytes,
     status: asset.status,
     errorMessage: asset.errorMessage,
+    processingProgress: asset.processingProgress ?? null,
     createdAt: asset.createdAt.toISOString(),
     updatedAt: asset.updatedAt.toISOString(),
   };
@@ -63,7 +64,7 @@ export class AssetService {
   async list(actorId: string, projectId: string): Promise<AssetList> {
     const project = await this.projects.findForActor(actorId, projectId);
 
-    if (!project) {
+    if (!project || !hasProjectPermission(project, "project:read")) {
       throw new AssetAccessDeniedError(
         "Project is not available to this actor",
       );

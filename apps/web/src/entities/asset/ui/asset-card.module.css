@@ -25,7 +25,7 @@
   min-width: 0;
 }
 
-.body p {
+.body > p {
   margin: 0 0 0.2rem;
   color: var(--mnemo-blue);
   font-size: 0.7rem;
@@ -70,4 +70,46 @@
     padding-top: 0.75rem;
     border-top: 1px solid var(--border-default-grey);
   }
+}
+
+.progress {
+  width: min(100%, 24rem);
+  margin-top: 0.625rem;
+  color: var(--text-default-grey);
+}
+.progressLabel {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.progressPercent {
+  flex: none;
+}
+
+.progress .processingStepper {
+  margin-bottom: 0;
+}
+
+.progress .processingTitle {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.progress .processingState {
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+}
+
+.progress .processingDetails {
+  margin: 0.375rem 0 0;
+}
+
+.progressUpdatedAt {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--text-mention-grey);
+  font-size: 0.75rem;
+  line-height: 1.25rem;
 }

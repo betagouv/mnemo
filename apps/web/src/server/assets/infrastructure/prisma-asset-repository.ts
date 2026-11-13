@@ -1,4 +1,8 @@
 import {
+  processingProgressSchema,
+  type ProcessingProgress,
+} from "@mnemo/contracts/assets";
+import {
   bimFilterSettingsSchema,
   removeBimFilterAsset,
 } from "@mnemo/contracts/bim-filters";
@@ -14,7 +18,30 @@ import {
   toProjectAccess,
 } from "@/server/projects/infrastructure/project-access";
 
-function toAsset(row: PrismaAssetRecord): AssetForActor {
+type ProcessingJobProgress = {
+  status: string;
+  progress: unknown;
+  updated_at: Date;
+};
+
+function toProcessingProgress(
+  status: PrismaAssetRecord["status"],
+  job?: ProcessingJobProgress,
+): ProcessingProgress | null {
+  if (!job || (status !== "uploaded" && status !== "processing")) return null;
+  const updatedAt = job.updated_at.toISOString();
+  if (job.status === "queued")
+    return { phase: "queued", percent: null, updatedAt };
+  if (job.status !== "running") return null;
+  const parsed = processingProgressSchema.safeParse(job.progress);
+  return parsed.success
+    ? parsed.data
+    : { phase: "starting", percent: null, updatedAt };
+}
+
+function toAsset(
+  row: PrismaAssetRecord & { processing_jobs?: ProcessingJobProgress[] },
+): AssetForActor {
   return {
     id: row.id,
     projectId: row.project_id,
@@ -25,6 +52,10 @@ function toAsset(row: PrismaAssetRecord): AssetForActor {
     originalObjectKey: row.original_object_key,
     status: row.status,
     errorMessage: row.error_message,
+    processingProgress:
+      row.kind === "point_cloud"
+        ? toProcessingProgress(row.status, row.processing_jobs?.[0])
+        : null,
     uploadExpiresAt: row.upload_expires_at,
     uploadedAt: row.uploaded_at,
     createdAt: row.created_at,
@@ -46,6 +77,12 @@ export class PrismaAssetRepository implements AssetRepository {
         projects: { project_members: { some: { user_id: actorId } } },
       },
       orderBy: { created_at: "desc" },
+      include: {
+        processing_jobs: {
+          where: { type: "process_point_cloud" },
+          select: { status: true, progress: true, updated_at: true },
+        },
+      },
     });
     return rows.map(toAsset);
   }

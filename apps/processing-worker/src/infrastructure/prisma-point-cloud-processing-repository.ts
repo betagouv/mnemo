@@ -1,3 +1,4 @@
+import type { ProcessingProgress } from "@mnemo/contracts/assets";
 import { Prisma, type MnemoPrismaDatabase } from "@mnemo/database";
 
 import type {
@@ -7,6 +8,23 @@ import type {
 
 export class PrismaPointCloudProcessingRepository implements PointCloudProcessingRepository {
   constructor(private readonly database: MnemoPrismaDatabase) {}
+
+  async saveProgress(
+    progress: ProcessingProgress,
+    lease: { jobId: string; attempt: number; workerId: string },
+  ) {
+    const updated = await this.database.processing_jobs.updateMany({
+      where: {
+        id: lease.jobId,
+        attempts: lease.attempt,
+        locked_by: lease.workerId,
+        status: "running",
+        assets: { status: { not: "deleting" } },
+      },
+      data: { progress },
+    });
+    return updated.count === 1;
+  }
 
   async findPointCloudAsset(assetId: string) {
     const asset = await this.database.assets.findFirst({

@@ -91,4 +91,61 @@ describe("PrismaAssetRepository", () => {
       object_keys: [objectKey],
     });
   });
+  it("returns only authorized current processing progress and clears it from terminal assets", async () => {
+    const id = randomUUID();
+    await database.db.assets.create({
+      data: {
+        id,
+        project_id: projectId,
+        kind: "point_cloud",
+        status: "processing",
+        original_file_name: "scan.laz",
+        media_type: "application/octet-stream",
+        size_bytes: 42n,
+        original_object_key: `test/${id}`,
+        created_by: actorId,
+        upload_expires_at: new Date("2035-01-01"),
+      },
+    });
+    const progress = {
+      phase: "converting",
+      percent: 42,
+      updatedAt: new Date().toISOString(),
+    };
+    await database.db.processing_jobs.create({
+      data: {
+        asset_id: id,
+        type: "process_point_cloud",
+        status: "running",
+        progress,
+        locked_by: "test",
+        locked_at: new Date("2035-01-01"),
+      },
+    });
+    const repository = new PrismaAssetRepository(database.db);
+    expect(
+      (await repository.listForActor(actorId, projectId)).find(
+        (row) => row.id === id,
+      )?.processingProgress,
+    ).toEqual(progress);
+    expect(await repository.listForActor(randomUUID(), projectId)).toEqual([]);
+    await database.db.processing_jobs.updateMany({
+      where: { asset_id: id },
+      data: { status: "queued", progress: undefined },
+    });
+    expect(
+      (await repository.listForActor(actorId, projectId)).find(
+        (row) => row.id === id,
+      )?.processingProgress,
+    ).toMatchObject({ phase: "queued", percent: null });
+    await database.db.assets.update({
+      where: { id },
+      data: { status: "ready" },
+    });
+    expect(
+      (await repository.listForActor(actorId, projectId)).find(
+        (row) => row.id === id,
+      )?.processingProgress,
+    ).toBeNull();
+  });
 });

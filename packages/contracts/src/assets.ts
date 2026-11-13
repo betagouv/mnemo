@@ -39,6 +39,19 @@ export const openAssetInputSchema = z.object({
 export const deleteAssetInputSchema = openAssetInputSchema;
 export const deletionAcceptedSchema = z.object({ accepted: z.literal(true) });
 
+export const processingProgressSchema = z.strictObject({
+  phase: z.enum([
+    "queued",
+    "starting",
+    "downloading",
+    "converting",
+    "publishing",
+  ]),
+  percent: z.number().int().min(0).max(100).nullable(),
+  updatedAt: z.iso.datetime(),
+});
+export type ProcessingProgress = z.infer<typeof processingProgressSchema>;
+
 export const assetSummarySchema = z.object({
   id: assetIdSchema,
   projectId: projectIdSchema,
@@ -48,6 +61,7 @@ export const assetSummarySchema = z.object({
   sizeBytes: z.int().nonnegative(),
   status: assetStatusSchema,
   errorMessage: z.string().nullable(),
+  processingProgress: processingProgressSchema.nullable().optional(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });
