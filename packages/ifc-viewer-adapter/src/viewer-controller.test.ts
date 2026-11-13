@@ -12,7 +12,7 @@ import type {
 import { ServerEntityIndex } from "@ifc-lite/server-client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createIfcBimIndex } from "./bim-index";
+import { createIfcBimIndex, type IfcBimQuery } from "./bim-index";
 import {
   IfcViewerController,
   type IfcViewerRuntime,
@@ -29,6 +29,7 @@ function createHarness({
     sceneCleared: 0,
     colorOverridesSet: 0,
     colorOverridesCleared: 0,
+    colorOverrides: new Map<number, [number, number, number, number]>(),
     batchesAdded: 0,
     streamingFinalized: 0,
     meshIds: [] as number[][],
@@ -191,11 +192,15 @@ function createHarness({
     getAllMeshDataExpressIds: () => [42, 84],
     removeMeshesForEntities: () => 0,
     translateMeshesForEntities: () => 0,
-    setColorOverrides: () => {
+    setColorOverrides: (
+      colors: Map<number, [number, number, number, number]>,
+    ) => {
       calls.colorOverridesSet += 1;
+      calls.colorOverrides = new Map(colors);
     },
     clearColorOverrides: () => {
       calls.colorOverridesCleared += 1;
+      calls.colorOverrides.clear();
     },
   };
   const renderer = {
@@ -468,6 +473,16 @@ function createHarness({
           storeyId: 10,
         },
       ];
+      const matchingIds = (query: IfcBimQuery) =>
+        elements
+          .filter(
+            (element) =>
+              (!query.ifcClasses?.length ||
+                query.ifcClasses.includes(element.ifcClass)) &&
+              (!query.storeyIds?.length ||
+                query.storeyIds.includes(element.storeyId)),
+          )
+          .map((element) => element.expressId);
       return {
         catalog: {
           unassignedCount: 0,
@@ -484,12 +499,8 @@ function createHarness({
             },
           ],
         },
-        findIds: (query) =>
-          query.ifcClass === "IfcDoor"
-            ? [84]
-            : query.ifcClass === "IfcWall"
-              ? [42]
-              : [42, 84],
+        count: (query) => matchingIds(query).length,
+        findIds: matchingIds,
         getElement: (expressId) =>
           elements.find((element) => element.expressId === expressId) ?? null,
         query: () => elements,
@@ -1354,7 +1365,7 @@ describe("IfcViewerController", () => {
       downloadUrl: "http://storage.local/model.ifc",
     });
 
-    controller.isolate({ ifcClass: "IfcWall" }, "Murs");
+    controller.isolate({ ifcClasses: ["IfcWall"] }, "Murs");
 
     expect(controller.getSnapshot().catalog?.storeys).toHaveLength(1);
     expect(controller.getSnapshot().visual).toMatchObject({
@@ -1371,11 +1382,278 @@ describe("IfcViewerController", () => {
       contextOpacity: 0.25,
     });
 
-    controller.color({ ifcClass: "IfcDoor" }, [0.5, 0.1, 0.8, 1]);
+    controller.color({ ifcClasses: ["IfcDoor"] }, [0.5, 0.1, 0.8, 1]);
     expect(calls.colorOverridesSet).toBe(1);
     expect(calls.rendererCreated).toBe(1);
     controller.fitToView();
     expect(calls.fitToView).toBe(1);
+    controller.dispose();
+  });
+
+  it("publishes the new active model before resetting its visual effects", async () => {
+    const { controller, calls } = createHarness();
+    for (const assetId of ["model-a", "model-b"])
+      await controller.loadIfc({
+        assetId,
+        fileName: `${assetId}.ifc`,
+        downloadUrl: `http://storage.local/${assetId}.ifc`,
+      });
+    controller.isolate({ ifcClasses: ["IfcWall"] });
+    const resets: string[] = [];
+    const unsubscribe = controller.subscribe((snapshot) => {
+      if (snapshot.visual.mode === "all")
+        resets.push(snapshot.activeModelId ?? "");
+    });
+    resets.length = 0;
+    controller.setActiveModel("model-b");
+    expect(resets).toEqual(["model-b"]);
+    expect(calls.rendererCreated).toBe(1);
+    unsubscribe();
+    controller.dispose();
+  });
+
+  it("preserves the requested colors while keeping colored context transparent", async () => {
+    const { controller, calls, advanceFrame } = createHarness();
+    await controller.loadIfc({
+      assetId: "model-a",
+      fileName: "a.ifc",
+      downloadUrl: "http://storage.local/a.ifc",
+    });
+    controller.applyVisualPlan({
+      focusIds: [42],
+      colors: [{ ids: [42, 84], color: [1, 0, 0, 1] }],
+      showContext: true,
+      contextOpacity: 0.18,
+    });
+    const requested = controller.getVisualPlan();
+    expect([...calls.colorOverrides.keys()]).toEqual([42]);
+    const uploads = calls.colorOverridesSet;
+    controller.setIsolationContext(true, 0.3);
+    advanceFrame();
+    expect(calls.colorOverridesSet).toBe(uploads);
+    expect(calls.lastRenderOptions?.ghostAlpha).toBe(0.3);
+    controller.setIsolationContext(false, 0.3);
+    expect([...calls.colorOverrides.keys()]).toEqual([42, 84]);
+    controller.setIsolationContext(true, 0.3);
+    expect([...calls.colorOverrides.keys()]).toEqual([42]);
+    expect(controller.getVisualPlan().colors).toEqual(requested.colors);
+    controller.applyVisualPlan({
+      ...controller.getVisualPlan(),
+      focusIds: [84],
+    });
+    expect([...calls.colorOverrides.keys()]).toEqual([84]);
+    controller.applyVisualPlan({
+      ...controller.getVisualPlan(),
+      focusIds: [1234],
+    });
+    expect(calls.colorOverrides.size).toBe(0);
+    controller.applyVisualPlan({
+      ...controller.getVisualPlan(),
+      focusIds: null,
+    });
+    expect([...calls.colorOverrides.keys()]).toEqual([42, 84]);
+    expect(controller.getVisualPlan().colors).toEqual(requested.colors);
+    expect(calls.rendererCreated).toBe(1);
+    controller.dispose();
+  });
+
+  it.each([false, true])(
+    "restores the original filters after repeated temporary isolation (context %s)",
+    async (showContext) => {
+      const { controller, calls, advanceFrame } = createHarness();
+      await controller.loadIfc({
+        assetId: "model-a",
+        fileName: "a.ifc",
+        downloadUrl: "http://storage.local/a.ifc",
+      });
+      controller.applyVisualPlan({
+        focusIds: [42, 84],
+        hiddenIds: [84],
+        colors: [
+          { ids: [42], color: [1, 0, 0, 1] },
+          { ids: [84], color: [0, 1, 0, 1] },
+        ],
+        showContext,
+        contextOpacity: 0.24,
+        label: "Structure",
+      });
+      const original = controller.getVisualPlan();
+      const originalVisual = controller.getSnapshot().visual;
+      const originalRevision = controller.getSnapshot().visualRevision;
+      const frames = calls.fitToView;
+      controller.selectModelEntity("model-a", 84);
+      controller.isolateSelection();
+      advanceFrame();
+      expect(controller.getSnapshot().selectionIsolationActive).toBe(true);
+      expect(controller.getSnapshot().visual.showContext).toBe(showContext);
+      expect(controller.getSnapshot().visualRevision).toBe(originalRevision);
+      expect([...(controller.getVisualPlan().focusIds ?? [])]).toEqual([84]);
+      expect(calls.lastRenderOptions?.isolatedIds).toEqual(
+        showContext ? null : new Set([84]),
+      );
+      expect(calls.lastRenderOptions?.ghostExceptIds).toEqual(
+        showContext ? new Set([84]) : null,
+      );
+      expect(calls.lastRenderOptions?.ghostAlpha).toBe(0.24);
+      expect(
+        Array.from(controller.getVisualPlan().colors ?? []).flatMap((group) => [
+          ...group.ids,
+        ]),
+      ).toEqual([42, 84]);
+      expect([...calls.colorOverrides.keys()]).toEqual(
+        showContext ? [84] : [42, 84],
+      );
+      expect(calls.lastRenderOptions?.hiddenIds?.has(84)).toBe(false);
+      controller.selectModelEntity("model-a", 42);
+      controller.isolateSelection();
+      expect([...(controller.getVisualPlan().focusIds ?? [])]).toEqual([42]);
+      controller.clearSelectionIsolation();
+      expect(controller.getVisualPlan()).toEqual(original);
+      expect(controller.getSnapshot().visual).toEqual(originalVisual);
+      expect(controller.getSnapshot().visualRevision).toBe(originalRevision);
+      expect(controller.getSnapshot().selectionIsolationActive).toBe(false);
+      controller.clearSelectionIsolation();
+      expect(controller.getVisualPlan()).toEqual(original);
+      expect(calls.rendererCreated).toBe(1);
+      expect(calls.fitToView).toBe(frames);
+      controller.dispose();
+    },
+  );
+
+  it("updates context live during selection isolation and retains it after restoring filters", async () => {
+    const { controller, calls, advanceFrame } = createHarness();
+    await controller.loadIfc({
+      assetId: "model-a",
+      fileName: "a.ifc",
+      downloadUrl: "http://storage.local/a.ifc",
+    });
+    controller.applyVisualPlan({
+      focusIds: [42],
+      hiddenIds: [84],
+      colors: [{ ids: [42, 84], color: [1, 0, 0, 1] }],
+      showContext: false,
+      contextOpacity: 0.1,
+      label: "Structure",
+    });
+    const original = controller.getVisualPlan();
+    const revision = controller.getSnapshot().visualRevision;
+    controller.selectModelEntity("model-a", 84);
+    controller.isolateSelection();
+    // Editing context keeps the isolated ids even if the selection changes.
+    controller.selectModelEntity("model-a", 42);
+    controller.setIsolationContext(true, 0.3);
+    advanceFrame();
+    expect(controller.getSnapshot()).toMatchObject({
+      selectionIsolationActive: true,
+      visualRevision: revision + 1,
+      visual: {
+        label: "Sélection isolée",
+        showContext: true,
+        contextOpacity: 0.3,
+      },
+    });
+    expect(calls.lastRenderOptions?.ghostExceptIds).toEqual(new Set([84]));
+    expect(calls.lastRenderOptions?.isolatedIds).toBeNull();
+    expect(calls.lastRenderOptions?.ghostAlpha).toBe(0.3);
+    expect(
+      Array.from(controller.getVisualPlan().colors ?? []).flatMap((group) => [
+        ...group.ids,
+      ]),
+    ).toEqual([42, 84]);
+    expect([...calls.colorOverrides.keys()]).toEqual([84]);
+    controller.setIsolationContext(false, 0.3);
+    advanceFrame();
+    expect(calls.lastRenderOptions?.isolatedIds).toEqual(new Set([84]));
+    expect(calls.lastRenderOptions?.ghostExceptIds).toBeNull();
+    expect(controller.getSnapshot().selectionIsolationActive).toBe(true);
+    controller.setIsolationContext(true, 0.18);
+    controller.clearSelectionIsolation();
+    advanceFrame();
+    expect(controller.getSnapshot()).toMatchObject({
+      selectionIsolationActive: false,
+      visualRevision: revision + 3,
+      visual: { label: "Structure", showContext: true, contextOpacity: 0.18 },
+    });
+    expect(controller.getVisualPlan()).toEqual({
+      ...original,
+      showContext: true,
+      contextOpacity: 0.18,
+    });
+    expect(calls.lastRenderOptions?.ghostExceptIds).toEqual(new Set([42]));
+    expect(calls.lastRenderOptions?.hiddenIds).toEqual(new Set([84]));
+    controller.dispose();
+  });
+
+  it("maps temporary selection isolation to federated ids and lets new filters replace it", async () => {
+    const { controller } = createHarness();
+    controller.isolateSelection();
+    expect(controller.getSnapshot().selectionIsolationActive).toBe(false);
+    for (const assetId of ["model-a", "model-b"])
+      await controller.loadIfc({
+        assetId,
+        fileName: `${assetId}.ifc`,
+        downloadUrl: `http://storage.local/${assetId}.ifc`,
+      });
+    controller.setActiveModel("model-b");
+    const ids = controller.findBimIds({ ifcClasses: ["IfcWall"] });
+    controller.selectModelEntity("model-b", 42);
+    controller.isolateSelection();
+    expect([...(controller.getVisualPlan().focusIds ?? [])]).toEqual(ids);
+    expect(ids).not.toEqual([42]);
+    controller.applyVisualPlan({
+      colors: [{ ids, color: [0, 1, 0, 1] }],
+      label: "Nouveau filtre",
+    });
+    const next = controller.getVisualPlan();
+    controller.clearSelectionIsolation();
+    expect(controller.getVisualPlan()).toEqual(next);
+    expect(controller.getSnapshot().selectionIsolationActive).toBe(false);
+    controller.isolateSelection();
+    controller.setIsolationContext(false, 0.3);
+    expect(controller.getSnapshot().selectionIsolationActive).toBe(true);
+    controller.clearSelectionIsolation();
+    expect(controller.getSnapshot().visual.label).toBe("Nouveau filtre");
+    controller.isolateSelection();
+    controller.setActiveModel("model-a");
+    controller.clearSelectionIsolation();
+    expect(controller.getSnapshot().visual.mode).toBe("all");
+    controller.dispose();
+  });
+
+  it("accumulates hidden and colored classes while retaining isolation", async () => {
+    const { calls, controller } = createHarness();
+    await controller.loadIfc({
+      assetId: "model-a",
+      fileName: "model.ifc",
+      downloadUrl: "http://storage.local/model.ifc",
+    });
+    const framing = calls.fitToView;
+    expect(controller.countBim({ ifcClasses: ["IfcWall", "IfcDoor"] })).toBe(2);
+    controller.isolate({ ifcClasses: ["IfcWall", "IfcDoor"] });
+    controller.color({ ifcClasses: ["IfcWall"] }, [1, 0, 0, 1]);
+    controller.color({ ifcClasses: ["IfcDoor"] }, [0, 0, 1, 1]);
+    controller.hide({ ifcClasses: ["IfcDoor"] });
+    controller.hide({ ifcClasses: ["IfcWall"] });
+    const plan = controller.getVisualPlan();
+    expect(Array.from(plan.focusIds ?? [])).toEqual([42, 84]);
+    expect(Array.from(plan.hiddenIds ?? [])).toEqual([84, 42]);
+    expect(
+      Array.from(plan.colors ?? []).map((group) => ({
+        ids: Array.from(group.ids),
+        color: group.color,
+      })),
+    ).toEqual([
+      { ids: [42], color: [1, 0, 0, 1] },
+      { ids: [84], color: [0, 0, 1, 1] },
+    ]);
+    expect(controller.getSnapshot().visual.mode).toBe("isolate");
+    controller.setIsolationContext(false, 0.25);
+    expect(controller.getSnapshot().visual.showContext).toBe(false);
+    controller.resetVisuals();
+    expect(controller.getSnapshot().visual.mode).toBe("all");
+    expect(Array.from(controller.getVisualPlan().hiddenIds ?? [])).toEqual([]);
+    expect(calls.rendererCreated).toBe(1);
+    expect(calls.fitToView).toBe(framing);
     controller.dispose();
   });
 

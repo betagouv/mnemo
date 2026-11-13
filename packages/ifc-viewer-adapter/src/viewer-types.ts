@@ -40,6 +40,9 @@ export type IfcViewerSnapshot = {
   models: IfcModelSnapshot[];
   activeModelId: string | null;
   visual: IfcVisualSnapshot;
+  /** Advances for lasting visual commands, excluding temporary isolation. */
+  visualRevision: number;
+  selectionIsolationActive: boolean;
   section: IfcSectionSnapshot;
   pointClouds: PointCloudSnapshot[];
   pointCloudOptions: PointCloudOptionsSnapshot;

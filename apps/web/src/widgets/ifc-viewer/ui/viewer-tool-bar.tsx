@@ -10,6 +10,7 @@ import {
 import styles from "./viewer-tool-bar.module.css";
 export function ViewerToolBar({
   activeGroupId,
+  activeFilterGroupCount,
   bcfTopicCount,
   layerCount,
   canReadBcf,
@@ -18,6 +19,7 @@ export function ViewerToolBar({
   rootRef,
 }: {
   activeGroupId: ViewerToolGroupId | null;
+  activeFilterGroupCount: number;
   bcfTopicCount: number;
   layerCount: number;
   canReadBcf: boolean;
@@ -31,6 +33,12 @@ export function ViewerToolBar({
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const menuId = useId();
+  const filterCountId = `${menuId}-filter-count`;
+  const counts: Partial<Record<ViewerToolGroupId, number>> = {
+    layers: layerCount,
+    annotations: bcfTopicCount,
+    filters: activeFilterGroupCount,
+  };
   const moreRef = useRef<HTMLLIElement>(null);
   useEffect(() => {
     if (!moreOpen) return;
@@ -47,16 +55,15 @@ export function ViewerToolBar({
       ref={rootRef}
       role="group"
     >
+      <span id={filterCountId} className="fr-sr-only">
+        {activeFilterGroupCount} groupe{activeFilterGroupCount > 1 ? "s" : ""}{" "}
+        de filtres actif{activeFilterGroupCount > 1 ? "s" : ""}
+      </span>
       <ul className={styles.list}>
         {viewerToolGroups
           .filter((group) => canReadBcf || group.id !== "annotations")
           .map((group) => {
-            const count =
-              group.id === "layers"
-                ? layerCount
-                : group.id === "annotations"
-                  ? bcfTopicCount
-                  : 0;
+            const count = counts[group.id] ?? 0;
             return (
               <li
                 className={styles.item}
@@ -68,6 +75,8 @@ export function ViewerToolBar({
                   iconId={group.icon}
                   nativeButtonProps={{
                     "aria-label": group.label,
+                    "aria-describedby":
+                      group.id === "filters" ? filterCountId : undefined,
                     "data-tool-group": group.id,
                     "aria-pressed": activeGroupId === group.id,
                     "data-active": activeGroupId === group.id || undefined,

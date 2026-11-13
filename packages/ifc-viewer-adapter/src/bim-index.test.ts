@@ -106,8 +106,10 @@ describe("createIfcBimIndex", () => {
   it("combines an IFC class and a building storey through IFC-Lite queries", () => {
     const index = createIfcBimIndex(createStore(), [1, 2, 3]);
 
-    expect(index.findIds({ ifcClass: "IfcWall", storeyId: 100 })).toEqual([1]);
-    expect(index.query({ ifcClass: "IfcDoor", storeyId: 100 })).toEqual([
+    expect(
+      index.findIds({ ifcClasses: ["IfcWall"], storeyIds: [100] }),
+    ).toEqual([1]);
+    expect(index.query({ ifcClasses: ["IfcDoor"], storeyIds: [100] })).toEqual([
       {
         expressId: 2,
         globalId: "global-2",
@@ -130,6 +132,48 @@ describe("createIfcBimIndex", () => {
     ]);
   });
 
+  it("unions selected classes and levels, then intersects both criteria", () => {
+    const index = createIfcBimIndex(createStore(), [1, 2, 3]);
+    expect(
+      index.findIds({ ifcClasses: ["IfcWall", "IfcDoor"] }).sort(),
+    ).toEqual([1, 2, 3]);
+    expect(
+      index
+        .findIds({ ifcClasses: ["IfcWall", "IfcDoor"], storeyIds: [100] })
+        .sort(),
+    ).toEqual([1, 2]);
+    expect(
+      index.findIds({ ifcClasses: ["IfcWall"], storeyIds: [100, 200] }),
+    ).toEqual([1, 3]);
+    expect(index.findIds({ storeyIds: [100, 100, 200] })).toEqual([1, 2, 3]);
+    expect(index.findIds({ ifcClasses: ["IfcWall", "IfcWall"] })).toEqual([
+      1, 3,
+    ]);
+    expect(
+      index.findIds({ ifcClasses: ["IfcDoor"], storeyIds: [200] }),
+    ).toEqual([]);
+  });
+
+  it("counts renderable matches using the existing class/storey counts", () => {
+    const index = createIfcBimIndex(createStore(), [1, 2, 3]);
+    for (const query of [
+      {},
+      { ifcClasses: [], storeyIds: [] },
+      { ifcClasses: ["IfcWall"] },
+      { ifcClasses: ["IfcWall", "IfcDoor"], storeyIds: [100] },
+      { storeyIds: [100, 100, 200] },
+      { ifcClasses: ["IfcDoor"], storeyIds: [200] },
+    ])
+      expect(index.count(query)).toBe(index.findIds(query).length);
+    const partial = createIfcBimIndex(createStore(), [1, 3]);
+    expect(partial.count({ ifcClasses: ["IfcDoor"] })).toBe(0);
+    expect(partial.findIds({ ifcClasses: ["IfcDoor"] })).toEqual([]);
+    expect(index.findIds({ ifcClasses: ["IfcObsoleteType"] })).toEqual([]);
+    expect(
+      index.findIds({ ifcClasses: ["IfcObsoleteType", "IfcWall"] }),
+    ).toEqual([1, 3]);
+  });
+
   it("groups unassigned elements even when their IFC class is unavailable", () => {
     const index = createIfcBimIndex(createStore(), [1, 2, 3, 4]);
 
@@ -139,5 +183,7 @@ describe("createIfcBimIndex", () => {
     expect(index.queryPage(null, 0, 50, "IfcEntity")).toMatchObject([
       { expressId: 4, ifcClass: "IfcEntity" },
     ]);
+    expect(index.count({ ifcClasses: ["IfcEntity"] })).toBe(1);
+    expect(index.findIds({ ifcClasses: ["IfcEntity"] })).toEqual([4]);
   });
 });

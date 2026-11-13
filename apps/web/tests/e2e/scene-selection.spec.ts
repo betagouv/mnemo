@@ -249,23 +249,110 @@ test("reveals the object picked in the scene inside the collapsed model tree", a
       .getByRole("button", { name: "Réduire les propriétés", exact: true })
       .click();
     await page
-      .getByRole("button", { name: "Filtres et couleurs", exact: true })
+      .getByRole("button", { name: "Filtres IFC", exact: true })
       .click();
     const filters = page.getByRole("complementary", {
-      name: "Filtres et couleurs",
+      name: "Filtres IFC",
       exact: true,
     });
+    const classPicker = filters.getByRole("combobox", {
+      name: "Classes IFC",
+      exact: true,
+    });
+    await classPicker.fill("IfcWall");
+    await page.getByRole("option", { name: "IfcWall", exact: true }).click();
+    await classPicker.press("Escape");
     await filters
-      .getByLabel("Classe IFC", { exact: true })
-      .selectOption("IfcWall");
+      .getByRole("button", { name: "Ajouter le filtre", exact: true })
+      .click();
     await page.getByRole("button", { name: "Coupes", exact: true }).click();
     await page
-      .getByRole("button", { name: "Filtres et couleurs", exact: true })
+      .getByRole("button", { name: "Filtres IFC", exact: true })
       .click();
-    await expect(filters.getByLabel("Classe IFC", { exact: true })).toHaveValue(
-      "IfcWall",
-    );
-    await filters.getByRole("button", { name: "Isoler", exact: true }).click();
+    await expect(
+      filters.getByRole("checkbox", { name: "Isoler · IfcWall", exact: true }),
+    ).toBeChecked();
+    const saveFilters = filters
+      .locator("footer")
+      .getByRole("button", { name: "Enregistrer", exact: true });
+    await saveFilters.click();
+    await expect(saveFilters).toBeDisabled();
+    await selectionCard
+      .getByRole("button", { name: "Isoler", exact: true })
+      .click();
+    const temporaryIsolation = page.getByRole("button", {
+      name: "Retirer Sélection isolée",
+      exact: true,
+    });
+    await expect(temporaryIsolation).toBeVisible();
+    await expect(
+      filters.getByRole("checkbox", { name: "Isoler · IfcWall", exact: true }),
+    ).toBeChecked();
+    await expect(saveFilters).toBeDisabled();
+    const filterGroup = filters.getByRole("region", {
+      name: "Groupe Mes filtres",
+      exact: true,
+    });
+    await filterGroup
+      .getByLabel("Actions du groupe Mes filtres", { exact: true })
+      .click();
+    await filterGroup
+      .getByTitle("Renommer Mes filtres", { exact: true })
+      .click();
+    await filterGroup.getByLabel("Nom du groupe").fill("Structure");
+    await filterGroup
+      .getByRole("button", { name: "Renommer", exact: true })
+      .click();
+    await expect(temporaryIsolation).toBeVisible();
+    await saveFilters.click();
+    await expect(saveFilters).toBeDisabled();
+    await expect(temporaryIsolation).toBeVisible();
+    const contextSettings = filters.getByRole("button", {
+      name: "Réglages du contexte",
+      exact: true,
+    });
+    await contextSettings.click();
+    const keepContext = filters.getByRole("checkbox", {
+      name: "Garder le reste en transparence",
+      exact: true,
+    });
+    const contextOpacity = filters.getByRole("slider", {
+      name: "Opacité du contexte",
+      exact: true,
+    });
+    await expect(keepContext).toBeChecked();
+    await keepContext.press("Space");
+    await expect(keepContext).not.toBeChecked();
+    await expect(contextOpacity).toBeDisabled();
+    await expect(temporaryIsolation).toBeVisible();
+    await keepContext.press("Space");
+    await expect(keepContext).toBeChecked();
+    await contextOpacity.press("Home");
+    for (let step = 0; step < 22; step++)
+      await contextOpacity.press("ArrowRight");
+    await expect(contextOpacity).toHaveValue("24");
+    await expect(temporaryIsolation).toBeVisible();
+    await expect(
+      filters.getByRole("checkbox", { name: "Isoler · IfcWall", exact: true }),
+    ).toBeChecked();
+    await saveFilters.click();
+    await expect(saveFilters).toBeDisabled();
+    await expect(temporaryIsolation).toBeVisible();
+    await selectionCard
+      .getByRole("button", { name: "Isoler", exact: true })
+      .click();
+    await temporaryIsolation.click();
+    await expect(temporaryIsolation).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: "Retirer 1 filtre actif", exact: true }),
+    ).toBeVisible();
+    await expect(
+      filters.getByRole("checkbox", { name: "Isoler · IfcWall", exact: true }),
+    ).toBeChecked();
+    await expect(saveFilters).toBeDisabled();
+    await expect(keepContext).toBeChecked();
+    await expect(contextOpacity).toHaveValue("24");
+    await contextSettings.click();
     await page.getByRole("button", { name: "Coupes", exact: true }).click();
     await page.getByText("Coupe active", { exact: true }).click();
     await selectionCard

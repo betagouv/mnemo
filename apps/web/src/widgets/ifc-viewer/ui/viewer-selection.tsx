@@ -106,16 +106,7 @@ export function ViewerSelection({
           <Button
             size="small"
             priority="secondary"
-            onClick={() =>
-              viewer?.applyVisualPlan({
-                focusIds: snapshot.selectedElements
-                  .filter(
-                    (element) => element.assetId === snapshot.activeModelId,
-                  )
-                  .map((element) => element.expressId),
-                label: "Sélection isolée",
-              })
-            }
+            onClick={() => viewer?.isolateSelection()}
           >
             {snapshot.selectedElements.some(
               (element) => element.assetId !== snapshot.activeModelId,

@@ -47,6 +47,23 @@ describe("getActiveViewerModifiers", () => {
       ]),
     );
   });
+  it("removes temporary selection isolation through its dedicated command", () => {
+    const snapshot = createEmptyViewerSnapshot();
+    snapshot.selectionIsolationActive = true;
+    snapshot.visual = {
+      ...snapshot.visual,
+      mode: "isolate",
+      label: "Sélection isolée",
+      matchCount: 1,
+    };
+    expect(getActiveViewerModifiers(snapshot)).toEqual([
+      expect.objectContaining({
+        id: "selection-isolation",
+        reset: "selection-isolation",
+        label: "Sélection isolée",
+      }),
+    ]);
+  });
 
   it("routes a clipping box to its own controls, but hides the indicator when disabled", () => {
     const snapshot = createEmptyViewerSnapshot();

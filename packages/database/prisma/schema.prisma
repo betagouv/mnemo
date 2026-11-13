@@ -45,6 +45,7 @@ model assets {
   point_cloud_processing_results point_cloud_processing_results?
   point_cloud_settings           point_cloud_settings?
   floor_plans                    project_floor_plans[]
+  bim_filters                    model_bim_filters?
   processing_jobs                processing_jobs[]
 
   @@index([project_id])
@@ -514,4 +515,12 @@ model project_measurements {
 enum measurement_kind {
   distance
   surface
+}
+
+model model_bim_filters {
+  asset_id   String   @id @db.Uuid
+  settings   Json
+  version    Int      @default(1)
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  asset      assets   @relation(fields: [asset_id], references: [id], onDelete: Cascade)
 }

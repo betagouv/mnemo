@@ -16,6 +16,8 @@ export function createEmptyViewerSnapshot(): IfcViewerSnapshot {
     processing: { engine: null, cacheKey: null, cacheHit: null },
     models: [],
     activeModelId: null,
+    selectionIsolationActive: false,
+    visualRevision: 0,
     visual: {
       mode: "all",
       label: null,

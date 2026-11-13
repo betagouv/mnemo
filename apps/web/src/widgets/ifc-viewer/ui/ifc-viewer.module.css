@@ -121,7 +121,9 @@
   left: calc(4.5rem + var(--viewer-panel-width));
 }
 .shell[data-explorer-pinned="true"] .stage {
-  left: calc(25.25rem + var(--viewer-panel-width));
+  left: calc(
+    4.5rem + var(--viewer-explorer-width) + 0.75rem + var(--viewer-panel-width)
+  );
 }
 @media (width < 90rem) {
   .shell[data-explorer-pinned="true"] .stage {

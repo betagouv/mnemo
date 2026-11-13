@@ -57,6 +57,7 @@ test("uses contextual panels without empty properties or unavailable tools", asy
       exact: true,
     });
     await expect(panel).toBeVisible();
+    const standardWidth = (await panel.boundingBox())!.width;
     await expect(
       panel.getByRole("checkbox", { name: "Coupe active" }),
     ).toBeDisabled();
@@ -80,11 +81,22 @@ test("uses contextual panels without empty properties or unavailable tools", asy
       page.getByRole("complementary", { name: "Vues en plan", exact: true }),
     ).toBeVisible();
     await tools
-      .getByRole("button", { name: "Filtres et couleurs", exact: true })
+      .getByRole("button", { name: "Filtres IFC", exact: true })
       .click();
     await expect(
       page.getByText("Chargez une maquette IFC pour utiliser les filtres."),
     ).toBeVisible();
+    const filters = page.getByRole("complementary", {
+      name: "Filtres IFC",
+      exact: true,
+    });
+    const filterBounds = (await filters.boundingBox())!;
+    expect(filterBounds.width).toBe(448);
+    expect(filterBounds.width).toBeGreaterThan(standardWidth);
+    expect((await scene.boundingBox())!.x).toBeCloseTo(
+      filterBounds.x + filterBounds.width,
+      0,
+    );
     await tools.getByRole("button", { name: "Autres outils" }).click();
     await tools
       .getByRole("button", { name: "Informations sur la scène" })
@@ -123,6 +135,20 @@ test("uses contextual panels without empty properties or unavailable tools", asy
     await pin.click();
     await cuts.click();
     await expect(layers).toBeVisible();
+    await tools
+      .getByRole("button", { name: "Filtres IFC", exact: true })
+      .click();
+    const dockedLayers = (await layers.boundingBox())!;
+    const pinnedFilterBounds = (await filters.boundingBox())!;
+    expect(pinnedFilterBounds.width).toBe(448);
+    expect(pinnedFilterBounds.x).toBeGreaterThan(
+      dockedLayers.x + dockedLayers.width,
+    );
+    expect((await scene.boundingBox())!.x).toBeCloseTo(
+      pinnedFilterBounds.x + pinnedFilterBounds.width,
+      0,
+    );
+    await cuts.click();
     for (const theme of ["light", "dark"]) {
       await page.evaluate(
         (value) =>

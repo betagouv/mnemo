@@ -107,7 +107,11 @@ test("measures and persists 3D geometry with snapping and shared results", async
     await expect(
       panel.getByRole("heading", { name: "Mesures (1)" }),
     ).toBeVisible();
-    await expect(panel.locator("li strong")).toContainText(/\d.* m$/);
+    const measurementValues = page
+      .getByRole("region", { name: /^Mesures \(\d+\)$/ })
+      .getByRole("listitem")
+      .locator("strong");
+    await expect(measurementValues).toContainText(/\d.* m$/);
     const anchor = await page
       .locator("svg g")
       .filter({ hasText: /1 ·/ })
@@ -150,14 +154,14 @@ test("measures and persists 3D geometry with snapping and shared results", async
     await expect(
       panel.getByRole("heading", { name: "Mesures (2)" }),
     ).toBeVisible();
-    await expect(panel.locator("li strong").last()).toContainText(/\d.* m²$/);
-    const values = await panel.locator("li strong").allTextContents();
+    await expect(measurementValues.last()).toContainText(/\d.* m²$/);
+    const values = await measurementValues.allTextContents();
     await page.mouse.move(
       bounds.x + bounds.width * 0.5,
       bounds.y + bounds.height * 0.5,
     );
     await page.mouse.wheel(0, -120);
-    await expect(panel.locator("li strong")).toHaveText(values);
+    await expect(measurementValues).toHaveText(values);
     await expect
       .poll(() =>
         canvas.evaluate(
@@ -194,7 +198,7 @@ test("measures and persists 3D geometry with snapping and shared results", async
     await expect(
       panel.getByText("Enregistrée dans le dossier", { exact: true }),
     ).toHaveCount(2);
-    const savedValues = await panel.locator("li strong").allTextContents();
+    const savedValues = await measurementValues.allTextContents();
     await page.reload();
     await expect(
       page.locator('canvas[aria-label^="Vue 3D"][data-phase="ready"]'),
@@ -204,7 +208,7 @@ test("measures and persists 3D geometry with snapping and shared results", async
     await expect(
       panel.getByRole("heading", { name: "Mesures (2)" }),
     ).toBeVisible();
-    await expect(panel.locator("li strong")).toHaveText(savedValues);
+    await expect(measurementValues).toHaveText(savedValues);
     await panel
       .getByRole("button", { name: "Renommer la mesure" })
       .first()
