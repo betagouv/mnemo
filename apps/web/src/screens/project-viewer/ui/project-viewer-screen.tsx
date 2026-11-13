@@ -36,7 +36,7 @@ export async function ProjectViewerScreen({
       getAssetService().list(actorId, project.id),
       getFloorPlanService().list(actorId, project.id),
       getMeasurementService().list(actorId, project.id),
-      getBimFilterService().list(actorId, project.id),
+      getBimFilterService().get(actorId, project.id),
       canReadBcf
         ? getBcfTopicService().summaries(actorId, project.id)
         : Promise.resolve([]),

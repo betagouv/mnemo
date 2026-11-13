@@ -370,15 +370,18 @@ export class IfcViewerController {
       : [];
   }
 
-  countBim(query: IfcBimQuery): number {
-    const activeId = this.snapshot.activeModelId;
+  countBim(query: IfcBimQuery, assetId = this.snapshot.activeModelId): number {
+    const activeId = assetId;
     return activeId
       ? (this.models.get(activeId)?.bimIndex.count(query) ?? 0)
       : 0;
   }
 
-  findBimIds(query: IfcBimQuery): number[] {
-    const activeId = this.snapshot.activeModelId;
+  findBimIds(
+    query: IfcBimQuery,
+    assetId = this.snapshot.activeModelId,
+  ): number[] {
+    const activeId = assetId;
     if (!activeId) return [];
     return (this.models.get(activeId)?.bimIndex.findIds(query) ?? []).map(
       (id) => this.federation.toGlobalId(activeId, id),
@@ -394,7 +397,6 @@ export class IfcViewerController {
       catalog: model.bimIndex.catalog,
       processing: model.processing,
     });
-    this.resetVisuals();
   }
 
   getBimElements(
@@ -783,9 +785,19 @@ export class IfcViewerController {
     this.renderer.requestRender();
   }
 
-  applyVisualPlan(plan: IfcVisualPlan) {
+  applyVisualPlan(
+    plan: IfcVisualPlan,
+    options: { preserveSelectionIsolation?: boolean } = {},
+  ) {
+    const revision = this.snapshot.visualRevision + 1;
+    if (options.preserveSelectionIsolation && this.selectionIsolationBase) {
+      const ids = [...(this.ghostExceptIds ?? this.isolatedIds ?? [])];
+      this.selectionIsolationBase = plan;
+      this.commitSelectionIsolation(plan, ids, revision);
+      return;
+    }
     this.selectionIsolationBase = null;
-    this.commitVisualPlan(plan, false, this.snapshot.visualRevision + 1);
+    this.commitVisualPlan(plan, false, revision);
   }
 
   isolateSelection() {
@@ -797,8 +809,15 @@ export class IfcViewerController {
     );
     if (!ids.length) return;
     this.selectionIsolationBase ??= this.getVisualPlan();
+    this.commitSelectionIsolation(this.selectionIsolationBase, ids);
+  }
+
+  private commitSelectionIsolation(
+    plan: IfcVisualPlan,
+    ids: number[],
+    revision = this.snapshot.visualRevision,
+  ) {
     const selected = new Set(ids);
-    const plan = this.selectionIsolationBase;
     this.commitVisualPlan(
       {
         ...plan,
@@ -809,6 +828,7 @@ export class IfcViewerController {
         label: "Sélection isolée",
       },
       true,
+      revision,
     );
   }
 

@@ -91,7 +91,7 @@ export function ProjectViewer({
   ifcSources: ViewerIfcSource[];
   initialBcfTopics: BcfTopicSummary[];
   initialFloorPlans: SavedFloorPlan[];
-  initialBimFilters: SavedBimFilters[];
+  initialBimFilters: SavedBimFilters | null;
   initialMeasurements: SavedMeasurement[];
   canManageFloorPlans: boolean;
   canManageBimFilters: boolean;
@@ -468,6 +468,7 @@ export function ProjectViewer({
             getViewer={getViewer}
             projectId={projectId}
             initial={initialBimFilters}
+            sources={ifcSources}
             canSave={canManageBimFilters}
             onActiveGroupCountChange={setActiveFilterGroupCount}
           />

@@ -11,51 +11,54 @@ import {
 } from "../application/bim-filter-repository";
 
 function toFilters(row: {
-  asset_id: string;
+  project_id: string;
   version: number;
   settings: unknown;
 }): SavedBimFilters {
   return {
-    assetId: row.asset_id,
+    projectId: row.project_id,
     version: row.version,
     settings: bimFilterSettingsSchema.parse(row.settings),
   };
 }
 export class PrismaBimFilterRepository implements BimFilterRepository {
   constructor(private readonly database: MnemoPrismaDatabase) {}
-  async list(projectId: string) {
-    const rows = await this.database.model_bim_filters.findMany({
-      where: { asset: { project_id: projectId, kind: "ifc", status: "ready" } },
-      orderBy: { asset_id: "asc" },
+  async get(projectId: string) {
+    const row = await this.database.project_bim_filters.findUnique({
+      where: { project_id: projectId },
     });
-    return rows.map(toFilters);
+    return row ? toFilters(row) : null;
   }
   async save(input: SaveBimFiltersInput) {
     return this.database.$transaction(async (tx) => {
-      const asset = await tx.assets.findFirst({
+      // Serialize with asset removal so a saved document cannot restore deleted targets.
+      await tx.$queryRaw`SELECT id FROM projects WHERE id = ${input.projectId}::uuid FOR UPDATE`;
+      const assetIds = [
+        ...new Set(input.settings.groups.flatMap((group) => group.assetIds)),
+      ];
+      const count = await tx.assets.count({
         where: {
-          id: input.assetId,
+          id: { in: assetIds },
           project_id: input.projectId,
           kind: "ifc",
           status: "ready",
         },
-        select: { id: true },
       });
-      if (!asset) throw new BimFilterSourceError();
+      if (count !== assetIds.length) throw new BimFilterSourceError();
       const result =
         input.version === 0
-          ? await tx.model_bim_filters.createMany({
-              data: { asset_id: input.assetId, settings: input.settings },
+          ? await tx.project_bim_filters.createMany({
+              data: { project_id: input.projectId, settings: input.settings },
               skipDuplicates: true,
             })
-          : await tx.model_bim_filters.updateMany({
-              where: { asset_id: input.assetId, version: input.version },
+          : await tx.project_bim_filters.updateMany({
+              where: { project_id: input.projectId, version: input.version },
               data: { settings: input.settings, version: { increment: 1 } },
             });
       if (!result.count) throw new BimFilterConflictError();
       return toFilters(
-        await tx.model_bim_filters.findUniqueOrThrow({
-          where: { asset_id: input.assetId },
+        await tx.project_bim_filters.findUniqueOrThrow({
+          where: { project_id: input.projectId },
         }),
       );
     });

@@ -31,10 +31,10 @@ export class BimFilterService {
     if (!project || !hasProjectPermission(project, permission))
       throw new BimFilterAccessDeniedError();
   }
-  async list(actorId: string, projectId: string) {
+  async get(actorId: string, projectId: string) {
     z.uuid().parse(projectId);
     await this.authorize(actorId, projectId, "project:read");
-    return this.filters.list(projectId);
+    return this.filters.get(projectId);
   }
   async save(actorId: string, input: SaveBimFiltersInput) {
     const parsed = saveBimFiltersSchema.parse(input);

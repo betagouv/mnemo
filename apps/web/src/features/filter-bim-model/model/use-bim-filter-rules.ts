@@ -5,17 +5,15 @@ import type {
   BimFilterGroup,
   BimFilterSettings,
 } from "@mnemo/contracts/bim-filters";
+import type { BimFilterModel } from "./bim-filter-model";
 import type { BimFilterControls } from "./bim-filter-controls";
 import type { BimFilterViewer } from "./viewer-target";
 import { buildBimFilterPlan } from "./bim-filter-rules";
-import {
-  activeBimFilterRules,
-  haveSameBimFilterEffects,
-} from "./bim-filter-groups";
+import { haveSameBimFilterEffects } from "./bim-filter-groups";
 
 export function useBimFilterRules(
   getViewer: () => BimFilterViewer | null,
-  assetId: string,
+  models: BimFilterModel[],
   initial: BimFilterSettings,
   onChange: (settings: BimFilterSettings) => void,
 ) {
@@ -28,6 +26,19 @@ export function useBimFilterRules(
     setSettings(next);
     onChange(next);
   }
+  const applyCurrentFilters = useEffectEvent(() => {
+    const viewer = getViewer();
+    if (!viewer) return;
+    applying.current = true;
+    try {
+      viewer.applyVisualPlan(
+        buildBimFilterPlan(current.current, models, viewer, base.current ?? {}),
+        { preserveSelectionIsolation: true },
+      );
+    } finally {
+      applying.current = false;
+    }
+  });
   const onExternalVisualChange = useEffectEvent(() => {
     publish({
       ...current.current,
@@ -43,7 +54,6 @@ export function useBimFilterRules(
     base.current ??= viewer.getVisualPlan();
     let lastRevision = viewer.getSnapshot().visualRevision;
     const unsubscribe = viewer.subscribe((snapshot) => {
-      if (snapshot.activeModelId !== assetId) return;
       if (snapshot.visualRevision === lastRevision) return;
       lastRevision = snapshot.visualRevision;
       if (applying.current) return;
@@ -51,19 +61,17 @@ export function useBimFilterRules(
       base.current = viewer.getVisualPlan();
       onExternalVisualChange();
     });
-    applying.current = true;
-    viewer.applyVisualPlan(
-      buildBimFilterPlan(activeBimFilterRules(current.current), viewer, {
-        ...base.current,
-        showContext: current.current.showContext,
-        contextOpacity: current.current.contextOpacity,
-      }),
-    );
-    applying.current = false;
     return () => {
       unsubscribe();
     };
-  }, [getViewer, assetId]);
+  }, [getViewer]);
+  const loadedModels = models
+    .filter((model) => model.catalog)
+    .map((model) => model.assetId)
+    .join(",");
+  useEffect(() => {
+    applyCurrentFilters();
+  }, [getViewer, loadedModels]);
 
   function changeGroups(groups: BimFilterGroup[]) {
     const viewer = getViewer();
@@ -73,11 +81,7 @@ export function useBimFilterRules(
       applying.current = true;
       try {
         viewer.applyVisualPlan(
-          buildBimFilterPlan(activeBimFilterRules(next), viewer, {
-            ...base.current,
-            showContext: next.showContext,
-            contextOpacity: next.contextOpacity,
-          }),
+          buildBimFilterPlan(next, models, viewer, base.current ?? {}),
         );
       } finally {
         applying.current = false;
@@ -115,7 +119,6 @@ export function useBimFilterRules(
     const expectedSettings = current.current;
     const canUndo = () =>
       getViewer() === viewer &&
-      viewer.getSnapshot().activeModelId === assetId &&
       viewer.getSnapshot().visual === expectedVisual &&
       current.current === expectedSettings;
     return {

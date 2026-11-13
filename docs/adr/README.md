@@ -60,3 +60,5 @@ same change as a new record.
 | [0019](0019-ifc-lite-footprint-fork.md) | IFC-Lite footprint optimization from a fork | Accepted |
 
 | [0020](0020-account-approval-and-global-roles.md) | Administrator approval and global roles | Accepted |
+
+| [0021](0021-project-bim-filter-targets.md) | Project-scoped BIM filter groups and model targets | Accepted |

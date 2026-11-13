@@ -144,7 +144,7 @@ export function BimLayerTree({
                   >
                     {snapshot.activeModelId === source.assetId
                       ? "Maquette active"
-                      : "Activer pour les filtres"}
+                      : "Définir comme maquette active"}
                   </button>
                   {storeys.map((storey) => (
                     <StoreyTree

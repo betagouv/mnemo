@@ -9,6 +9,5 @@ export type BimFilterViewer = Pick<
   | "getVisualPlan"
   | "applyVisualPlan"
   | "resetVisuals"
-  | "setActiveModel"
   | "setIsolationContext"
 >;

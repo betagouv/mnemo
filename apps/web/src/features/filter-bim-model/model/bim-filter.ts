@@ -1,13 +1,20 @@
-import type { IfcBimCatalog, IfcBimQuery } from "@mnemo/ifc-viewer-adapter";
+import type { BimFilterQuery } from "@mnemo/contracts/bim-filters";
+import type { BimFilterModel } from "./bim-filter-model";
 
-export function bimFilterLabel(catalog: IfcBimCatalog, query: IfcBimQuery) {
-  const classes = query.ifcClasses ?? [];
-  const levels = catalog.storeys.filter((level) =>
-    query.storeyIds?.includes(level.expressId),
-  );
+export function bimFilterLabel(
+  models: readonly BimFilterModel[],
+  query: BimFilterQuery,
+) {
+  const levels = query.storeys.map((level) => {
+    const model = models.find((item) => item.assetId === level.assetId);
+    const name =
+      model?.catalog?.storeys.find((item) => item.expressId === level.storeyId)
+        ?.name ?? `Niveau #${level.storeyId}`;
+    return `${name} · ${model?.fileName ?? level.assetId}`;
+  });
   return (
-    [classes.join(", "), levels.map((level) => level.name).join(", ")]
+    [query.ifcClasses.join(", "), levels.join(", ")]
       .filter(Boolean)
-      .join(" · ") || "Toute la maquette"
+      .join(" · ") || "À configurer"
   );
 }

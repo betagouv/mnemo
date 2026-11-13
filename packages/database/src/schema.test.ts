@@ -17,6 +17,7 @@ describe("Prisma database contract", () => {
       db.projects,
       db.project_members,
       db.assets,
+      db.project_bim_filters,
       db.processing_jobs,
       db.deletion_jobs,
       db.asset_processing_results,
