@@ -11,6 +11,7 @@ function mockProcess(code: number | null, signal: string | null = null) {
   const child = Object.assign(new EventEmitter(), {
     stdout: new EventEmitter(),
     stderr: new EventEmitter(),
+    stdio: [null, null, null, new EventEmitter()],
   });
   vi.mocked(spawn).mockImplementationOnce(() => {
     queueMicrotask(() => child.emit("close", code, signal));
@@ -35,8 +36,9 @@ describe("Untwine COPC converter", () => {
         "--files=/tmp/job/source.laz",
         "--output_dir=/tmp/job/cloud.copc.laz",
         "--temp_dir=/tmp/job/untwine-temp",
+        "--progress_fd=3",
       ],
-      { stdio: ["ignore", "pipe", "pipe"] },
+      { stdio: ["ignore", "pipe", "pipe", "pipe"] },
     );
   });
 

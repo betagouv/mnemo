@@ -1,3 +1,4 @@
+import type { ProcessingProgress } from "@mnemo/contracts/assets";
 import type { AssetKind, AssetStatus, ProjectAccess } from "@mnemo/domain";
 
 export type AssetForActor = {
@@ -10,6 +11,7 @@ export type AssetForActor = {
   originalObjectKey: string;
   status: AssetStatus;
   errorMessage: string | null;
+  processingProgress?: ProcessingProgress | null;
   uploadExpiresAt: Date;
   uploadedAt: Date | null;
   createdAt: Date;

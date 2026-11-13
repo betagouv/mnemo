@@ -1,3 +1,4 @@
+import { AssetProcessingProgress } from "./asset-processing-progress";
 import Badge from "@codegouvfr/react-dsfr/Badge";
 import type { AssetSummary } from "@mnemo/contracts/assets";
 import type { ReactNode } from "react";
@@ -56,6 +57,13 @@ export function AssetCard({
         <p>{kindLabels[asset.kind]}</p>
         <h3 title={asset.originalFileName}>{asset.originalFileName}</h3>
         <span>{formatBytes(asset.sizeBytes)}</span>
+        {asset.processingProgress &&
+        (asset.status === "uploaded" || asset.status === "processing") ? (
+          <AssetProcessingProgress
+            progress={asset.processingProgress}
+            fileName={asset.originalFileName}
+          />
+        ) : null}
       </div>
       <div className={styles.side}>
         <Badge as="span" severity={statusSeverities[asset.status]}>

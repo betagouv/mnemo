@@ -7,6 +7,8 @@ import {
   remotePointCloudOutcomeKey,
   remotePointCloudOutcomeSchema,
   remotePointCloudPrefix,
+  remotePointCloudProgressKey,
+  remotePointCloudProgressSchema,
   type RemotePointCloudJob,
 } from "./remote-point-cloud-protocol";
 
@@ -53,6 +55,10 @@ export function createProcessRemotePointCloudAssetHandler(input: {
     }
 
     const outcomeKey = remotePointCloudOutcomeKey(job);
+    const progressKey = remotePointCloudProgressKey(job);
+    let lastSequence = 0;
+    const clearProgress = () =>
+      input.storage.deleteObject(progressKey).catch(() => undefined);
     // A reclaimed attempt gets a different key, so a late previous one-off
     // cannot publish the result of the current lease.
     await input.launcher.launch(job);
@@ -74,6 +80,7 @@ export function createProcessRemotePointCloudAssetHandler(input: {
           throw new Error("Point-cloud result does not match its job attempt");
         }
         if (outcome.status === "failed") {
+          await clearProgress();
           await input.storage.deleteObject(outcomeKey).catch(() => undefined);
           throw new Error(outcome.error);
         }
@@ -92,6 +99,7 @@ export function createProcessRemotePointCloudAssetHandler(input: {
           { jobId: lease.id, attempt: lease.attempt, workerId: input.workerId },
         );
         if (!saved) {
+          await clearProgress();
           await Promise.allSettled([
             input.storage.deleteObject(artifactKey),
             input.storage.deleteObject(outcomeKey),
@@ -101,10 +109,41 @@ export function createProcessRemotePointCloudAssetHandler(input: {
           );
         }
         await input.storage.deleteObject(outcomeKey).catch(() => undefined);
+        await clearProgress();
         return;
+      }
+      try {
+        const metadata = await input.storage.statObject(progressKey);
+        if (metadata && metadata.contentLength <= 4_096) {
+          const parsed = remotePointCloudProgressSchema.safeParse(
+            JSON.parse(
+              new TextDecoder().decode(
+                await input.storage.readObject(progressKey),
+              ),
+            ),
+          );
+          if (
+            parsed.success &&
+            parsed.data.jobId === job.jobId &&
+            parsed.data.attempt === job.attempt &&
+            parsed.data.sequence > lastSequence
+          ) {
+            await input.repository.saveProgress(parsed.data.progress, {
+              jobId: job.jobId,
+              attempt: job.attempt,
+              workerId: input.workerId,
+            });
+            lastSequence = parsed.data.sequence;
+          }
+        }
+      } catch {
+        console.warn("Point-cloud progress could not be read", {
+          jobId: job.jobId,
+        });
       }
       await new Promise((resolve) => setTimeout(resolve, input.pollIntervalMs));
     }
+    await clearProgress();
     throw new Error("Point-cloud one-off timed out before publishing a result");
   };
 }

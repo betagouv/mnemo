@@ -12,6 +12,7 @@ export async function stageOriginal(
   storage: ObjectStorage,
   asset: PointCloudAssetForProcessing,
   path: string,
+  onProgress?: (percent: number) => void,
 ) {
   const source = await storage.readObjectStream(asset.originalObjectKey);
   const destination = await open(path, "wx", 0o600);
@@ -34,6 +35,9 @@ export async function stageOriginal(
         offset += written.bytesWritten;
       }
       bytesWritten += chunk.byteLength;
+      onProgress?.(
+        Math.min(100, Math.floor((bytesWritten * 100) / asset.sizeBytes)),
+      );
       if (bytesWritten > asset.sizeBytes) {
         throw new Error("Point-cloud original exceeds its declared size");
       }

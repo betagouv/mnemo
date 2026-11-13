@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { assetSummarySchema, openAssetResultSchema } from "./assets";
+import {
+  assetSummarySchema,
+  openAssetResultSchema,
+  processingProgressSchema,
+} from "./assets";
 
 describe("asset contracts", () => {
   it("validates a point-cloud asset response", () => {
@@ -42,4 +46,22 @@ describe("asset contracts", () => {
       }).asset.id,
     ).toBe(asset.id);
   });
+});
+
+it("bounds processing progress and rejects unknown phases and metadata", () => {
+  const progress = {
+    phase: "converting",
+    percent: 42,
+    updatedAt: "2026-11-13T12:00:00.000Z",
+  };
+  expect(processingProgressSchema.parse(progress)).toEqual(progress);
+  for (const invalid of [
+    { ...progress, percent: -1 },
+    { ...progress, percent: 101 },
+    { ...progress, percent: 0.5 },
+    { ...progress, phase: "unknown" },
+    { ...progress, updatedAt: "yesterday" },
+    { ...progress, objectKey: "private" },
+  ])
+    expect(processingProgressSchema.safeParse(invalid).success).toBe(false);
 });

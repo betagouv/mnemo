@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { createPrismaDatabase } from "@mnemo/database";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { PrismaPointCloudProcessingRepository } from "./prisma-point-cloud-processing-repository";
 import { PrismaProcessingJobQueue } from "./prisma-processing-job-queue";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -217,5 +218,90 @@ describe("PrismaProcessingJobQueue", () => {
         select: { status: true },
       }),
     ).resolves.toEqual({ status: "deleting" });
+  });
+  it("guards progress by lease attempt and ownership and resets it on retry and completion", async () => {
+    const fixture = await createQueuedJob();
+    const queue = new PrismaProcessingJobQueue(database.db);
+    const repository = new PrismaPointCloudProcessingRepository(database.db);
+    const lease = await queue.claim({
+      workerId: "progress-worker",
+      supportedTypes: ["process_point_cloud"],
+      claimedAt: now,
+      staleBefore: new Date(now.getTime() - 60000),
+    });
+    expect(lease?.assetId).toBe(fixture.asset.id);
+    const current = {
+      jobId: lease!.id,
+      attempt: lease!.attempt,
+      workerId: "progress-worker",
+    };
+    const progress = {
+      phase: "converting" as const,
+      percent: 42,
+      updatedAt: now.toISOString(),
+    };
+    expect(
+      await repository.saveProgress(progress, { ...current, attempt: 0 }),
+    ).toBe(false);
+    expect(
+      await repository.saveProgress(progress, {
+        ...current,
+        workerId: "other",
+      }),
+    ).toBe(false);
+    expect(await repository.saveProgress(progress, current)).toBe(true);
+    expect(
+      (
+        await database.db.processing_jobs.findUniqueOrThrow({
+          where: { id: lease!.id },
+        })
+      ).progress,
+    ).toEqual(progress);
+    await queue.fail({
+      job: lease!,
+      workerId: current.workerId,
+      error: "retry",
+      failedAt: now,
+      retryAt: now,
+    });
+    expect(
+      (
+        await database.db.processing_jobs.findUniqueOrThrow({
+          where: { id: lease!.id },
+        })
+      ).progress,
+    ).toBeNull();
+    expect(await repository.saveProgress(progress, current)).toBe(false);
+    const retry = await queue.claim({
+      workerId: "retry-worker",
+      supportedTypes: ["process_point_cloud"],
+      claimedAt: now,
+      staleBefore: new Date(now.getTime() - 60000),
+    });
+    const owner = {
+      jobId: retry!.id,
+      attempt: retry!.attempt,
+      workerId: "retry-worker",
+    };
+    expect(retry!.attempt).toBe(2);
+    expect(await repository.saveProgress(progress, current)).toBe(false);
+    expect(await repository.saveProgress(progress, owner)).toBe(true);
+    await database.db.assets.update({
+      where: { id: fixture.asset.id },
+      data: { status: "deleting" },
+    });
+    expect(await repository.saveProgress(progress, owner)).toBe(false);
+    await queue.complete({
+      job: retry!,
+      workerId: owner.workerId,
+      completedAt: now,
+    });
+    expect(
+      (
+        await database.db.processing_jobs.findUniqueOrThrow({
+          where: { id: retry!.id },
+        })
+      ).progress,
+    ).toBeNull();
   });
 });

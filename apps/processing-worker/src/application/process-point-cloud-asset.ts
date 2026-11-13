@@ -1,3 +1,8 @@
+import type { ProcessingProgress } from "@mnemo/contracts/assets";
+export type ReportProcessingProgress = (
+  progress: Pick<ProcessingProgress, "phase" | "percent">,
+) => void;
+
 export type PointCloudAssetForProcessing = {
   id: string;
   projectId: string;
@@ -19,6 +24,11 @@ export type PointCloudProcessingResult = PointCloudProcessingResultBase & {
 };
 
 export interface PointCloudProcessingRepository {
+  saveProgress(
+    progress: ProcessingProgress,
+    lease: { jobId: string; attempt: number; workerId: string },
+  ): Promise<boolean>;
+
   findPointCloudAsset(
     assetId: string,
   ): Promise<PointCloudAssetForProcessing | null>;
@@ -33,6 +43,7 @@ export interface PointCloudProcessingRepository {
 export interface PointCloudArtifactBuilder {
   build(
     asset: PointCloudAssetForProcessing,
+    reportProgress?: ReportProcessingProgress,
   ): Promise<PointCloudProcessingResult | null>;
   remove(result: PointCloudProcessingResult): Promise<void>;
 }

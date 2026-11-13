@@ -45,7 +45,7 @@ export class PrismaProcessingJobQueue implements ProcessingJobQueue {
     return this.database.$transaction(async (transaction) => {
       const exhausted = await transaction.$queryRaw<Array<{ assetId: string }>>`
         UPDATE processing_jobs
-        SET status = 'failed', completed_at = ${input.claimedAt},
+        SET status = 'failed', progress = NULL, completed_at = ${input.claimedAt},
             locked_at = NULL, locked_by = NULL,
             last_error = 'Worker lease expired after the maximum number of attempts',
             updated_at = ${input.claimedAt}
@@ -92,7 +92,7 @@ export class PrismaProcessingJobQueue implements ProcessingJobQueue {
           LIMIT 1
         )
         UPDATE processing_jobs AS job
-        SET status = 'running', attempts = job.attempts + 1,
+        SET status = 'running', attempts = job.attempts + 1, progress = NULL,
             locked_at = ${input.claimedAt}, locked_by = ${input.workerId},
             completed_at = NULL, updated_at = ${input.claimedAt}
         FROM candidate
@@ -123,7 +123,7 @@ export class PrismaProcessingJobQueue implements ProcessingJobQueue {
     await this.database.$transaction(async (transaction) => {
       const rows = await transaction.$queryRaw<Array<{ assetId: string }>>`
         UPDATE processing_jobs
-        SET status = 'succeeded', completed_at = ${input.completedAt},
+        SET status = 'succeeded', progress = NULL, completed_at = ${input.completedAt},
             locked_at = NULL, locked_by = NULL, last_error = NULL,
             updated_at = ${input.completedAt}
         WHERE id = ${input.job.id}::uuid AND status = 'running'
@@ -159,7 +159,7 @@ export class PrismaProcessingJobQueue implements ProcessingJobQueue {
       const rows = await transaction.$queryRaw<Array<{ assetId: string }>>`
         UPDATE processing_jobs
         SET status = ${exhausted ? "failed" : "queued"}::processing_job_status,
-            available_at = ${input.retryAt},
+            progress = NULL, available_at = ${input.retryAt},
             completed_at = ${exhausted ? input.failedAt : null},
             locked_at = NULL, locked_by = NULL,
             last_error = ${input.error}, updated_at = ${input.failedAt}

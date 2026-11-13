@@ -1,5 +1,5 @@
 import type { ObjectStorage, StoredObject } from "@mnemo/storage";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type {
   ProjectForActor,
@@ -257,5 +257,14 @@ describe("AssetService", () => {
       }),
     ).resolves.toEqual({ accepted: true });
     expect(assets.deletionRequests).toEqual([started.asset.id]);
+  });
+  it("requires project read permission for the processing feed", async () => {
+    const projects = new ProjectRepositoryStub();
+    const assets = new AssetRepositoryStub();
+    const service = new AssetService(assets, projects, new ObjectStorageStub());
+    vi.spyOn(projects, "findForActor").mockResolvedValueOnce(undefined);
+    await expect(service.list("outsider", project.id)).rejects.toThrow(
+      "Project is not available",
+    );
   });
 });

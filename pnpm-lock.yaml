@@ -42,6 +42,9 @@ importers:
 
   apps/processing-worker:
     dependencies:
+      '@mnemo/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@mnemo/database':
         specifier: workspace:*
         version: link:../../packages/database

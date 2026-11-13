@@ -27,6 +27,7 @@
     "@mnemo/database": "workspace:*",
     "@mnemo/domain": "workspace:*",
     "@mnemo/storage": "workspace:*",
-    "zod": "4.6.6"
+    "zod": "4.6.6",
+    "@mnemo/contracts": "workspace:*"
   }
 }
