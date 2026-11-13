@@ -1390,7 +1390,7 @@ describe("IfcViewerController", () => {
     controller.dispose();
   });
 
-  it("publishes the new active model before resetting its visual effects", async () => {
+  it("preserves project visual effects when selecting another active model", async () => {
     const { controller, calls } = createHarness();
     for (const assetId of ["model-a", "model-b"])
       await controller.loadIfc({
@@ -1405,8 +1405,16 @@ describe("IfcViewerController", () => {
         resets.push(snapshot.activeModelId ?? "");
     });
     resets.length = 0;
+    const previous = controller.getVisualPlan();
+    const visual = controller.getSnapshot().visual;
+    const idsA = controller.findBimIds({ ifcClasses: ["IfcWall"] }, "model-a");
+    const idsB = controller.findBimIds({ ifcClasses: ["IfcWall"] }, "model-b");
+    expect(idsA).not.toEqual(idsB);
+    expect(controller.countBim({ ifcClasses: ["IfcWall"] }, "model-b")).toBe(1);
     controller.setActiveModel("model-b");
-    expect(resets).toEqual(["model-b"]);
+    expect(controller.getVisualPlan()).toEqual(previous);
+    expect(controller.getSnapshot().visual).toBe(visual);
+    expect(resets).toEqual([]);
     expect(calls.rendererCreated).toBe(1);
     unsubscribe();
     controller.dispose();
@@ -1615,8 +1623,15 @@ describe("IfcViewerController", () => {
     expect(controller.getSnapshot().visual.label).toBe("Nouveau filtre");
     controller.isolateSelection();
     controller.setActiveModel("model-a");
+    expect(controller.getSnapshot().selectionIsolationActive).toBe(true);
+    controller.applyVisualPlan(
+      { ...next, label: "Filtres actualisés" },
+      { preserveSelectionIsolation: true },
+    );
+    expect(controller.getSnapshot().selectionIsolationActive).toBe(true);
     controller.clearSelectionIsolation();
-    expect(controller.getSnapshot().visual.mode).toBe("all");
+    expect(controller.getSnapshot().visual.mode).toBe("color");
+    expect(controller.getSnapshot().visual.label).toBe("Filtres actualisés");
     controller.dispose();
   });
 

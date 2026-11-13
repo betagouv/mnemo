@@ -2,7 +2,7 @@
 import { useId, useImperativeHandle, useState, type Ref } from "react";
 import Button from "@codegouvfr/react-dsfr/Button";
 import Alert from "@codegouvfr/react-dsfr/Alert";
-import type { IfcBimCatalog } from "@mnemo/ifc-viewer-adapter";
+import type { BimFilterModel } from "../model/bim-filter-model";
 import {
   bimFilterSettingsSchema,
   type BimFilterSettings,
@@ -17,8 +17,7 @@ import { BimFilterContext } from "./bim-filter-context";
 import styles from "./bim-filter-panel.module.css";
 
 export function BimFilters({
-  catalog,
-  assetId,
+  models,
   getViewer,
   initial,
   saved,
@@ -30,8 +29,7 @@ export function BimFilters({
   onSave,
   ref,
 }: {
-  catalog: IfcBimCatalog;
-  assetId: string;
+  models: BimFilterModel[];
   getViewer: () => BimFilterViewer | null;
   initial: BimFilterSettings;
   saved?: BimFilterSettings;
@@ -44,7 +42,7 @@ export function BimFilters({
   ref?: Ref<BimFilterControls>;
 }) {
   const { settings, changeGroups, changeContext, resetVisuals } =
-    useBimFilterRules(getViewer, assetId, initial, onChange);
+    useBimFilterRules(getViewer, models, initial, onChange);
   useImperativeHandle(ref, () => ({ resetVisuals }), [resetVisuals]);
   const [adding, setAdding] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
@@ -58,7 +56,7 @@ export function BimFilters({
       ? JSON.stringify(validated.data) !== JSON.stringify(previous.data)
       : hasDraft);
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       <div className={styles.workspaceHeading}>
         <span className={styles.hint}>
           Les groupes et leurs filtres se cumulent.
@@ -86,7 +84,7 @@ export function BimFilters({
           <BimFilterGroup
             key={group.id}
             group={group}
-            catalog={catalog}
+            models={models}
             getViewer={getViewer}
             onChange={(updated) =>
               changeGroups(
@@ -111,7 +109,13 @@ export function BimFilters({
             onSave={(name) => {
               changeGroups([
                 ...settings.groups,
-                { id: crypto.randomUUID(), name, enabled: true, rules: [] },
+                {
+                  id: crypto.randomUUID(),
+                  name,
+                  enabled: true,
+                  assetIds: models.map((model) => model.assetId),
+                  rules: [],
+                },
               ]);
               setAdding(false);
             }}
@@ -133,7 +137,7 @@ export function BimFilters({
           <Alert
             small
             severity="error"
-            description="Vérifiez les filtres. Limite de 50 groupes et 500 filtres par maquette."
+            description="Vérifiez les noms, les cibles et les critères des filtres."
           />
         ) : null}
         {message?.error ? (

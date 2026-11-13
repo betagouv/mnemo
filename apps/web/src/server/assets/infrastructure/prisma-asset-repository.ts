@@ -1,3 +1,7 @@
+import {
+  bimFilterSettingsSchema,
+  removeBimFilterAsset,
+} from "@mnemo/contracts/bim-filters";
 import type { MnemoPrismaDatabase, PrismaAssetRecord } from "@mnemo/database";
 
 import type {
@@ -116,6 +120,22 @@ export class PrismaAssetRepository implements AssetRepository {
         include: { point_cloud_processing_results: true },
       });
       if (!row) return;
+      await transaction.$queryRaw`SELECT id FROM projects WHERE id = ${row.project_id}::uuid FOR UPDATE`;
+      const filters = await transaction.project_bim_filters.findUnique({
+        where: { project_id: row.project_id },
+      });
+      if (filters) {
+        const settings = bimFilterSettingsSchema.parse(filters.settings);
+        if (settings.groups.some((group) => group.assetIds.includes(assetId))) {
+          await transaction.project_bim_filters.update({
+            where: { project_id: row.project_id },
+            data: {
+              settings: removeBimFilterAsset(settings, assetId),
+              version: { increment: 1 },
+            },
+          });
+        }
+      }
 
       await transaction.assets.update({
         where: { id: assetId },

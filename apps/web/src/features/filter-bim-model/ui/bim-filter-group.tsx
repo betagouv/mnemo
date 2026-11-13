@@ -2,7 +2,9 @@
 import { useId, useState } from "react";
 import Button from "@codegouvfr/react-dsfr/Button";
 import Checkbox from "@codegouvfr/react-dsfr/Checkbox";
-import type { IfcBimCatalog } from "@mnemo/ifc-viewer-adapter";
+import { retargetBimFilterGroup } from "@mnemo/contracts/bim-filters";
+import type { BimFilterModel } from "../model/bim-filter-model";
+import { MultiSelect } from "@/shared/ui/multi-select";
 import type { BimFilterGroup as FilterGroup } from "@mnemo/contracts/bim-filters";
 import type { BimFilterViewer } from "../model/viewer-target";
 import { BimFilterEditor } from "./bim-filter-editor";
@@ -13,14 +15,14 @@ import styles from "./bim-filter-panel.module.css";
 
 export function BimFilterGroup({
   group,
-  catalog,
+  models,
   getViewer,
   onChange,
   onDuplicate,
   onRemove,
 }: {
   group: FilterGroup;
-  catalog: IfcBimCatalog;
+  models: BimFilterModel[];
   getViewer: () => BimFilterViewer | null;
   onChange: (group: FilterGroup) => void;
   onDuplicate: () => void;
@@ -35,6 +37,9 @@ export function BimFilterGroup({
     id: string;
     autoFocus: boolean;
   } | null>(group.rules.length ? null : { id: "new", autoFocus: false });
+  const targetedModels = models.filter((model) =>
+    group.assetIds.includes(model.assetId),
+  );
   const editing = group.rules.find((rule) => rule.id === editor?.id);
   const showEditor = editor?.id === "new" || Boolean(editing);
   return (
@@ -56,6 +61,7 @@ export function BimFilterGroup({
               ),
               nativeInputProps: {
                 checked: group.enabled,
+                disabled: !group.assetIds.length,
                 "aria-label": `Activer le groupe ${group.name}`,
                 onChange: () => onChange({ ...group, enabled: !group.enabled }),
               },
@@ -83,6 +89,24 @@ export function BimFilterGroup({
         />
       </div>
       <div id={id} hidden={!expanded} className={styles.groupBody}>
+        <MultiSelect
+          label="Maquettes ciblées"
+          showSelectedChips
+          options={models.map((model) => ({
+            value: model.assetId,
+            label: model.fileName,
+          }))}
+          value={group.assetIds}
+          placeholder="Choisir les maquettes"
+          onChange={(assetIds) =>
+            onChange(retargetBimFilterGroup(group, assetIds))
+          }
+        />
+        {!group.assetIds.length ? (
+          <p className={styles.hint}>
+            Choisissez une maquette pour activer ce groupe.
+          </p>
+        ) : null}
         {renaming ? (
           <BimFilterGroupName
             initial={group.name}
@@ -96,7 +120,7 @@ export function BimFilterGroup({
         {group.rules.length ? (
           <BimFilterRuleList
             rules={group.rules}
-            catalog={catalog}
+            models={targetedModels}
             onToggle={(ruleId) =>
               onChange({
                 ...group,
@@ -125,8 +149,8 @@ export function BimFilterGroup({
         ) : null}
         {showEditor ? (
           <BimFilterEditor
-            key={editor?.id}
-            catalog={catalog}
+            key={`${editor?.id}:${group.assetIds.join(",")}`}
+            models={targetedModels}
             getViewer={getViewer}
             initial={editing}
             editing={Boolean(editing)}

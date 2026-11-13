@@ -9,6 +9,5 @@ export type BimViewer = Pick<
   | "getBimElement"
   | "getBimClasses"
   | "setLayerVisibility"
-  | "setActiveModel"
   | "selectModelEntity"
 >;

@@ -4,7 +4,7 @@ import type {
 } from "@mnemo/contracts/bim-filters";
 
 export interface BimFilterRepository {
-  list(projectId: string): Promise<SavedBimFilters[]>;
+  get(projectId: string): Promise<SavedBimFilters | null>;
   save(input: SaveBimFiltersInput): Promise<SavedBimFilters>;
 }
 export class BimFilterConflictError extends Error {
@@ -16,6 +16,6 @@ export class BimFilterConflictError extends Error {
 }
 export class BimFilterSourceError extends Error {
   constructor() {
-    super("La maquette IFC n'est plus disponible dans ce dossier.");
+    super("Une maquette ciblée n'est plus disponible dans ce dossier.");
   }
 }

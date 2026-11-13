@@ -22,8 +22,7 @@
 
 .treeToggle,
 .elementName,
-.more,
-.activate {
+.more {
   min-width: 0;
   padding: 0;
   border: 0;
@@ -98,8 +97,7 @@
   font-size: 0.75rem;
 }
 
-.more,
-.activate {
+.more {
   margin: 0.3rem 0;
   font-size: 0.68rem;
   text-decoration: underline;

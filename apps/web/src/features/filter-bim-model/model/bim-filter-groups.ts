@@ -1,30 +1,34 @@
-import type { IfcBimCatalog } from "@mnemo/ifc-viewer-adapter";
+import type { BimFilterModel } from "./bim-filter-model";
 import type {
   BimFilterGroup,
   BimFilterSettings,
 } from "@mnemo/contracts/bim-filters";
-
-export function activeBimFilterRules(settings: BimFilterSettings) {
-  return settings.groups
-    .filter((group) => group.enabled)
-    .flatMap((group) => group.rules.filter((rule) => rule.enabled));
-}
 
 export function haveSameBimFilterEffects(
   previous: BimFilterSettings,
   next: BimFilterSettings,
 ) {
   const effects = (settings: BimFilterSettings) =>
-    activeBimFilterRules(settings).map(({ action, query, color }) => ({
-      action,
-      query,
-      color: action === "color" ? color : null,
-    }));
+    settings.groups
+      .filter((group) => group.enabled && group.assetIds.length > 0)
+      .flatMap((group) =>
+        group.rules
+          .filter((rule) => rule.enabled)
+          .map(({ action, query, color }) => ({
+            assetIds: [...group.assetIds].sort(),
+            action,
+            query,
+            color: action === "color" ? color : null,
+          })),
+      );
   return JSON.stringify(effects(previous)) === JSON.stringify(effects(next));
 }
 export function countActiveBimFilterGroups(settings: BimFilterSettings) {
   return settings.groups.filter(
-    (group) => group.enabled && group.rules.some((rule) => rule.enabled),
+    (group) =>
+      group.enabled &&
+      group.assetIds.length > 0 &&
+      group.rules.some((rule) => rule.enabled),
   ).length;
 }
 export function duplicateBimFilterGroup(group: BimFilterGroup): BimFilterGroup {
@@ -36,7 +40,7 @@ export function duplicateBimFilterGroup(group: BimFilterGroup): BimFilterGroup {
   };
 }
 export function createBimFilterSettings(
-  catalog: IfcBimCatalog,
+  models: readonly BimFilterModel[],
 ): BimFilterSettings {
   const palette = [
     "#6a6af4",
@@ -56,6 +60,12 @@ export function createBimFilterSettings(
     "#f66e19",
     "#6c4238",
   ];
+  const storeys = models.flatMap((model) =>
+    (model.catalog?.storeys ?? []).map((storey) => ({
+      assetId: model.assetId,
+      storeyId: storey.expressId,
+    })),
+  );
   return {
     showContext: true,
     contextOpacity: 0.18,
@@ -63,20 +73,22 @@ export function createBimFilterSettings(
       {
         id: crypto.randomUUID(),
         name: "Mes filtres",
+        assetIds: models.map((model) => model.assetId),
         enabled: true,
         rules: [],
       },
-      ...(catalog.storeys.length
+      ...(storeys.length
         ? [
             {
               id: crypto.randomUUID(),
               name: "Couleurs par niveau",
+              assetIds: models.map((model) => model.assetId),
               enabled: false,
-              rules: catalog.storeys.map((storey, index) => ({
+              rules: storeys.map((storey, index) => ({
                 id: crypto.randomUUID(),
                 enabled: true,
                 action: "color" as const,
-                query: { ifcClasses: [], storeyIds: [storey.expressId] },
+                query: { ifcClasses: [], storeys: [storey] },
                 color: palette[index % palette.length],
               })),
             },

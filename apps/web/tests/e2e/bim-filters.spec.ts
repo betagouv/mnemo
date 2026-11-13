@@ -25,6 +25,7 @@ test("persists named filter groups, duplicates and independent activation", asyn
   page,
 }) => {
   test.setTimeout(180_000);
+  page.setDefaultTimeout(15_000);
   const title = `Filtres IFC ${Date.now()}`;
   await gotoHydrated(page, "/projets");
   await page.getByRole("button", { name: "Nouveau dossier" }).click();
@@ -78,24 +79,6 @@ test("persists named filter groups, duplicates and independent activation", asyn
       name: "Filtres IFC",
       exact: true,
     });
-    const modelSelect = panel.getByRole("combobox", {
-      name: "Maquette ciblée",
-    });
-    await expect(modelSelect.locator("option")).toHaveCount(2, {
-      timeout: 120_000,
-    });
-    const initialModelId = await modelSelect.inputValue();
-    const otherModelId = await modelSelect
-      .locator("option")
-      .evaluateAll(
-        (options, current) =>
-          (
-            options.find(
-              (option) => (option as HTMLOptionElement).value !== current,
-            ) as HTMLOptionElement
-          ).value,
-        initialModelId,
-      );
     const group = panel.getByRole("region", {
       name: "Groupe Mes filtres",
       exact: true,
@@ -160,7 +143,8 @@ test("persists named filter groups, duplicates and independent activation", asyn
     await classes.press("ArrowDown");
     await expect(classes).toHaveAttribute("aria-expanded", "true");
     await selectOption(classes, "IfcDoor");
-    await selectOption(levels, "Ground Floor");
+    await selectOption(levels, "Ground Floor · Ifc4_SampleHouse.ifc");
+    await selectOption(levels, "Ground Floor · Second.ifc");
     for (const theme of ["light", "dark"]) {
       await page.evaluate(
         (value) =>
@@ -168,7 +152,7 @@ test("persists named filter groups, duplicates and independent activation", asyn
         theme,
       );
       await page.screenshot({
-        path: `/tmp/mnemo-74-chips-editor-${theme}.png`,
+        path: `/tmp/mnemo-84-chips-editor-${theme}.png`,
       });
     }
     await form
@@ -266,7 +250,11 @@ test("persists named filter groups, duplicates and independent activation", asyn
       name: "Groupe Structure (copie)",
       exact: true,
     });
-    await expect(copy.getByRole("listitem")).toHaveCount(3);
+    await expect(
+      copy
+        .getByRole("list", { name: "Filtres configurés" })
+        .getByRole("listitem"),
+    ).toHaveCount(3);
     await expect(filterBadge).toHaveText("2");
     await expect(filterTool).toHaveAccessibleDescription(
       "2 groupes de filtres actifs",
@@ -294,6 +282,12 @@ test("persists named filter groups, duplicates and independent activation", asyn
       name: "Groupe Portes",
       exact: true,
     });
+    await doors
+      .getByRole("button", {
+        name: "Retirer Ifc4_SampleHouse.ifc de Maquettes ciblées",
+        exact: true,
+      })
+      .click();
     await selectOption(
       doors.getByRole("combobox", { name: "Classes IFC", exact: true }),
       "IfcDoor",
@@ -308,7 +302,11 @@ test("persists named filter groups, duplicates and independent activation", asyn
     await palette
       .getByRole("button", { name: "Déplier Couleurs par niveau", exact: true })
       .click();
-    await expect(palette.getByRole("listitem")).toHaveCount(2);
+    await expect(
+      palette
+        .getByRole("list", { name: "Filtres configurés" })
+        .getByRole("listitem"),
+    ).toHaveCount(4);
     await toggle(palette.getByRole("checkbox", { name: /^Activer le groupe/ }));
     await expect(filterBadge).toHaveText("2");
     await toggle(palette.getByRole("checkbox", { name: /^Activer le groupe/ }));
@@ -333,7 +331,7 @@ test("persists named filter groups, duplicates and independent activation", asyn
         theme,
       );
       await page.mouse.move(700, 500);
-      await page.screenshot({ path: `/tmp/mnemo-74-groups-${theme}.png` });
+      await page.screenshot({ path: `/tmp/mnemo-84-groups-${theme}.png` });
     }
     await page.setViewportSize({ width: 390, height: 844 });
     const bounds = await panel.boundingBox();
@@ -348,11 +346,47 @@ test("persists named filter groups, duplicates and independent activation", asyn
       .locator("footer")
       .getByRole("button", { name: "Enregistrer", exact: true });
     await expect(save).toBeInViewport();
-    await page.screenshot({ path: "/tmp/mnemo-74-groups-mobile.png" });
+    await page.screenshot({ path: "/tmp/mnemo-84-groups-mobile.png" });
     await page.setViewportSize({ width: 1440, height: 1000 });
-    await modelSelect.selectOption(otherModelId);
-    await expect(filterBadge).toHaveCount(0);
-    await modelSelect.selectOption(initialModelId);
+    await tools
+      .getByRole("button", { name: "Maquettes et relevés", exact: true })
+      .click();
+    const explorer = page.getByRole("complementary", {
+      name: "Maquettes et relevés",
+      exact: true,
+    });
+    await expect(
+      explorer.getByRole("button", {
+        name: /^(Maquette active|Définir comme maquette active|Activer pour les filtres)$/,
+      }),
+    ).toHaveCount(0);
+    // Selecting an object automatically chooses its model without changing filters.
+    for (const fileName of ["Second.ifc", "Ifc4_SampleHouse.ifc"]) {
+      const disclosure = explorer.getByRole("button", {
+        name: fileName,
+        exact: true,
+      });
+      if ((await disclosure.getAttribute("aria-expanded")) === "false")
+        await disclosure.click();
+      const body = page.locator(
+        `[id="${await disclosure.getAttribute("aria-controls")}"]`,
+      );
+      const floor = body.getByRole("button", { name: /Ground Floor/ });
+      if ((await floor.getAttribute("aria-expanded")) === "false")
+        await floor.click();
+      const walls = body
+        .locator("button")
+        .filter({ has: page.locator('span[title="IfcWall"]') });
+      if ((await walls.getAttribute("aria-expanded")) === "false")
+        await walls.click();
+      const element = body
+        .locator("[data-selected] > button[aria-pressed]")
+        .first();
+      await element.click();
+      await expect(element).toHaveAttribute("aria-current", "true");
+      await expect(filterBadge).toHaveText("1");
+    }
+    await filterTool.click();
     await expect(filterBadge).toHaveText("1");
     await expect(
       structure.getByRole("checkbox", { name: /^Activer le groupe/ }),
@@ -377,11 +411,14 @@ test("persists named filter groups, duplicates and independent activation", asyn
       panel.getByText("Filtres enregistrés dans le dossier.", { exact: true }),
     ).toBeVisible();
     await expect(save).toBeDisabled();
-    await modelSelect.selectOption(otherModelId);
     await expect(
-      panel.getByRole("region", { name: "Groupe Mes filtres", exact: true }),
-    ).toBeVisible();
-    await modelSelect.selectOption(initialModelId);
+      structure
+        .getByRole("list", {
+          name: "Sélection de Maquettes ciblées",
+          exact: true,
+        })
+        .getByRole("button"),
+    ).toHaveCount(2);
     await expect(
       structure.getByRole("checkbox", { name: /^Activer le groupe/ }),
     ).toBeChecked();
@@ -395,7 +432,19 @@ test("persists named filter groups, duplicates and independent activation", asyn
     await expect(
       structure.getByRole("checkbox", { name: /^Activer le groupe/ }),
     ).toBeChecked();
-    await expect(structure.getByRole("listitem")).toHaveCount(3);
+    await expect(
+      structure
+        .getByRole("list", {
+          name: "Sélection de Maquettes ciblées",
+          exact: true,
+        })
+        .getByRole("button"),
+    ).toHaveCount(2);
+    await expect(
+      structure
+        .getByRole("list", { name: "Filtres configurés" })
+        .getByRole("listitem"),
+    ).toHaveCount(3);
     await expect(
       structure.getByRole("checkbox", {
         name: "Coloriser · IfcDoor",
@@ -429,9 +478,14 @@ test("persists named filter groups, duplicates and independent activation", asyn
     await expect(
       structure.getByRole("checkbox", { name: /^Activer le groupe/ }),
     ).not.toBeChecked();
-    await expect(structure.getByRole("listitem")).toHaveCount(3);
+    await expect(
+      structure
+        .getByRole("list", { name: "Filtres configurés" })
+        .getByRole("listitem"),
+    ).toHaveCount(3);
     await expect(filterBadge).toHaveCount(0);
     await structure
+      .getByRole("list", { name: "Filtres configurés" })
       .getByRole("listitem", { name: /^Isoler/ })
       .getByRole("button", { name: /^Modifier/ })
       .click();
@@ -448,14 +502,14 @@ test("persists named filter groups, duplicates and independent activation", asyn
     await expect(selectedClasses.getByRole("button")).toHaveCount(2);
     const chipBounds = await selectedClasses.boundingBox();
     expect(chipBounds!.x + chipBounds!.width).toBeLessThanOrEqual(390);
-    await page.screenshot({ path: "/tmp/mnemo-74-chips-mobile.png" });
+    await page.screenshot({ path: "/tmp/mnemo-84-chips-mobile.png" });
     await structure
       .getByRole("form")
       .getByRole("button", { name: "Annuler le filtre", exact: true })
       .click();
     expect(errors).toEqual([]);
   } catch (error) {
-    await page.screenshot({ path: "/tmp/mnemo-74-groups-failure.png" });
+    await page.screenshot({ path: "/tmp/mnemo-84-groups-failure.png" });
     throw error;
   } finally {
     await gotoHydrated(page, href);

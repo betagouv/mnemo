@@ -3,14 +3,18 @@
 import { useId, useMemo, useState } from "react";
 import Button from "@codegouvfr/react-dsfr/Button";
 import { SegmentedControl } from "@codegouvfr/react-dsfr/SegmentedControl";
-import type { IfcBimCatalog } from "@mnemo/ifc-viewer-adapter";
+import { hasBimFilterCriteria } from "@mnemo/contracts/bim-filters";
+import {
+  queryForBimFilterModel,
+  type BimFilterModel,
+} from "../model/bim-filter-model";
 import { MultiSelect } from "@/shared/ui/multi-select";
 import type { BimFilterDraft } from "../model/bim-filter-rules";
 import type { BimFilterViewer } from "../model/viewer-target";
 import styles from "./bim-filter-panel.module.css";
 
 export function BimFilterEditor({
-  catalog,
+  models,
   initial,
   getViewer,
   onSave,
@@ -18,7 +22,7 @@ export function BimFilterEditor({
   editing = false,
   autoFocus = false,
 }: {
-  catalog: IfcBimCatalog;
+  models: BimFilterModel[];
   initial?: BimFilterDraft;
   getViewer: () => BimFilterViewer | null;
   onSave: (draft: BimFilterDraft) => void;
@@ -28,33 +32,44 @@ export function BimFilterEditor({
 }) {
   const [draft, setDraft] = useState<BimFilterDraft>(
     initial ?? {
-      query: { ifcClasses: [], storeyIds: [] },
+      query: { ifcClasses: [], storeys: [] },
       action: "isolate",
       color: "#6a6af4",
     },
   );
   const colorId = useId();
-  const classes = useMemo(
-    () =>
-      catalog.types.map((type) => ({
-        value: type.ifcClass,
-        label: type.ifcClass,
-        detail: type.elementCount.toLocaleString("fr-FR"),
-      })),
-    [catalog],
-  );
+  const classes = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const model of models)
+      for (const type of model.catalog?.types ?? [])
+        counts.set(
+          type.ifcClass,
+          (counts.get(type.ifcClass) ?? 0) + type.elementCount,
+        );
+    return [...counts]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([name, count]) => ({
+        value: name,
+        label: name,
+        detail: count.toLocaleString("fr-FR"),
+      }));
+  }, [models]);
   const levels = useMemo(
     () =>
-      catalog.storeys.map((level) => ({
-        value: String(level.expressId),
-        label: level.name,
-      })),
-    [catalog],
+      models.flatMap((model) =>
+        (model.catalog?.storeys ?? []).map((level) => ({
+          value: `${model.assetId}:${level.expressId}`,
+          label: `${level.name} · ${model.fileName}`,
+        })),
+      ),
+    [models],
   );
-  const matches = getViewer()?.countBim(draft.query) ?? 0;
-  const hasCriteria = Boolean(
-    draft.query.ifcClasses?.length || draft.query.storeyIds?.length,
-  );
+  const viewer = getViewer();
+  const matches = models.reduce((count, model) => {
+    const query = queryForBimFilterModel(draft.query, model.assetId);
+    return count + (query ? (viewer?.countBim(query, model.assetId) ?? 0) : 0);
+  }, 0);
+  const hasCriteria = hasBimFilterCriteria(draft.query);
   return (
     <form
       className={styles.editor}
@@ -90,13 +105,21 @@ export function BimFilterEditor({
         label="Niveaux"
         showSelectedChips
         options={levels}
-        value={(draft.query.storeyIds ?? []).map(String)}
+        value={draft.query.storeys.map(
+          (level) => `${level.assetId}:${level.storeyId}`,
+        )}
         placeholder="Tous les niveaux"
         disabled={!levels.length}
         onChange={(values) =>
           setDraft({
             ...draft,
-            query: { ...draft.query, storeyIds: values.map(Number) },
+            query: {
+              ...draft.query,
+              storeys: values.map((value) => {
+                const [assetId, storeyId] = value.split(":");
+                return { assetId, storeyId: Number(storeyId) };
+              }),
+            },
           })
         }
       />

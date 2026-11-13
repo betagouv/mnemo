@@ -9,52 +9,45 @@ import { saveBimFilters } from "@/server/bim-filters/actions";
 
 export function useSavedBimFilters(
   projectId: string,
-  initial: SavedBimFilters[],
+  initial: SavedBimFilters | null,
 ) {
-  const [saved, setSaved] = useState(() =>
-    Object.fromEntries(initial.map((item) => [item.assetId, item])),
-  );
-  const [drafts, setDrafts] = useState<Record<string, BimFilterSettings>>({});
+  const [saved, setSaved] = useState(initial);
+  const [draft, setDraft] = useState<BimFilterSettings | null>(null);
   const [busy, startTransition] = useTransition();
   const [message, setMessage] = useState<{
-    assetId: string;
     error: boolean;
     text: string;
   } | null>(null);
-  function update(assetId: string, settings: BimFilterSettings) {
-    setDrafts((current) => ({ ...current, [assetId]: settings }));
+  function update(settings: BimFilterSettings) {
+    setDraft(settings);
     setMessage(null);
   }
-  function save(assetId: string, settings: BimFilterSettings) {
+  function save(settings: BimFilterSettings) {
     if (busy) return;
     startTransition(async () => {
       setMessage(null);
       try {
         const result = await saveBimFilters({
           projectId,
-          assetId,
-          version: saved[assetId]?.version ?? 0,
+          version: saved?.version ?? 0,
           settings,
         });
         if (!result.filters) {
-          setMessage({ assetId, error: true, text: result.error });
+          setMessage({ error: true, text: result.error });
           return;
         }
-        const filters = result.filters;
-        setSaved((current) => ({ ...current, [assetId]: filters }));
+        setSaved(result.filters);
         setMessage({
-          assetId,
           error: false,
           text: "Filtres enregistrés dans le dossier.",
         });
       } catch {
         setMessage({
-          assetId,
           error: true,
           text: "Enregistrement impossible. Vérifiez votre connexion puis réessayez.",
         });
       }
     });
   }
-  return { saved, drafts, update, save, busy, message };
+  return { saved, draft, update, save, busy, message };
 }

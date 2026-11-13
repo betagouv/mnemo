@@ -12,7 +12,7 @@
     "db:migrate": "prisma migrate deploy",
     "lint": "eslint src prisma.config.ts",
     "test": "vitest run --exclude '**/*.integration.test.ts'",
-    "test:integration": "vitest run src/database.integration.test.ts",
+    "test:integration": "vitest run src/*.integration.test.ts",
     "pretypecheck": "prisma generate",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

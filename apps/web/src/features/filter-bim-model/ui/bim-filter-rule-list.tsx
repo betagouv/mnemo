@@ -2,7 +2,8 @@
 
 import Button from "@codegouvfr/react-dsfr/Button";
 import Checkbox from "@codegouvfr/react-dsfr/Checkbox";
-import type { IfcBimCatalog } from "@mnemo/ifc-viewer-adapter";
+import { hasBimFilterCriteria } from "@mnemo/contracts/bim-filters";
+import type { BimFilterModel } from "../model/bim-filter-model";
 import {
   bimFilterActionLabels,
   type BimFilterRule,
@@ -12,14 +13,14 @@ import styles from "./bim-filter-panel.module.css";
 
 export function BimFilterRuleList({
   rules,
-  catalog,
+  models,
   onToggle,
   onEdit,
   onRemove,
   onDuplicate,
 }: {
   rules: BimFilterRule[];
-  catalog: IfcBimCatalog;
+  models: BimFilterModel[];
   onToggle: (id: string) => void;
   onEdit: (id: string) => void;
   onRemove: (id: string) => void;
@@ -29,7 +30,7 @@ export function BimFilterRuleList({
     <ul className={styles.rules} aria-label="Filtres configurés">
       {rules.map((rule) => {
         const action = bimFilterActionLabels[rule.action];
-        const criteria = bimFilterLabel(catalog, rule.query);
+        const criteria = bimFilterLabel(models, rule.query);
         const label = `${action} · ${criteria}`;
         return (
           <li
@@ -60,6 +61,7 @@ export function BimFilterRuleList({
                   ),
                   nativeInputProps: {
                     checked: rule.enabled,
+                    disabled: !hasBimFilterCriteria(rule.query),
                     "aria-label": label,
                     onChange: () => onToggle(rule.id),
                   },

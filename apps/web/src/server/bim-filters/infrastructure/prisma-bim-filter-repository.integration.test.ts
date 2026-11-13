@@ -3,6 +3,7 @@ import { createPrismaDatabase } from "@mnemo/database";
 import type { SaveBimFiltersInput } from "@mnemo/contracts/bim-filters";
 import { beforeAll, afterAll, describe, it, expect } from "vitest";
 import { PrismaProjectRepository } from "@/server/projects/infrastructure/prisma-project-repository";
+import { PrismaAssetRepository } from "@/server/assets/infrastructure/prisma-asset-repository";
 import {
   BimFilterService,
   BimFilterAccessDeniedError,
@@ -16,7 +17,7 @@ import { PrismaBimFilterRepository } from "./prisma-bim-filter-repository";
 if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL required");
 const database = createPrismaDatabase({
   connectionString: process.env.DATABASE_URL,
-  maxConnections: 3,
+  maxConnections: 4,
 });
 const db = database.db;
 const owner = randomUUID(),
@@ -24,14 +25,18 @@ const owner = randomUUID(),
   outsider = randomUUID();
 const projectId = randomUUID(),
   otherProject = randomUUID(),
-  assetId = randomUUID();
+  freshProject = randomUUID();
+const assetId = randomUUID(),
+  secondAsset = randomUUID(),
+  pendingId = randomUUID(),
+  cloudId = randomUUID();
 const service = new BimFilterService(
   new PrismaProjectRepository(db),
   new PrismaBimFilterRepository(db),
 );
+const assets = new PrismaAssetRepository(db);
 const input: SaveBimFiltersInput = {
   projectId,
-  assetId,
   version: 0,
   settings: {
     showContext: true,
@@ -40,14 +45,28 @@ const input: SaveBimFiltersInput = {
       {
         id: randomUUID(),
         name: "Structure",
-        enabled: false,
+        enabled: true,
+        assetIds: [assetId, secondAsset],
         rules: [
           {
             id: randomUUID(),
             enabled: true,
             action: "isolate",
-            query: { ifcClasses: ["IfcWall"], storeyIds: [42] },
+            query: {
+              ifcClasses: ["IfcWall"],
+              storeys: [
+                { assetId, storeyId: 42 },
+                { assetId: secondAsset, storeyId: 42 },
+              ],
+            },
             color: "#6a6af4",
+          },
+          {
+            id: randomUUID(),
+            enabled: true,
+            action: "color",
+            query: { ifcClasses: [], storeys: [{ assetId, storeyId: 84 }] },
+            color: "#ff0000",
           },
         ],
       },
@@ -65,11 +84,11 @@ function assetData(id: string) {
     original_object_key: `test/${id}`,
     status: "ready" as const,
     created_by: owner,
-    upload_expires_at: new Date("2030-01-01"),
+    upload_expires_at: new Date("2035-01-01"),
   };
 }
 
-describe("model BIM filters", () => {
+describe("project BIM filters", () => {
   beforeAll(async () => {
     for (const id of [owner, reader, outsider])
       await db.users.create({
@@ -79,7 +98,7 @@ describe("model BIM filters", () => {
           display_name: "Filter actor",
         },
       });
-    for (const id of [projectId, otherProject])
+    for (const id of [projectId, otherProject, freshProject])
       await db.projects.create({
         data: {
           id,
@@ -93,63 +112,62 @@ describe("model BIM filters", () => {
           },
         },
       });
-    await db.assets.create({ data: assetData(assetId) });
+    for (const id of [assetId, secondAsset])
+      await db.assets.create({ data: assetData(id) });
+    await db.assets.create({
+      data: { ...assetData(pendingId), status: "upload_pending" },
+    });
+    await db.assets.create({
+      data: { ...assetData(cloudId), kind: "point_cloud" },
+    });
   });
   afterAll(async () => {
+    await db.deletion_jobs.deleteMany({
+      where: { resource_id: { in: [assetId, secondAsset] } },
+    });
     await db.projects.deleteMany({
-      where: { id: { in: [projectId, otherProject] } },
+      where: { id: { in: [projectId, otherProject, freshProject] } },
     });
     await db.users.deleteMany({
       where: { id: { in: [owner, reader, outsider] } },
     });
     await database.close();
   });
-  it("round trips names, criteria and independent activation flags", async () => {
+  it("round trips groups with multiple targets and model-qualified levels", async () => {
     const filters = await service.save(owner, input);
-    expect(filters).toEqual({ assetId, version: 1, settings: input.settings });
-    expect(await service.list(reader, projectId)).toEqual([filters]);
+    expect(filters).toEqual({ ...input, version: 1 });
+    expect(await service.get(reader, projectId)).toEqual(filters);
   });
-  it("rejects outsiders, reader writes and malformed settings", async () => {
-    await expect(service.list(outsider, projectId)).rejects.toBeInstanceOf(
-      BimFilterAccessDeniedError,
-    );
-    await expect(service.save(outsider, input)).rejects.toBeInstanceOf(
+  it("rejects outsiders, reader writes and malformed or out-of-scope levels", async () => {
+    await expect(service.get(outsider, projectId)).rejects.toBeInstanceOf(
       BimFilterAccessDeniedError,
     );
     await expect(service.save(reader, input)).rejects.toBeInstanceOf(
       BimFilterAccessDeniedError,
     );
-    await expect(
-      service.save(owner, {
-        ...input,
-        settings: { ...input.settings, contextOpacity: 9 },
-      }),
-    ).rejects.toThrow();
+    const invalid = structuredClone(input);
+    invalid.settings.groups[0].rules[0].query.storeys[0].assetId = randomUUID();
+    await expect(service.save(owner, invalid)).rejects.toThrow();
   });
-  it("scopes assets to their project and excludes unavailable sources", async () => {
+  it("validates every target against the project and its readiness", async () => {
     await expect(
       service.save(owner, { ...input, projectId: otherProject }),
     ).rejects.toBeInstanceOf(BimFilterSourceError);
-    expect(await service.list(reader, otherProject)).toEqual([]);
-    const pendingId = randomUUID();
-    await db.assets.create({
-      data: { ...assetData(pendingId), status: "upload_pending" },
-    });
-    await expect(
-      service.save(owner, { ...input, assetId: pendingId }),
-    ).rejects.toBeInstanceOf(BimFilterSourceError);
-    const cloudId = randomUUID();
-    await db.assets.create({
-      data: { ...assetData(cloudId), kind: "point_cloud" },
-    });
-    await expect(
-      service.save(owner, { ...input, assetId: cloudId }),
-    ).rejects.toBeInstanceOf(BimFilterSourceError);
+    expect(await service.get(reader, otherProject)).toBeNull();
+    for (const invalidAssetId of [pendingId, cloudId, randomUUID()]) {
+      const invalid = structuredClone(input);
+      invalid.settings.groups[0].assetIds.push(invalidAssetId);
+      await expect(service.save(owner, invalid)).rejects.toBeInstanceOf(
+        BimFilterSourceError,
+      );
+    }
   });
-  it("prevents concurrent first writes and stale replacement", async () => {
-    const freshId = randomUUID();
-    await db.assets.create({ data: assetData(freshId) });
-    const fresh = { ...input, assetId: freshId };
+  it("rejects concurrent first writes and stale replacement versions", async () => {
+    const fresh = {
+      ...input,
+      projectId: freshProject,
+      settings: { ...input.settings, groups: [] },
+    };
     const first = await Promise.allSettled([
       service.save(owner, fresh),
       service.save(owner, fresh),
@@ -168,24 +186,43 @@ describe("model BIM filters", () => {
     expect(
       outcomes.filter((result) => result.status === "fulfilled"),
     ).toHaveLength(1);
-    expect(
-      outcomes.filter((result) => result.status === "rejected"),
-    ).toHaveLength(1);
     await expect(service.save(owner, update)).rejects.toBeInstanceOf(
       BimFilterConflictError,
     );
-    expect(
-      (await service.list(reader, projectId)).find(
-        (item) => item.assetId === freshId,
-      )?.version,
-    ).toBe(2);
+    expect((await service.get(reader, freshProject))?.version).toBe(2);
   });
-  it("cascades settings when an IFC asset is deleted", async () => {
-    await db.assets.delete({ where: { id: assetId } });
+  it("serializes saving with IFC deletion and removes only the deleted model's references", async () => {
+    await Promise.allSettled([
+      service.save(owner, { ...input, version: 1 }),
+      assets.requestDeletion(assetId, new Date("2035-01-01")),
+    ]);
+    const filters = (await service.get(reader, projectId))!;
+    const group = filters.settings.groups[0];
+    expect(group.assetIds).toEqual([secondAsset]);
+    expect(group.enabled).toBe(true);
+    expect(group.rules[0].query.storeys).toEqual([
+      { assetId: secondAsset, storeyId: 42 },
+    ]);
+    expect(group.rules[1]).toMatchObject({
+      enabled: false,
+      query: { ifcClasses: [], storeys: [] },
+    });
+    expect(filters.version).toBeGreaterThan(1);
+    await expect(
+      service.save(owner, { ...input, version: filters.version }),
+    ).rejects.toBeInstanceOf(BimFilterSourceError);
+    await assets.requestDeletion(secondAsset, new Date("2035-01-01"));
+    const empty = (await service.get(reader, projectId))!.settings.groups[0];
+    expect(empty.assetIds).toEqual([]);
+    expect(empty.enabled).toBe(false);
+    expect(empty.rules).toHaveLength(2);
+  });
+  it("cascades the configuration when a project is deleted", async () => {
+    await db.projects.delete({ where: { id: freshProject } });
     expect(
-      (await service.list(owner, projectId)).some(
-        (item) => item.assetId === assetId,
-      ),
-    ).toBe(false);
+      await db.project_bim_filters.findUnique({
+        where: { project_id: freshProject },
+      }),
+    ).toBeNull();
   });
 });
