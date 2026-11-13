@@ -355,6 +355,12 @@ test("persists named filter groups, duplicates and independent activation", asyn
       name: "Maquettes et relevés",
       exact: true,
     });
+    await expect(
+      explorer.getByRole("button", {
+        name: /^(Maquette active|Définir comme maquette active|Activer pour les filtres)$/,
+      }),
+    ).toHaveCount(0);
+    // Selecting an object automatically chooses its model without changing filters.
     for (const fileName of ["Second.ifc", "Ifc4_SampleHouse.ifc"]) {
       const disclosure = explorer.getByRole("button", {
         name: fileName,
@@ -362,13 +368,24 @@ test("persists named filter groups, duplicates and independent activation", asyn
       });
       if ((await disclosure.getAttribute("aria-expanded")) === "false")
         await disclosure.click();
+      const body = page.locator(
+        `[id="${await disclosure.getAttribute("aria-controls")}"]`,
+      );
+      const floor = body.getByRole("button", { name: /Ground Floor/ });
+      if ((await floor.getAttribute("aria-expanded")) === "false")
+        await floor.click();
+      const walls = body
+        .locator("button")
+        .filter({ has: page.locator('span[title="IfcWall"]') });
+      if ((await walls.getAttribute("aria-expanded")) === "false")
+        await walls.click();
+      const element = body
+        .locator("[data-selected] > button[aria-pressed]")
+        .first();
+      await element.click();
+      await expect(element).toHaveAttribute("aria-current", "true");
+      await expect(filterBadge).toHaveText("1");
     }
-    await explorer
-      .getByRole("button", {
-        name: "Définir comme maquette active",
-        exact: true,
-      })
-      .click();
     await filterTool.click();
     await expect(filterBadge).toHaveText("1");
     await expect(

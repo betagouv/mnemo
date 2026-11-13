@@ -136,16 +136,6 @@ export function BimLayerTree({
                       {storeys.length} niveaux
                     </span>
                   </div>
-                  <button
-                    className={styles.activate}
-                    disabled={snapshot.activeModelId === source.assetId}
-                    onClick={() => getViewer()?.setActiveModel(source.assetId)}
-                    type="button"
-                  >
-                    {snapshot.activeModelId === source.assetId
-                      ? "Maquette active"
-                      : "Définir comme maquette active"}
-                  </button>
                   {storeys.map((storey) => (
                     <StoreyTree
                       assetId={source.assetId}
