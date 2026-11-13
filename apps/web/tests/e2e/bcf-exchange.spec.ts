@@ -85,7 +85,8 @@ test("imports, exports and deduplicates a BCF archive", async ({
   } finally {
     await gotoHydrated(page, projectHref);
     page.once("dialog", (dialog) => void dialog.accept());
-    await page.getByRole("button", { name: "Supprimer le projet" }).click();
+    await page.getByRole("button", { name: "Modifier le dossier" }).click();
+    await page.getByRole("button", { name: "Supprimer le dossier" }).click();
     await expect(page).toHaveURL(/\/projets$/);
   }
 });

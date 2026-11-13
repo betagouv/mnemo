@@ -68,16 +68,17 @@ export function ProjectAssets({
       {canUpload ? (
         <UploadAssetControls onUploaded={updateAsset} projectId={projectId} />
       ) : null}
-
-      <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h2 id="project-files-title">Fichiers</h2>
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <h2 className={styles.title} id="project-files-title">
+          Fichiers
+        </h2>
         <span className={styles.fileCount} aria-live="polite">
           {assets.length} {assets.length > 1 ? "fichiers" : "fichier"}
         </span>
       </div>
 
       {processingError ? (
-        <p role="status" className="fr-text--sm mt-3">
+        <p role="status" className="fr-text--sm m-0">
           {processingError}
         </p>
       ) : null}

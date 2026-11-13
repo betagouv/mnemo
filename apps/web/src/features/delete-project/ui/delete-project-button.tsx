@@ -21,7 +21,7 @@ export function DeleteProjectButton({
   async function deleteProject() {
     if (
       !window.confirm(
-        `Supprimer le projet « ${projectName} », ses fichiers et toutes ses données ?`,
+        `Supprimer le dossier « ${projectName} », ses fichiers et toutes ses données ?`,
       )
     ) {
       return;
@@ -45,7 +45,7 @@ export function DeleteProjectButton({
       onClick={() => void deleteProject()}
       priority="tertiary"
     >
-      {pending ? "Suppression…" : "Supprimer le projet"}
+      {pending ? "Suppression…" : "Supprimer le dossier"}
     </Button>
   );
 }

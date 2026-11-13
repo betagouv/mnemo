@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 import { openAssetResultSchema } from "@mnemo/contracts/assets";
@@ -175,7 +176,8 @@ test("creates and edits dossier metadata in DSFR modals", async ({ page }) => {
   } finally {
     await gotoHydrated(page, projectHref);
     page.once("dialog", (dialog) => void dialog.accept());
-    await page.getByRole("button", { name: "Supprimer le projet" }).click();
+    await page.getByRole("button", { name: "Modifier le dossier" }).click();
+    await page.getByRole("button", { name: "Supprimer le dossier" }).click();
     await expect(page).toHaveURL(/\/projets$/);
   }
 });
@@ -233,9 +235,7 @@ test("creates, reloads, opens and deletes a project asset", async ({
     await expect(
       page.getByRole("heading", { name: "Fichiers", exact: true }),
     ).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Sélectionner un fichier" }),
-    ).toBeVisible();
+    await expect(page.locator('input[type="file"]')).toBeVisible();
 
     await page
       .getByRole("group", { name: "Ajouter un fichier au projet" })
@@ -335,11 +335,69 @@ test("creates, reloads, opens and deletes a project asset", async ({
     const fileName = "Ifc4_SampleHouse.ifc";
     const [fileChooser] = await Promise.all([
       page.waitForEvent("filechooser"),
-      page.getByRole("button", { name: "Sélectionner un fichier" }).click(),
+      page.locator('input[type="file"]').click(),
     ]);
     await fileChooser.setFiles(sampleIfcPath);
 
     await expect(page.getByRole("heading", { name: fileName })).toBeVisible();
+    const upload = page.getByRole("group", {
+      name: "Ajouter un fichier au projet",
+    });
+    const uploadInput = upload.locator('input[type="file"]');
+    await expect(uploadInput).toBeVisible();
+    await expect(uploadInput).toBeEnabled();
+    await expect(
+      page.getByRole("dialog", { name: "Ajouter un fichier", exact: true }),
+    ).toHaveCount(0);
+    const uploadBounds = await upload.boundingBox();
+    const filesHeading = await page
+      .getByRole("heading", { name: "Fichiers", exact: true })
+      .boundingBox();
+    expect(uploadBounds!.y + uploadBounds!.height).toBeLessThan(
+      filesHeading!.y,
+    );
+    await uploadInput.setInputFiles({
+      name: "second-sample.ifc",
+      mimeType: "application/octet-stream",
+      buffer: await readFile(sampleIfcPath),
+    });
+    await expect(
+      page.getByRole("heading", { name: "second-sample.ifc" }),
+    ).toBeVisible();
+    await expect(uploadInput).toBeEnabled();
+    page.once("dialog", (dialog) => void dialog.accept());
+    await page
+      .getByRole("button", { name: "Supprimer second-sample.ifc", exact: true })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: "second-sample.ifc" }),
+    ).toHaveCount(0);
+    await page.screenshot({
+      path: "/tmp/mnemo-66-populated.png",
+      fullPage: true,
+      animations: "disabled",
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.evaluate(() =>
+      document.documentElement.setAttribute("data-fr-scheme", "dark"),
+    );
+    await expect(page.locator("html")).toHaveAttribute("data-fr-theme", "dark");
+    await page.screenshot({
+      path: "/tmp/mnemo-66-inline-upload-mobile-dark.png",
+      fullPage: true,
+      animations: "disabled",
+    });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+    await expect(uploadInput).toBeVisible();
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.evaluate(() =>
+      document.documentElement.setAttribute("data-fr-scheme", "light"),
+    );
+
     await expect(
       page.getByRole("link", { name: "Ouvrir la vue" }),
     ).toBeVisible();
@@ -440,7 +498,8 @@ test("creates, reloads, opens and deletes a project asset", async ({
   } finally {
     await gotoHydrated(page, projectHref);
     page.once("dialog", (dialog) => void dialog.accept());
-    await page.getByRole("button", { name: "Supprimer le projet" }).click();
+    await page.getByRole("button", { name: "Modifier le dossier" }).click();
+    await page.getByRole("button", { name: "Supprimer le dossier" }).click();
     await expect(page).toHaveURL(/\/projets$/);
   }
 });

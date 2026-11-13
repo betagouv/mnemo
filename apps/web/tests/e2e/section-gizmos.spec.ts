@@ -224,7 +224,10 @@ test("moves box faces and section planes with projected axis arrows", async ({
         await waitForHydration(cleanup);
         cleanup.once("dialog", (dialog) => void dialog.accept());
         await cleanup
-          .getByRole("button", { name: "Supprimer le projet" })
+          .getByRole("button", { name: "Modifier le dossier" })
+          .click();
+        await cleanup
+          .getByRole("button", { name: "Supprimer le dossier" })
           .click();
         await expect(cleanup).toHaveURL(/\/projets$/);
       } finally {

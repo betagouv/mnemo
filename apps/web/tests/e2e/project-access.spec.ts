@@ -10,7 +10,7 @@ test("lets a project owner create a reusable BCF role", async ({ page }) => {
   if (!href) throw new Error("Project URL missing");
 
   await page.goto(href);
-  await page.getByRole("link", { name: "Accès au dossier" }).click();
+  await page.getByRole("link", { name: "Gérer les accès" }).click();
   await expect(
     page.getByRole("heading", { name: `Accès à ${name}` }),
   ).toBeVisible();
