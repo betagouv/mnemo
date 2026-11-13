@@ -42,12 +42,7 @@ test("persists named filter groups, duplicates and independent activation", asyn
       page.getByRole("heading", { name: "Ifc4_SampleHouse.ifc", exact: true }),
     ).toBeVisible();
     await gotoHydrated(page, href);
-    await expect(
-      page.getByRole("button", {
-        name: "Sélectionner un fichier",
-        exact: true,
-      }),
-    ).toBeEnabled();
+    await expect(page.locator('input[type="file"]')).toBeEnabled();
     await page.locator('input[type="file"]').setInputFiles({
       name: "Second.ifc",
       mimeType: "application/octet-stream",
@@ -514,7 +509,8 @@ test("persists named filter groups, duplicates and independent activation", asyn
   } finally {
     await gotoHydrated(page, href);
     page.once("dialog", (dialog) => void dialog.accept());
-    await page.getByRole("button", { name: "Supprimer le projet" }).click();
+    await page.getByRole("button", { name: "Modifier le dossier" }).click();
+    await page.getByRole("button", { name: "Supprimer le dossier" }).click();
     await expect(page).toHaveURL(/\/projets$/);
   }
 });

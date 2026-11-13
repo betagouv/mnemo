@@ -340,37 +340,23 @@ test("creates, reloads, opens and deletes a project asset", async ({
     await fileChooser.setFiles(sampleIfcPath);
 
     await expect(page.getByRole("heading", { name: fileName })).toBeVisible();
-    const addFile = page.getByRole("button", {
-      name: "Ajouter un fichier",
-      exact: true,
+    const upload = page.getByRole("group", {
+      name: "Ajouter un fichier au projet",
     });
-    await expect(addFile).toBeVisible();
-    await expect(addFile).toBeFocused();
-    await expect(page.locator('input[type="file"]')).not.toBeVisible();
-    await addFile.click();
-    const uploadDialog = page.getByRole("dialog", {
-      name: "Ajouter un fichier",
-      exact: true,
-    });
-    await expect(uploadDialog).toBeVisible();
-    await expect(uploadDialog.getByLabel("Fichier à ajouter")).toBeVisible();
-    const modalHeading = await uploadDialog
-      .getByRole("heading", { name: "Ajouter un fichier" })
+    const uploadInput = upload.locator('input[type="file"]');
+    await expect(uploadInput).toBeVisible();
+    await expect(uploadInput).toBeEnabled();
+    await expect(
+      page.getByRole("dialog", { name: "Ajouter un fichier", exact: true }),
+    ).toHaveCount(0);
+    const uploadBounds = await upload.boundingBox();
+    const filesHeading = await page
+      .getByRole("heading", { name: "Fichiers", exact: true })
       .boundingBox();
-    const dropzone = await uploadDialog
-      .getByRole("group", { name: "Ajouter un fichier au projet" })
-      .boundingBox();
-    expect(
-      dropzone!.y - modalHeading!.y - modalHeading!.height,
-    ).toBeGreaterThanOrEqual(16);
-
-    await page.keyboard.press("Escape");
-    await expect(uploadDialog).not.toBeVisible();
-    await expect(addFile).toBeFocused();
-
-    await addFile.click();
-    await expect(uploadDialog).toBeVisible();
-    await uploadDialog.locator('input[type="file"]').setInputFiles({
+    expect(uploadBounds!.y + uploadBounds!.height).toBeLessThan(
+      filesHeading!.y,
+    );
+    await uploadInput.setInputFiles({
       name: "second-sample.ifc",
       mimeType: "application/octet-stream",
       buffer: await readFile(sampleIfcPath),
@@ -378,8 +364,7 @@ test("creates, reloads, opens and deletes a project asset", async ({
     await expect(
       page.getByRole("heading", { name: "second-sample.ifc" }),
     ).toBeVisible();
-    await expect(uploadDialog).not.toBeVisible();
-    await expect(addFile).toBeFocused();
+    await expect(uploadInput).toBeEnabled();
     page.once("dialog", (dialog) => void dialog.accept());
     await page
       .getByRole("button", { name: "Supprimer second-sample.ifc", exact: true })
@@ -392,20 +377,13 @@ test("creates, reloads, opens and deletes a project asset", async ({
       fullPage: true,
       animations: "disabled",
     });
-    await addFile.click();
-    await expect(uploadDialog).toBeVisible();
-    await page.screenshot({
-      path: "/tmp/mnemo-66-upload-dialog.png",
-      fullPage: true,
-      animations: "disabled",
-    });
     await page.setViewportSize({ width: 390, height: 844 });
     await page.evaluate(() =>
       document.documentElement.setAttribute("data-fr-scheme", "dark"),
     );
     await expect(page.locator("html")).toHaveAttribute("data-fr-theme", "dark");
     await page.screenshot({
-      path: "/tmp/mnemo-66-upload-dialog-mobile-dark.png",
+      path: "/tmp/mnemo-66-inline-upload-mobile-dark.png",
       fullPage: true,
       animations: "disabled",
     });
@@ -414,7 +392,7 @@ test("creates, reloads, opens and deletes a project asset", async ({
         () => document.documentElement.scrollWidth <= window.innerWidth,
       ),
     ).toBe(true);
-    await page.keyboard.press("Escape");
+    await expect(uploadInput).toBeVisible();
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.evaluate(() =>
       document.documentElement.setAttribute("data-fr-scheme", "light"),

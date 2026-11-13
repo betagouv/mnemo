@@ -66,10 +66,8 @@ async function filesFromDrop(transfer: DataTransfer): Promise<File[]> {
 export function UploadAssetControls({
   projectId,
   onUploaded,
-  label = "Fichier à ajouter",
 }: {
   projectId: string;
-  label?: string;
   onUploaded: (asset: AssetSummary) => void;
 }) {
   const [progress, setProgress] = useState<number | null>(null);
@@ -190,8 +188,8 @@ export function UploadAssetControls({
         role="group"
       >
         <Upload
-          label={label}
-          hint="Formats acceptés: IFC, IFCZIP, LAS, LAZ, PLY, E57. Un seul fichier, jusqu’à 5 Gio."
+          label="Ajouter un fichier"
+          hint="Taille maximale de 5 Gio. Formats IFC, IFCZIP, LAS, LAZ, PLY, E57. Un seul fichier à la fois."
           disabled={isUploading}
           nativeInputProps={{
             accept: acceptedFiles,

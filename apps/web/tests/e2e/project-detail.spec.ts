@@ -80,7 +80,16 @@ for (const access of ["owner", "editor", "viewer", "delete-only"] as const) {
           })
           .boundingBox();
         expect(bounds!.width).toBeCloseTo(section!.width, 0);
-        await expect(upload).toContainText("Ajoutez votre premier fichier");
+        await expect(upload.locator('input[type="file"]')).toHaveAccessibleName(
+          /^Ajouter un fichier/,
+        );
+        const filesHeading = await page
+          .getByRole("heading", { name: "Fichiers", exact: true })
+          .boundingBox();
+        expect(bounds!.y + bounds!.height).toBeLessThan(filesHeading!.y);
+        await expect(
+          page.getByRole("dialog", { name: "Ajouter un fichier", exact: true }),
+        ).toHaveCount(0);
         await upload.evaluate((element) => {
           const transfer = new DataTransfer();
           const file = new File(["x"], "trop-grand.ifc");
