@@ -26,6 +26,10 @@ test("uses contextual panels without empty properties or unavailable tools", asy
     const layers = page.getByRole("complementary", {
       name: "Maquettes et relevés",
     });
+    await expect(layers).toBeHidden();
+    await page
+      .getByRole("button", { name: "Maquettes et relevés", exact: true })
+      .click();
     await expect(layers).toBeVisible();
     await expect(
       page.getByRole("region", { name: "Propriétés IFC" }),

@@ -79,6 +79,9 @@ test("uploads, processes and range-loads the versioned COPC fixture", async ({
     await expect(
       page.locator('[aria-label="Visionneuse 3D du projet"]'),
     ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Maquettes et relevés", exact: true })
+      .click();
     await expect(page.getByRole("tab", { name: /^Relevés/ })).toBeVisible();
 
     // Software WebGPU is unreliable in hosted CI; local headed runs validate
