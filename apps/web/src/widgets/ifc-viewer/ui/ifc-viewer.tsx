@@ -205,8 +205,8 @@ export function ProjectViewer({
       data-panel-open={Boolean(activePanel) || showExplorer}
     >
       <ViewerSidePanel
-        title="Maquettes et relevés"
-        iconClass="fr-icon-stack-line"
+        title={viewerPanels.layers.title}
+        icon={viewerPanels.layers.icon}
         isOpen={showExplorer}
         focusRequest={activePanel === "layers" ? panelFocusRequest : 0}
         mode="layers"
@@ -326,18 +326,18 @@ export function ProjectViewer({
           ) : null}
         </div>
 
-        {activePanel === "cut-plane" && snapshot.section.active === "plane" ? (
+        {activePanel === "cutPlane" && snapshot.section.active === "plane" ? (
           <SectionPlaneGizmo
             getViewer={getViewer}
             plane={snapshot.section.plane}
           />
         ) : null}
-        {activePanel === "cut-box" &&
+        {activePanel === "cutBox" &&
         snapshot.section.active === "box" &&
         snapshot.section.box ? (
           <SectionBoxGizmo box={snapshot.section.box} getViewer={getViewer} />
         ) : null}
-        {activePanel === "cut-plane" &&
+        {activePanel === "cutPlane" &&
         (snapshot.section.pickMode ||
           (snapshot.section.active === "plane" && snapshot.section.trace)) ? (
           <SectionSketchOverlay
@@ -401,7 +401,7 @@ export function ProjectViewer({
       />
       <ViewerSidePanel
         focusRequest={panelFocusRequest}
-        iconClass={activePanelConfig?.icon}
+        icon={activePanelConfig?.icon}
         isOpen={hasToolPanel}
         mode={activePanel ?? undefined}
         onClose={closePanel}
@@ -478,6 +478,11 @@ export function ProjectViewer({
           snapshot={snapshot}
           getViewer={getViewer}
           hasActiveIfc={Boolean(activeIfcSource)}
+          onOpenSavedPlans={
+            floorPlans.saved.views.length
+              ? () => openPanel("floorPlan", "views")
+              : undefined
+          }
           onSectionModeChange={(mode) => {
             const viewer = getViewer();
             viewer?.cancelSectionPick();
@@ -485,7 +490,7 @@ export function ProjectViewer({
               if (mode === "box") viewer?.showSectionBox();
               else viewer?.showSectionPlane();
             }
-            setActivePanel(mode === "box" ? "cut-box" : "cut-plane");
+            setActivePanel(mode === "box" ? "cutBox" : "cutPlane");
           }}
           measurements={<MeasurementPanel />}
           floorPlans={

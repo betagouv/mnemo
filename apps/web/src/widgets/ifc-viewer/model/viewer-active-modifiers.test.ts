@@ -18,7 +18,7 @@ describe("getActiveViewerModifiers", () => {
         reset: "section",
         label: "Plan de coupe actif",
         icon: "fr-icon-crop-line",
-        panel: "cut-plane",
+        panel: "cutPlane",
         group: "cuts",
       },
     ]);
@@ -70,7 +70,7 @@ describe("getActiveViewerModifiers", () => {
     snapshot.section.active = "box";
     expect(getActiveViewerModifiers(snapshot)[0]).toMatchObject({
       label: "Boîte de coupe active",
-      panel: "cut-box",
+      panel: "cutBox",
     });
     snapshot.section.active = null;
     expect(getActiveViewerModifiers(snapshot)).toEqual([]);

@@ -7,6 +7,7 @@ import {
   type ViewerPanelId,
   type ViewerToolGroupId,
 } from "../model/viewer-tool-catalog";
+import { viewerIconClass } from "./viewer-icon";
 import styles from "./viewer-tool-bar.module.css";
 export function ViewerToolBar({
   activeGroupId,
@@ -71,8 +72,7 @@ export function ViewerToolBar({
                 data-separated={group.id === "layers" || undefined}
               >
                 <Button
-                  className={styles.trigger}
-                  iconId={group.icon}
+                  className={`${styles.trigger} ${viewerIconClass(group.icon)}`}
                   nativeButtonProps={{
                     "aria-label": group.label,
                     "aria-describedby":

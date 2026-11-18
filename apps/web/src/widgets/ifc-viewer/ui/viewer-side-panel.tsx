@@ -3,12 +3,14 @@
 import Button from "@codegouvfr/react-dsfr/Button";
 import { useEffect, useId, useRef, type ReactNode } from "react";
 
+import type { ViewerIcon } from "../model/viewer-tool-catalog";
+import { viewerIconClass } from "./viewer-icon";
 import styles from "./viewer-side-panel.module.css";
 
 export function ViewerSidePanel({
   children,
   focusRequest,
-  iconClass,
+  icon,
   isOpen,
   mode,
   onClose,
@@ -19,7 +21,7 @@ export function ViewerSidePanel({
 }: {
   children: ReactNode;
   focusRequest: number;
-  iconClass?: string;
+  icon?: ViewerIcon;
   isOpen: boolean;
   mode?: string;
   onClose: () => void;
@@ -59,7 +61,9 @@ export function ViewerSidePanel({
         className={`${styles.header} flex min-h-15 items-center justify-between gap-2 border-b border-[var(--viewer-border)]`}
       >
         <div className={`${styles.heading} flex min-w-0 items-center gap-2`}>
-          {iconClass ? <span aria-hidden="true" className={iconClass} /> : null}
+          {icon ? (
+            <span aria-hidden="true" className={viewerIconClass(icon)} />
+          ) : null}
           <h2 id={titleId} ref={titleRef} tabIndex={-1}>
             {title}
           </h2>

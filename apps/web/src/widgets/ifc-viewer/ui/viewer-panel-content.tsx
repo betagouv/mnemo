@@ -1,5 +1,6 @@
 "use client";
 
+import Button from "@codegouvfr/react-dsfr/Button";
 import type { ReactNode } from "react";
 import type {
   IfcViewerController,
@@ -14,6 +15,7 @@ export function ViewerPanelContent({
   getViewer,
   hasActiveIfc,
   onSectionModeChange,
+  onOpenSavedPlans,
   floorPlans,
   measurements,
 }: {
@@ -21,6 +23,7 @@ export function ViewerPanelContent({
   snapshot: IfcViewerSnapshot;
   getViewer: () => IfcViewerController | null;
   hasActiveIfc: boolean;
+  onOpenSavedPlans?: () => void;
   onSectionModeChange: (mode: "plane" | "box") => void;
   floorPlans: ReactNode;
   measurements: ReactNode;
@@ -32,24 +35,37 @@ export function ViewerPanelContent({
           Ajoutez une maquette IFC pour utiliser l’assistant.
         </p>
       );
-    case "cut-plane":
-    case "cut-box":
+    case "cutPlane":
+    case "cutBox":
       return (
-        <SectionPanel
-          getViewer={getViewer}
-          hasIfcGeometry={snapshot.meshCount > 0}
-          hasPointCloud={snapshot.pointClouds.some(
-            (cloud) => cloud.pointCount > 0,
+        <>
+          {onOpenSavedPlans && (
+            <div className="px-4 pt-4">
+              <Button
+                size="small"
+                priority="secondary"
+                onClick={onOpenSavedPlans}
+              >
+                Voir les vues en plan enregistrées
+              </Button>
+            </div>
           )}
-          mode={panel === "cut-box" ? "box" : "plane"}
-          onModeChange={onSectionModeChange}
-          section={snapshot.section}
-        />
+          <SectionPanel
+            getViewer={getViewer}
+            hasIfcGeometry={snapshot.meshCount > 0}
+            hasPointCloud={snapshot.pointClouds.some(
+              (cloud) => cloud.pointCount > 0,
+            )}
+            mode={panel === "cutBox" ? "box" : "plane"}
+            onModeChange={onSectionModeChange}
+            section={snapshot.section}
+          />
+        </>
       );
     case "distance":
     case "surface":
       return measurements;
-    case "floor-plan":
+    case "floorPlan":
       return floorPlans;
     case "information":
       return (

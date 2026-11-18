@@ -1,3 +1,9 @@
+const cutsPanel = {
+  title: "Coupes",
+  icon: "fr-icon-crop-line",
+  width: "20rem",
+} as const;
+
 export const viewerPanels = {
   information: {
     title: "Informations sur la scène",
@@ -20,8 +26,8 @@ export const viewerPanels = {
     icon: "fr-icon-sparkling-line",
     width: "24rem",
   },
-  "cut-plane": { title: "Coupes", icon: "fr-icon-crop-line", width: "20rem" },
-  "cut-box": { title: "Coupes", icon: "fr-icon-crop-line", width: "20rem" },
+  cutPlane: cutsPanel,
+  cutBox: cutsPanel,
   distance: {
     title: "Mesure de distance",
     icon: "fr-icon-ruler-line",
@@ -37,62 +43,63 @@ export const viewerPanels = {
     icon: "fr-icon-filter-line",
     width: "28rem",
   },
-  "floor-plan": {
+  floorPlan: {
     title: "Vues en plan",
-    icon: "fr-icon-layout-grid-line",
+    icon: "floorPlan",
     width: "24rem",
   },
 } as const;
 export type ViewerPanelId = keyof typeof viewerPanels;
+export type ViewerIcon = (typeof viewerPanels)[ViewerPanelId]["icon"];
 export const viewerToolGroups = [
   {
     id: "layers",
-    label: "Maquettes et relevés",
-    icon: "fr-icon-stack-line",
+    label: viewerPanels.layers.title,
+    icon: viewerPanels.layers.icon,
     panel: "layers",
   },
   {
+    id: "views",
+    label: viewerPanels.floorPlan.title,
+    icon: viewerPanels.floorPlan.icon,
+    panel: "floorPlan",
+  },
+  {
     id: "filters",
-    label: "Filtres IFC",
-    icon: "fr-icon-filter-line",
+    label: viewerPanels.filters.title,
+    icon: viewerPanels.filters.icon,
     panel: "filters",
   },
   {
     id: "cuts",
-    label: "Coupes",
-    icon: "fr-icon-crop-line",
-    panel: "cut-plane",
+    label: viewerPanels.cutPlane.title,
+    icon: viewerPanels.cutPlane.icon,
+    panel: "cutPlane",
   },
   {
     id: "measurements",
     label: "Mesures",
-    icon: "fr-icon-ruler-line",
+    icon: viewerPanels.distance.icon,
     panel: "distance",
   },
   {
-    id: "views",
-    label: "Vues en plan",
-    icon: "fr-icon-layout-grid-line",
-    panel: "floor-plan",
-  },
-  {
     id: "annotations",
-    label: "Remarques BCF",
-    icon: "fr-icon-chat-3-line",
+    label: viewerPanels.bcf.title,
+    icon: viewerPanels.bcf.icon,
     panel: "bcf",
   },
 ] as const;
 export const viewerSecondaryTools = [
   {
     id: "information",
-    label: "Informations sur la scène",
-    icon: "fr-icon-information-line",
+    label: viewerPanels.information.title,
+    icon: viewerPanels.information.icon,
     panel: "information",
   },
   {
     id: "help",
-    label: "Aide à la navigation",
-    icon: "fr-icon-question-line",
+    label: viewerPanels.help.title,
+    icon: viewerPanels.help.icon,
     panel: "help",
   },
 ] as const;

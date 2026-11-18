@@ -33,6 +33,14 @@ test("uses contextual panels without empty properties or unavailable tools", asy
     await expect(
       tools.getByRole("button", { name: "Mesures", exact: true }),
     ).toBeVisible();
+    const buttons = tools.getByRole("button");
+    await expect(buttons.nth(0)).toHaveAccessibleName(/Maquettes et relevés/);
+    await expect(buttons.nth(1)).toHaveAccessibleName("Vues en plan");
+    expect(
+      await buttons
+        .nth(1)
+        .evaluate((button) => getComputedStyle(button, "::before").maskImage),
+    ).toContain("/floor-plan.svg");
     const iconMasks = await tools
       .locator(":scope > ul > li > button")
       .evaluateAll((buttons) =>

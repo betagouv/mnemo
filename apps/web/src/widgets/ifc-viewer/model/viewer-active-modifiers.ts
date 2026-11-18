@@ -25,7 +25,7 @@ const modifierSources: readonly ModifierSource[] = [
           reset: "section",
           label: "Plan de coupe actif",
           icon: "fr-icon-crop-line",
-          panel: "cut-plane",
+          panel: "cutPlane",
           group: "cuts",
         };
       }
@@ -35,7 +35,7 @@ const modifierSources: readonly ModifierSource[] = [
           reset: "section",
           label: "Boîte de coupe active",
           icon: "fr-icon-crop-line",
-          panel: "cut-box",
+          panel: "cutBox",
           group: "cuts",
         };
       }
