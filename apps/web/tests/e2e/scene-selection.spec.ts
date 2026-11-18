@@ -47,6 +47,9 @@ test("reveals the object picked in the scene inside the collapsed model tree", a
       .locator('[aria-label="Notifications"]')
       .getByRole("button", { name: "Masquer le message" });
     while (await notifications.count()) await notifications.first().click();
+    await page
+      .getByRole("button", { name: "Maquettes et relevés", exact: true })
+      .click();
     const tree = page.getByRole("complementary", {
       name: "Maquettes et relevés",
     });

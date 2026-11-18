@@ -10,11 +10,9 @@ import type { IfcViewerController } from "@mnemo/ifc-viewer-adapter";
 export function useViewerPanels(
   getViewer: () => Pick<IfcViewerController, "cancelSectionPick"> | null,
 ) {
-  const [activePanel, setActivePanel] = useState<ViewerPanelId | null>(
-    "layers",
-  );
+  const [activePanel, setActivePanel] = useState<ViewerPanelId | null>(null);
   const [activeToolGroup, setActiveToolGroup] =
-    useState<ViewerToolGroupId | null>("layers");
+    useState<ViewerToolGroupId | null>(null);
   const [explorerPinned, setExplorerPinned] = useState(false);
   const [panelFocusRequest, setPanelFocusRequest] = useState(0);
 

@@ -29,12 +29,15 @@
   padding: 0;
 }
 
-.list .trigger {
+.list .item .trigger:global(.fr-btn) {
   position: relative;
   display: grid;
   width: 2.75rem;
   height: 2.75rem;
   min-height: 0;
+  max-width: none;
+  max-height: none;
+  overflow: visible;
   padding: 0;
   place-items: center;
 }
@@ -121,6 +124,8 @@
   color: var(--text-inverted-blue-france);
   background: var(--viewer-accent);
   font-size: 0.6rem;
+  line-height: 1;
+  pointer-events: none;
 }
 
 .item[data-separated="true"] {
