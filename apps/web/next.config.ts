@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(process.cwd(), "../.."),
   reactStrictMode: true,
   experimental: {
+    agentUpgrade: "security",
     // BCF visibility/selection lists travel as JSON; image bytes still upload directly to S3.
     serverActions: { bodySizeLimit: "8mb" },
   },
