@@ -21,6 +21,7 @@ import type {
   BcfMarkerTopic,
   CreateBcfTopicInput,
 } from "@mnemo/contracts/bcf";
+import { MIN_ISOLATION_CONTEXT_OPACITY } from "@mnemo/contracts/bim-filters";
 import type { PointCloudTransform } from "@mnemo/point-cloud-viewer-adapter";
 import type { IfcBimQuery, IfcElementSummary } from "./bim-index";
 import { BimLayerVisibility } from "./bim-layer-visibility";
@@ -759,7 +760,10 @@ export class IfcViewerController {
   setIsolationContext(showContext: boolean, contextOpacity: number) {
     const context = {
       showContext,
-      contextOpacity: Math.min(0.9, Math.max(0.02, contextOpacity)),
+      contextOpacity: Math.min(
+        0.9,
+        Math.max(MIN_ISOLATION_CONTEXT_OPACITY, contextOpacity),
+      ),
     };
     if (this.selectionIsolationBase) {
       this.selectionIsolationBase = {
@@ -844,7 +848,7 @@ export class IfcViewerController {
     const contextOpacity = Math.min(
       0.9,
       Math.max(
-        0.02,
+        MIN_ISOLATION_CONTEXT_OPACITY,
         plan.contextOpacity ?? this.snapshot.visual.contextOpacity,
       ),
     );

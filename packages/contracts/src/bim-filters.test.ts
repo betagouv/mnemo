@@ -8,7 +8,7 @@ import {
 function settings(): BimFilterSettings {
   return {
     showContext: true,
-    contextOpacity: 0.18,
+    contextOpacity: 0.01,
     groups: [
       {
         id: randomUUID(),
@@ -44,6 +44,7 @@ describe("BIM filter contracts", () => {
       rule = group.rules[0];
     for (const invalid of [
       { ...input, contextOpacity: 2 },
+      { ...input, contextOpacity: 0.009 },
       { ...input, groups: [{ ...group, name: " " }] },
       {
         ...input,

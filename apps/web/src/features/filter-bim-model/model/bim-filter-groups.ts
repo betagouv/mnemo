@@ -1,3 +1,4 @@
+import { DEFAULT_ISOLATION_CONTEXT_OPACITY } from "@mnemo/contracts/bim-filters";
 import type { BimFilterModel } from "./bim-filter-model";
 import type {
   BimFilterGroup,
@@ -68,7 +69,7 @@ export function createBimFilterSettings(
   );
   return {
     showContext: true,
-    contextOpacity: 0.18,
+    contextOpacity: DEFAULT_ISOLATION_CONTEXT_OPACITY,
     groups: [
       {
         id: crypto.randomUUID(),

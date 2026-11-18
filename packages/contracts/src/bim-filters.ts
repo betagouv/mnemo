@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+export const MIN_ISOLATION_CONTEXT_OPACITY = 0.01;
+export const DEFAULT_ISOLATION_CONTEXT_OPACITY = MIN_ISOLATION_CONTEXT_OPACITY;
+
 export const bimFilterQuerySchema = z.object({
   ifcClasses: z.array(z.string().regex(/^Ifc[A-Za-z0-9]{1,80}$/)).max(200),
   storeys: z
@@ -58,7 +61,7 @@ export const bimFilterSettingsSchema = z
   .object({
     groups: z.array(bimFilterGroupSchema),
     showContext: z.boolean(),
-    contextOpacity: z.number().min(0.02).max(0.5),
+    contextOpacity: z.number().min(MIN_ISOLATION_CONTEXT_OPACITY).max(0.5),
   })
   .superRefine(({ groups }, context) => {
     const ids = [

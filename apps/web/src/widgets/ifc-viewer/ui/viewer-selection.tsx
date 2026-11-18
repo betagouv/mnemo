@@ -105,8 +105,17 @@ export function ViewerSelection({
           </Button>
           <Button
             size="small"
-            priority="secondary"
-            onClick={() => viewer?.isolateSelection()}
+            priority={
+              snapshot.selectionIsolationActive ? "primary" : "secondary"
+            }
+            nativeButtonProps={{
+              "aria-pressed": snapshot.selectionIsolationActive,
+            }}
+            onClick={() => {
+              if (snapshot.selectionIsolationActive)
+                viewer?.clearSelectionIsolation();
+              else viewer?.isolateSelection();
+            }}
           >
             {snapshot.selectedElements.some(
               (element) => element.assetId !== snapshot.activeModelId,

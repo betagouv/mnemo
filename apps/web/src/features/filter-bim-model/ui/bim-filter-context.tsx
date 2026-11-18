@@ -1,7 +1,10 @@
 "use client";
 import Checkbox from "@codegouvfr/react-dsfr/Checkbox";
 import Range from "@codegouvfr/react-dsfr/Range";
-import type { BimFilterSettings } from "@mnemo/contracts/bim-filters";
+import {
+  MIN_ISOLATION_CONTEXT_OPACITY,
+  type BimFilterSettings,
+} from "@mnemo/contracts/bim-filters";
 import styles from "./bim-filter-panel.module.css";
 
 export function BimFilterContext({
@@ -30,7 +33,7 @@ export function BimFilterContext({
       <Range
         small
         label="Opacité du contexte"
-        min={2}
+        min={MIN_ISOLATION_CONTEXT_OPACITY * 100}
         max={50}
         suffix=" %"
         disabled={!settings.showContext}
