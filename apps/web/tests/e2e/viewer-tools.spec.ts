@@ -38,14 +38,27 @@ test("uses contextual panels without empty properties or unavailable tools", asy
       tools.getByRole("button", { name: "Mesures", exact: true }),
     ).toBeVisible();
     const buttons = tools.getByRole("button");
-    await expect(buttons.nth(0)).toHaveAccessibleName(/Maquettes et relevés/);
-    await expect(buttons.nth(1)).toHaveAccessibleName("Vues en plan");
+    const order = [
+      "Maquettes et relevés",
+      "Vues en plan",
+      "Coupes",
+      "Mesures",
+      "Filtres IFC",
+      "Remarques BCF",
+      "Autres outils",
+    ];
+    for (const [index, label] of order.entries()) {
+      await expect(buttons.nth(index)).toHaveAccessibleName(label);
+    }
     expect(
       await buttons
         .nth(1)
         .evaluate((button) => getComputedStyle(button, "::before").maskImage),
     ).toContain("/floor-plan.svg");
-    for (const button of [buttons.nth(0), buttons.nth(2)]) {
+    for (const button of [
+      tools.getByRole("button", { name: "Maquettes et relevés", exact: true }),
+      tools.getByRole("button", { name: "Filtres IFC", exact: true }),
+    ]) {
       await expect(button).toHaveCSS("overflow", "visible");
       await expect(button).toHaveCSS("width", "44px");
     }
