@@ -45,6 +45,7 @@ function createHarness({
     panDeltas: [] as { x: number; y: number }[],
     zoom: 0,
     pick: 0,
+    pickOptions: null as Parameters<Renderer["pick"]>[2] | null,
     orbitCenter: null as { x: number; y: number; z: number } | null,
     rendererDestroyed: 0,
     geometryDisposed: 0,
@@ -254,8 +255,13 @@ function createHarness({
     render: (options: Parameters<Renderer["render"]>[0]) => {
       calls.lastRenderOptions = options;
     },
-    pick: async () => {
+    pick: async (
+      _x: number,
+      _y: number,
+      options: Parameters<Renderer["pick"]>[2],
+    ) => {
       calls.pick += 1;
+      calls.pickOptions = options;
       return {
         expressId: pickExpressId,
         ...(pickWorldXYZ ? { worldXYZ: pickWorldXYZ } : {}),
@@ -1317,6 +1323,76 @@ describe("IfcViewerController", () => {
     expect(calls.rendererCreated).toBe(1);
     controller.dispose();
   });
+
+  it.each([true, false])(
+    "anchors a direct drag to the picked object (surface available: %s)",
+    async (hasSurface) => {
+      const { calls, controller, dispatch, setPickWorldXYZ, setPickedBounds } =
+        createHarness();
+      await controller.loadIfc({
+        assetId: "model-a",
+        fileName: "model.ifc",
+        downloadUrl: "http://storage.local/model.ifc",
+      });
+      const center = { x: 8, y: 9, z: 10 };
+      setPickWorldXYZ(hasSurface ? center : null);
+      setPickedBounds({
+        min: { x: 6, y: 7, z: 8 },
+        max: { x: 10, y: 11, z: 12 },
+      });
+      controller.applyVisualPlan({
+        hiddenIds: new Set([84]),
+        focusIds: new Set([42]),
+        showContext: false,
+      });
+      dispatch("pointerdown", {
+        button: 0,
+        clientX: 100,
+        clientY: 120,
+        pointerId: 7,
+      });
+      dispatch("pointermove", { clientX: 130, clientY: 140, pointerId: 7 });
+      await vi.waitFor(() => expect(calls.orbit).toBe(1));
+      dispatch("pointerup", { type: "pointerup", button: 0, pointerId: 7 });
+
+      expect(calls.pick).toBe(1);
+      expect(calls.pickOptions).toMatchObject({
+        hiddenIds: new Set([84]),
+        isolatedIds: new Set([42]),
+      });
+      expect(calls.orbitCenter).toEqual(center);
+      expect(controller.getSnapshot().selection).toBeNull();
+      expect(calls.rendererCreated).toBe(1);
+      expect(calls.fitToView).toBe(0);
+      controller.dispose();
+    },
+  );
+
+  it.each(["measurement", "section"])(
+    "keeps the navigation pivot while the %s tool is picking",
+    async (tool) => {
+      const { calls, controller, dispatch } = createHarness();
+      await controller.loadIfc({
+        assetId: "model-a",
+        fileName: "model.ifc",
+        downloadUrl: "http://storage.local/model.ifc",
+      });
+      if (tool === "measurement") controller.onMeasurementPick(() => undefined);
+      else controller.startSectionPick("face");
+
+      dispatch("pointerdown", {
+        button: 0,
+        clientX: 100,
+        clientY: 120,
+        pointerId: 7,
+      });
+      dispatch("pointermove", { clientX: 130, clientY: 140, pointerId: 7 });
+      await vi.waitFor(() => expect(calls.orbit).toBe(1));
+      expect(calls.pick).toBe(0);
+      expect(calls.orbitCenter).toBeNull();
+      controller.dispose();
+    },
+  );
 
   it("selects IFC semantics and uses the clicked surface as orbit center", async () => {
     const { calls, controller, dispatch } = createHarness();

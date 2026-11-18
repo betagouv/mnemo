@@ -1,9 +1,10 @@
-import type { Renderer } from "@ifc-lite/renderer";
+import type { Renderer, Vec3 } from "@ifc-lite/renderer";
 
 type SceneInteractionsHost = {
   canvas: HTMLCanvasElement;
   renderer: Renderer;
   onPick: (x: number, y: number, additive: boolean) => void;
+  findOrbitCenter?: (x: number, y: number) => Promise<Vec3 | null>;
   getCursor?: () => string;
 };
 
@@ -16,6 +17,7 @@ export class SceneInteractions {
   private startY = 0;
   private x = 0;
   private y = 0;
+  private pendingOrbit: { x: number; y: number } | null = null;
 
   constructor(private readonly host: SceneInteractionsHost) {}
 
@@ -34,6 +36,9 @@ export class SceneInteractions {
   }
 
   detach() {
+    this.pendingOrbit = null;
+    this.mode = null;
+    this.pointerId = null;
     const { canvas } = this.host;
     canvas.removeEventListener("pointerdown", this.onPointerDown);
     canvas.removeEventListener("pointermove", this.onPointerMove);
@@ -45,6 +50,8 @@ export class SceneInteractions {
 
   private readonly onPointerDown = (event: PointerEvent) => {
     if (event.button !== 0 && event.button !== 1 && event.button !== 2) return;
+    if (this.pointerId !== null) return;
+    this.flushOrbit();
 
     this.pointerId = event.pointerId;
     this.mode =
@@ -66,11 +73,13 @@ export class SceneInteractions {
     const deltaX = event.clientX - this.x;
     const deltaY = event.clientY - this.y;
     if (
+      !this.moved &&
       Math.abs(event.clientX - this.startX) +
         Math.abs(event.clientY - this.startY) >
-      4
+        4
     ) {
       this.moved = true;
+      if (this.mode === "orbit") this.startOrbit();
     }
     const camera = this.host.renderer.getCamera();
     if (this.mode === "pan") {
@@ -85,13 +94,56 @@ export class SceneInteractions {
       }
       camera.pan(deltaX * panScale, deltaY * panScale, false);
     } else {
-      camera.orbit(deltaX, deltaY, false);
+      if (!this.moved) return;
+      if (this.pendingOrbit) {
+        this.pendingOrbit.x += deltaX;
+        this.pendingOrbit.y += deltaY;
+      } else {
+        camera.orbit(deltaX, deltaY, false);
+      }
     }
 
     this.x = event.clientX;
     this.y = event.clientY;
     this.host.renderer.requestRender();
   };
+
+  private startOrbit() {
+    if (!this.host.findOrbitCenter) return;
+    const bounds = this.host.canvas.getBoundingClientRect();
+    const camera = this.host.renderer.getCamera();
+    const viewProjection = camera.getViewProjMatrix().m.slice();
+    const pending = { x: 0, y: 0 };
+    this.pendingOrbit = pending;
+    // Keep the camera still while picking so the hit belongs to the original
+    // cursor ray. Coalesce movement instead of issuing a pick on every frame.
+    void this.host
+      .findOrbitCenter(this.startX - bounds.left, this.startY - bounds.top)
+      .catch(() => null)
+      .then((center) => {
+        if (this.pendingOrbit !== pending) return;
+        // Camera commands and resizes can supersede the gesture during readback.
+        const currentProjection = camera.getViewProjMatrix().m;
+        if (
+          viewProjection.some(
+            (value, index) => value !== currentProjection[index],
+          )
+        ) {
+          this.pendingOrbit = null;
+          return;
+        }
+        if (center) camera.setOrbitCenter(center);
+        this.flushOrbit();
+      });
+  }
+
+  private flushOrbit() {
+    const pending = this.pendingOrbit;
+    if (!pending) return;
+    this.pendingOrbit = null;
+    this.host.renderer.getCamera().orbit(pending.x, pending.y, false);
+    this.host.renderer.requestRender();
+  }
 
   private readonly onPointerUp = (event: PointerEvent) => {
     if (event.pointerId !== this.pointerId) return;
@@ -101,6 +153,7 @@ export class SceneInteractions {
       event.button === 0 &&
       this.mode === "orbit" &&
       !this.moved;
+    if (event.type === "pointercancel") this.pendingOrbit = null;
     if (this.host.canvas.hasPointerCapture(event.pointerId)) {
       this.host.canvas.releasePointerCapture(event.pointerId);
     }
@@ -121,6 +174,7 @@ export class SceneInteractions {
 
   private readonly onWheel = (event: WheelEvent) => {
     event.preventDefault();
+    this.flushOrbit();
     const bounds = this.host.canvas.getBoundingClientRect();
     this.host.renderer.getCamera().zoom(
       event.deltaY,

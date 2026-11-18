@@ -12,6 +12,7 @@ import { FloorPlanGenerator } from "./floor-plan-generator";
 import {
   FederationRegistry,
   type Renderer,
+  type Vec3,
   type SectionPlaneAxis,
 } from "@ifc-lite/renderer";
 import type {
@@ -195,6 +196,7 @@ export class IfcViewerController {
       canvas,
       renderer: this.renderer,
       onPick: (x, y, additive) => this.pickEntity(x, y, additive),
+      findOrbitCenter: (x, y) => this.findOrbitCenter(x, y),
       getCursor: () => (this.measurementPickHandler ? "crosshair" : "grab"),
     });
   }
@@ -693,19 +695,11 @@ export class IfcViewerController {
         return;
       }
 
-      const bounds = this.renderer
-        .getScene()
-        .getEntityBoundingBox(this.federation.toGlobalId(modelId, expressId));
-      const center =
-        orbitCenter ??
-        (bounds
-          ? {
-              x: (bounds.min.x + bounds.max.x) / 2,
-              y: (bounds.min.y + bounds.max.y) / 2,
-              z: (bounds.min.z + bounds.max.z) / 2,
-            }
-          : undefined);
-      this.renderer.getCamera().setOrbitCenter(center ?? null);
+      const center = this.entityOrbitCenter(
+        this.federation.toGlobalId(modelId, expressId),
+        orbitCenter,
+      );
+      this.renderer.getCamera().setOrbitCenter(center);
       this.updateSnapshot({
         selection,
         selectedElements: this.selectedElements(),
@@ -1080,6 +1074,34 @@ export class IfcViewerController {
       alignCanvasWidth(bounds.width),
       clampCanvasHeight(bounds.height),
     );
+  }
+
+  private async findOrbitCenter(x: number, y: number) {
+    if (this.measurementPickHandler || this.sections.isPicking) return null;
+    const generation = this.modelLoader.generation;
+    const hit = await this.renderer.pick(x, y, {
+      hiddenIds: new Set([
+        ...this.hiddenIds,
+        ...this.layerVisibility.hiddenIds,
+      ]),
+      isolatedIds: this.isolatedIds,
+    });
+    if (!hit || !this.modelLoader.isCurrentLoad(generation)) return null;
+    return this.entityOrbitCenter(hit.expressId, hit.worldXYZ);
+  }
+
+  private entityOrbitCenter(globalId: number, surface?: Vec3) {
+    if (surface) return surface;
+    // IFC-Lite can omit the surface point when large models use its CPU pick
+    // fallback. Their retained entity bounds still provide an object pivot.
+    const bounds = this.renderer.getScene().getEntityBoundingBox(globalId);
+    return bounds
+      ? {
+          x: (bounds.min.x + bounds.max.x) / 2,
+          y: (bounds.min.y + bounds.max.y) / 2,
+          z: (bounds.min.z + bounds.max.z) / 2,
+        }
+      : null;
   }
 
   private pickEntity(x: number, y: number, additive = false) {

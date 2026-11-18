@@ -1,9 +1,194 @@
 import { Camera, type Renderer } from "@ifc-lite/renderer";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { SceneInteractions } from "./scene-interactions";
 
+type Point = { x: number; y: number; z: number };
+
+function createOrbitHarness() {
+  const listeners = new Map<string, EventListener>();
+  const camera = new Camera();
+  camera.setPosition(10, 8, 12);
+  camera.setTarget(0, 0, 0);
+  const setOrbitCenter = vi.spyOn(camera, "setOrbitCenter");
+  let resolvePick!: (point: Point | null) => void;
+  let rejectPick!: (error: Error) => void;
+  const pick = new Promise<Point | null>((resolve, reject) => {
+    resolvePick = resolve;
+    rejectPick = reject;
+  });
+  const findOrbitCenter = vi.fn(() => pick);
+  const onPick = vi.fn();
+  const canvas = {
+    style: {},
+    addEventListener: (name: string, listener: EventListener) =>
+      listeners.set(name, listener),
+    removeEventListener: (name: string) => listeners.delete(name),
+    setPointerCapture: () => undefined,
+    hasPointerCapture: () => false,
+    getBoundingClientRect: () => ({
+      left: 10,
+      top: 20,
+      width: 800,
+      height: 600,
+    }),
+  } as unknown as HTMLCanvasElement;
+  const interactions = new SceneInteractions({
+    canvas,
+    renderer: {
+      getCamera: () => camera,
+      requestRender: () => undefined,
+    } as unknown as Renderer,
+    onPick,
+    findOrbitCenter,
+  });
+  interactions.attach();
+  return {
+    camera,
+    interactions,
+    findOrbitCenter,
+    setOrbitCenter,
+    onPick,
+    resolvePick,
+    rejectPick,
+    dispatch(type: string, event: object = {}) {
+      listeners.get(type)?.({
+        type,
+        button: 0,
+        pointerId: 1,
+        clientX: 110,
+        clientY: 140,
+        preventDefault: () => undefined,
+        ...event,
+      } as unknown as Event);
+    },
+  };
+}
+
 describe("SceneInteractions", () => {
+  it.each(["perspective", "orthographic"] as const)(
+    "orbits the clicked surface in %s without moving the camera while picking",
+    async (projection) => {
+      const {
+        camera,
+        dispatch,
+        resolvePick,
+        findOrbitCenter,
+        onPick,
+        interactions,
+      } = createOrbitHarness();
+      camera.setProjectionMode(projection);
+      const pivot = { x: 4, y: 0, z: 3 };
+      const start = { ...camera.getPosition() };
+      const reference = new Camera();
+      reference.setPosition(start.x, start.y, start.z);
+      reference.setTarget(0, 0, 0);
+      reference.setProjectionMode(projection);
+      reference.setOrbitCenter(pivot);
+      reference.orbit(35, 25, false);
+
+      dispatch("pointerdown");
+      dispatch("pointermove", { clientX: 130, clientY: 150 });
+      dispatch("pointermove", { clientX: 145, clientY: 165 });
+      expect(camera.getPosition()).toEqual(start);
+      expect(findOrbitCenter).toHaveBeenCalledExactlyOnceWith(100, 120);
+      resolvePick(pivot);
+      await vi.waitFor(() =>
+        expect(camera.getPosition().x).toBeCloseTo(reference.getPosition().x),
+      );
+      expect(camera.getPosition().y).toBeCloseTo(reference.getPosition().y);
+      expect(camera.getPosition().z).toBeCloseTo(reference.getPosition().z);
+      expect(camera.getTarget()).toEqual(reference.getTarget());
+      dispatch("pointerup");
+      expect(onPick).not.toHaveBeenCalled();
+      interactions.detach();
+    },
+  );
+
+  it("keeps ordinary clicks and pointer jitter on the selection path", () => {
+    const { dispatch, findOrbitCenter, onPick, interactions } =
+      createOrbitHarness();
+    dispatch("pointerdown");
+    dispatch("pointermove", { clientX: 111, clientY: 141 });
+    dispatch("pointerup", { clientX: 111, clientY: 141, ctrlKey: true });
+    expect(findOrbitCenter).not.toHaveBeenCalled();
+    expect(onPick).toHaveBeenCalledExactlyOnceWith(101, 121, true);
+    interactions.detach();
+  });
+
+  it.each([{ button: 1 }, { button: 2 }, { shiftKey: true }])(
+    "pans without changing the orbit center for %o",
+    (modifiers) => {
+      const { dispatch, findOrbitCenter, interactions, camera } =
+        createOrbitHarness();
+      const start = { ...camera.getPosition() };
+      dispatch("pointerdown", modifiers);
+      dispatch("pointermove", { clientX: 145 });
+      expect(camera.getPosition()).not.toEqual(start);
+      expect(findOrbitCenter).not.toHaveBeenCalled();
+      interactions.detach();
+    },
+  );
+
+  it("finishes a short drag around the picked point after pointer release", async () => {
+    const { dispatch, resolvePick, setOrbitCenter, camera, interactions } =
+      createOrbitHarness();
+    const start = { ...camera.getPosition() };
+    dispatch("pointerdown");
+    dispatch("pointermove", { clientX: 145 });
+    dispatch("pointerup");
+    resolvePick({ x: 4, y: 0, z: 3 });
+    await vi.waitFor(() => expect(setOrbitCenter).toHaveBeenCalledOnce());
+    expect(camera.getPosition()).not.toEqual(start);
+    interactions.detach();
+  });
+
+  it.each(["cancel", "detach", "wheel", "new gesture", "camera command"])(
+    "ignores a delayed pick after %s",
+    async (action) => {
+      const { dispatch, resolvePick, setOrbitCenter, camera, interactions } =
+        createOrbitHarness();
+      dispatch("pointerdown");
+      dispatch("pointermove", { clientX: 145 });
+      if (action === "cancel") dispatch("pointercancel");
+      if (action === "detach") interactions.detach();
+      if (action === "wheel") dispatch("wheel", { deltaY: -120 });
+      if (action === "new gesture") {
+        dispatch("pointerup");
+        dispatch("pointerdown", { pointerId: 2 });
+      }
+      if (action === "camera command") camera.setPosition(20, 30, 40);
+      const position = { ...camera.getPosition() };
+      resolvePick({ x: 4, y: 0, z: 3 });
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      expect(setOrbitCenter).not.toHaveBeenCalled();
+      expect(camera.getPosition()).toEqual(position);
+      interactions.detach();
+    },
+  );
+
+  it.each(["miss", "failure"])(
+    "keeps navigation usable after a pick %s",
+    async (result) => {
+      const {
+        dispatch,
+        resolvePick,
+        rejectPick,
+        setOrbitCenter,
+        camera,
+        interactions,
+      } = createOrbitHarness();
+      const start = { ...camera.getPosition() };
+      dispatch("pointerdown");
+      dispatch("pointermove", { clientX: 145 });
+      if (result === "miss") resolvePick(null);
+      else rejectPick(new Error("Device lost"));
+      await vi.waitFor(() => expect(camera.getPosition()).not.toEqual(start));
+      expect(setOrbitCenter).not.toHaveBeenCalled();
+      interactions.detach();
+    },
+  );
+
   it("passes Ctrl and Meta clicks to picking as additive selections", () => {
     const listeners = new Map<string, EventListener>();
     const picks: { x: number; y: number; additive: boolean }[] = [];
