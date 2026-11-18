@@ -43,7 +43,7 @@
 }
 
 .trigger::before {
-  --icon-size: 1.5rem;
+  --icon-size: 1.2rem;
 
   position: absolute;
   top: 50%;
