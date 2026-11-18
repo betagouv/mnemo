@@ -280,14 +280,22 @@ test("reveals the object picked in the scene inside the collapsed model tree", a
       .getByRole("button", { name: "Enregistrer", exact: true });
     await saveFilters.click();
     await expect(saveFilters).toBeDisabled();
-    await selectionCard
-      .getByRole("button", { name: "Isoler", exact: true })
-      .click();
+    const isolate = selectionCard.getByRole("button", {
+      name: "Isoler",
+      exact: true,
+    });
+    await expect(isolate).toHaveAttribute("aria-pressed", "false");
+    await isolate.click();
+    await expect(isolate).toHaveAttribute("aria-pressed", "true");
     const temporaryIsolation = page.getByRole("button", {
       name: "Retirer Sélection isolée",
       exact: true,
     });
     await expect(temporaryIsolation).toBeVisible();
+    await isolate.click();
+    await expect(isolate).toHaveAttribute("aria-pressed", "false");
+    await expect(temporaryIsolation).toHaveCount(0);
+    await isolate.click();
     await expect(
       filters.getByRole("checkbox", { name: "Isoler · IfcWall", exact: true }),
     ).toBeChecked();
@@ -331,7 +339,8 @@ test("reveals the object picked in the scene inside the collapsed model tree", a
     await keepContext.press("Space");
     await expect(keepContext).toBeChecked();
     await contextOpacity.press("Home");
-    for (let step = 0; step < 22; step++)
+    await expect(contextOpacity).toHaveValue("1");
+    for (let step = 0; step < 23; step++)
       await contextOpacity.press("ArrowRight");
     await expect(contextOpacity).toHaveValue("24");
     await expect(temporaryIsolation).toBeVisible();
@@ -341,9 +350,6 @@ test("reveals the object picked in the scene inside the collapsed model tree", a
     await saveFilters.click();
     await expect(saveFilters).toBeDisabled();
     await expect(temporaryIsolation).toBeVisible();
-    await selectionCard
-      .getByRole("button", { name: "Isoler", exact: true })
-      .click();
     await temporaryIsolation.click();
     await expect(temporaryIsolation).toHaveCount(0);
     await expect(

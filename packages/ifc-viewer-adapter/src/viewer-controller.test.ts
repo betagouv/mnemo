@@ -1449,7 +1449,7 @@ describe("IfcViewerController", () => {
       label: "Murs",
       matchCount: 1,
       showContext: true,
-      contextOpacity: 0.1,
+      contextOpacity: 0.01,
     });
 
     controller.setIsolationContext(false, 0.25);
