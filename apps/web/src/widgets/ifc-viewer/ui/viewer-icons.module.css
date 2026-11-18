@@ -1,0 +1,8 @@
+.floorPlan::before {
+  content: "";
+  display: inline-block;
+  width: var(--icon-size, 1.5rem);
+  height: var(--icon-size, 1.5rem);
+  background-color: currentColor;
+  mask: url("/floor-plan.svg") center / contain no-repeat;
+}

@@ -27,7 +27,7 @@ export function useViewerPanels(
     trigger?: HTMLButtonElement,
   ) => {
     if (
-      (activePanel === "cut-plane" || activePanel === "cut-box") &&
+      (activePanel === "cutPlane" || activePanel === "cutBox") &&
       panel !== activePanel
     ) {
       getViewer()?.cancelSectionPick();
