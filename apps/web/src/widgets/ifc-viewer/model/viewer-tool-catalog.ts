@@ -65,12 +65,6 @@ export const viewerToolGroups = [
     panel: "floorPlan",
   },
   {
-    id: "filters",
-    label: viewerPanels.filters.title,
-    icon: viewerPanels.filters.icon,
-    panel: "filters",
-  },
-  {
     id: "cuts",
     label: viewerPanels.cutPlane.title,
     icon: viewerPanels.cutPlane.icon,
@@ -81,6 +75,12 @@ export const viewerToolGroups = [
     label: "Mesures",
     icon: viewerPanels.distance.icon,
     panel: "distance",
+  },
+  {
+    id: "filters",
+    label: viewerPanels.filters.title,
+    icon: viewerPanels.filters.icon,
+    panel: "filters",
   },
   {
     id: "annotations",
