@@ -509,6 +509,17 @@ export class IfcViewerController {
     }
   }
 
+  resetView() {
+    if (this.disposed) return;
+    const camera = this.renderer.getCamera();
+    const bounds =
+      camera.getSceneBounds() ?? this.renderer.getScene().getBounds();
+    if (!bounds) return;
+    camera.setOrbitCenter(null);
+    void camera.zoomExtent(bounds.min, bounds.max, 0);
+    this.renderer.requestRender();
+  }
+
   setPresetView(view: ViewerPresetView) {
     if (this.disposed) return;
 
