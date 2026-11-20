@@ -392,7 +392,7 @@ export class SectionController {
         this.commit({
           ...this.state,
           message:
-            "Face précise indisponible sur cette maquette optimisée. Utilisez la coupe par deux points.",
+            "Face précise indisponible sur cette maquette optimisée. Ouvrez une vue en plan et choisissez « Tracer une coupe ».",
         });
       } else {
         this.acceptPoint(hit.worldXYZ);
@@ -420,12 +420,14 @@ export class SectionController {
       return;
     }
 
-    const delta = {
-      x: point.x - firstPoint[0],
-      y: 0,
-      z: point.z - firstPoint[2],
-    };
-    const normal = normalized({ x: delta.z, y: 0, z: -delta.x });
+    this.sectionThroughPoints(
+      { x: firstPoint[0], y: firstPoint[1], z: firstPoint[2] },
+      point,
+    );
+  }
+
+  sectionThroughPoints(start: Point, end: Point) {
+    const normal = normalized({ x: end.z - start.z, y: 0, z: start.x - end.x });
     if (!normal) {
       this.commit({
         ...this.state,
@@ -435,12 +437,15 @@ export class SectionController {
       });
       return;
     }
-    this.activateCustomPlane(
-      "two-point",
-      normal,
-      { x: firstPoint[0], y: firstPoint[1], z: firstPoint[2] },
-      point,
-    );
+    const midpoint = {
+      x: (start.x + end.x) / 2,
+      y: (start.y + end.y) / 2,
+      z: (start.z + end.z) / 2,
+    };
+    this.activateCustomPlane("two-point", normal, midpoint, {
+      start: [start.x, start.y, start.z],
+      end: [end.x, end.y, end.z],
+    });
   }
 
   showBox() {
@@ -509,7 +514,7 @@ export class SectionController {
     source: "face" | "two-point",
     normal: [number, number, number],
     point: Point,
-    endPoint?: Point,
+    trace: IfcSectionSnapshot["trace"] = null,
   ) {
     const coordinateScale = Math.max(
       Math.abs(point.x),
@@ -533,12 +538,7 @@ export class SectionController {
       },
       pickMode: null,
       draftPoint: null,
-      trace: endPoint
-        ? {
-            start: [point.x, point.y, point.z],
-            end: [endPoint.x, endPoint.y, endPoint.z],
-          }
-        : null,
+      trace,
       message: null,
     });
   }

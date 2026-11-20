@@ -61,13 +61,12 @@ export function FloorPlanPdfButton({
     <>
       <Button
         size="small"
-        priority="secondary"
+        priority="tertiary no outline"
+        title={busy ? "Export en cours" : "Télécharger le PDF"}
         iconId="fr-icon-download-line"
         disabled={busy}
         onClick={() => void download()}
-      >
-        {busy ? "Export…" : "Télécharger le PDF"}
-      </Button>
+      />
       {error ? (
         <Alert
           small

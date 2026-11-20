@@ -349,6 +349,10 @@ export class IfcViewerController {
     this.sections.startPick(mode);
   }
 
+  sectionThroughPoints(start: Vec3, end: Vec3) {
+    this.sections.sectionThroughPoints(start, end);
+  }
+
   cancelSectionPick() {
     this.sections.cancelPick();
   }

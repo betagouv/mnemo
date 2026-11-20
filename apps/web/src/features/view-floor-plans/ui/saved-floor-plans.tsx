@@ -4,7 +4,6 @@ import Alert from "@codegouvfr/react-dsfr/Alert";
 import Button from "@codegouvfr/react-dsfr/Button";
 import Input from "@codegouvfr/react-dsfr/Input";
 import { createModal } from "@codegouvfr/react-dsfr/Modal";
-import Select from "@codegouvfr/react-dsfr/Select";
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import styles from "./floor-plan-panel.module.css";
@@ -16,40 +15,6 @@ const modal = createModal({
   isOpenedByDefault: false,
 });
 const Modal = modal.Component;
-
-export function SavedFloorPlanSelect({
-  controller,
-}: {
-  controller: Controller;
-}) {
-  const { saved, pending, open } = controller;
-  if (!saved.views.length) return null;
-  return (
-    <Select
-      className="mb-0"
-      label="Vue enregistrée"
-      nativeSelectProps={{
-        value: saved.selected?.id ?? "",
-        disabled: pending || saved.busy,
-        onChange: (event) => {
-          const view = saved.views.find(
-            (item) => item.id === event.target.value,
-          );
-          if (view)
-            void open(view.assetId, view.storeyId, view.storeyName, view);
-          else saved.select();
-        },
-      }}
-    >
-      <option value="">Nouvelle vue</option>
-      {saved.views.map((view) => (
-        <option key={view.id} value={view.id}>
-          {view.name}
-        </option>
-      ))}
-    </Select>
-  );
-}
 
 export function FloorPlanSaveActions({
   controller,
@@ -74,45 +39,54 @@ export function FloorPlanSaveActions({
   }
   return (
     <div className="flex-none border-t border-[var(--border-default-grey)] bg-[var(--background-default-grey)] p-4">
-      <p className="mb-2 text-xs text-[var(--text-mention-grey)]" role="status">
-        {!saved.selected
-          ? "Vue non enregistrée"
-          : changed
-            ? "Modifications non enregistrées"
-            : "Vue à jour"}
-      </p>
-      <Button
-        className={styles.saveButton}
-        size="small"
-        disabled={pending || saved.busy}
-        iconId="fr-icon-save-line"
-        onClick={() => openSave(false)}
-      >
-        {saved.busy
-          ? "Enregistrement…"
-          : saved.selected
-            ? "Enregistrer les modifications"
-            : "Enregistrer cette vue"}
-      </Button>
+      {changed && (
+        <Button
+          priority={saved.selected ? "primary" : "secondary"}
+          className={styles.saveButton}
+          size="small"
+          disabled={pending || saved.busy}
+          iconId="fr-icon-save-line"
+          onClick={() => openSave(false)}
+        >
+          {saved.busy
+            ? "Enregistrement…"
+            : saved.selected
+              ? "Enregistrer les modifications"
+              : "Enregistrer cette vue"}
+        </Button>
+      )}
       {saved.selected ? (
-        <div className="mt-1 flex flex-wrap justify-between gap-1">
-          <Button
-            size="small"
-            priority="tertiary no outline"
-            disabled={pending || saved.busy}
-            onClick={() => openSave(true)}
-          >
-            Dupliquer
-          </Button>
-          <Button
-            size="small"
-            priority="tertiary no outline"
-            disabled={pending || saved.busy}
-            onClick={() => setConfirmDelete(true)}
-          >
-            Supprimer la vue
-          </Button>
-        </div>
+        <details>
+          <summary className="cursor-pointer text-sm">Gérer la vue</summary>
+          <div className="mt-1 flex flex-wrap gap-1">
+            {!changed && (
+              <Button
+                size="small"
+                priority="tertiary no outline"
+                disabled={pending || saved.busy}
+                onClick={() => openSave(false)}
+              >
+                Renommer
+              </Button>
+            )}
+            <Button
+              size="small"
+              priority="tertiary no outline"
+              disabled={pending || saved.busy}
+              onClick={() => openSave(true)}
+            >
+              Dupliquer
+            </Button>
+            <Button
+              size="small"
+              priority="tertiary no outline"
+              disabled={pending || saved.busy}
+              onClick={() => setConfirmDelete(true)}
+            >
+              Supprimer la vue
+            </Button>
+          </div>
+        </details>
       ) : null}
       {confirmDelete ? (
         <div

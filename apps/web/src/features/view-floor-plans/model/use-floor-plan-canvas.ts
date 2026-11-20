@@ -36,25 +36,37 @@ type Commands = {
 
 export function useFloorPlanCanvas(
   drawing: FloorPlanDrawing,
-  measuring: boolean,
+  tool: "select" | "measure" | "section",
   preset: FloorPlanPresetId,
   rules: readonly FloorPlanRule[],
   selectedIds: readonly number[],
   onSelect: (expressId: number | null) => void,
   savedMeasurements: readonly PlanSegment[],
+  trace: PlanSegment | null,
+  onSection: (start: PlanPoint, end: PlanPoint) => void,
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const statusRef = useRef<HTMLSpanElement>(null);
   const commands = useRef<Commands | null>(null);
-  const modeRef = useRef(measuring);
+  const [hasFirstPoint, setHasFirstPoint] = useState(false);
+  const modeRef = useRef(tool);
+  const sectionRef = useRef(onSection);
+  useEffect(() => {
+    sectionRef.current = onSection;
+  }, [onSection]);
   const styledDrawing = useRef<FloorPlanDrawing | null>(null);
   const selectionRef = useRef(selectedIds);
   const onSelectRef = useRef(onSelect);
   const [draftMeasurements, setDraftMeasurements] = useState<PlanMeasurement[]>(
     [],
   );
+  const traceRef = useRef(trace);
+  useEffect(() => {
+    traceRef.current = trace;
+    commands.current?.refreshSelection();
+  }, [trace]);
   const savedRef = useRef(savedMeasurements);
 
   useEffect(() => {
@@ -101,7 +113,7 @@ export function useFloorPlanCanvas(
     let space = false;
     const measurements: PlanMeasurement[] = [];
     function resolvePointer() {
-      if (!hover || !modeRef.current || down?.pan) {
+      if (!hover || modeRef.current === "select" || down?.pan) {
         snap = null;
         return;
       }
@@ -130,6 +142,8 @@ export function useFloorPlanCanvas(
         start,
         current,
         snap,
+        traceRef.current,
+        modeRef.current === "section",
         width,
         height,
         dpr,
@@ -147,12 +161,12 @@ export function useFloorPlanCanvas(
           ? snap.kind === "vertex"
             ? "Sommet accroché"
             : "Segment accroché"
-          : modeRef.current
+          : modeRef.current !== "select"
             ? "Point libre"
             : "";
       container!.style.cursor = down?.pan
         ? "grabbing"
-        : modeRef.current
+        : modeRef.current !== "select"
           ? "crosshair"
           : "grab";
     }
@@ -178,6 +192,7 @@ export function useFloorPlanCanvas(
       settle();
     }
     function cancel() {
+      setHasFirstPoint(false);
       start = null;
       current = null;
       snap = null;
@@ -244,7 +259,7 @@ export function useFloorPlanCanvas(
       event.preventDefault();
       container!.focus();
       updateHover(event);
-      const pan = event.button === 1 || space || !modeRef.current;
+      const pan = event.button === 1 || space || modeRef.current === "select";
       down = {
         id: event.pointerId,
         x: event.clientX,
@@ -252,14 +267,18 @@ export function useFloorPlanCanvas(
         pan,
         view: { ...view },
         hadStart: Boolean(start),
-        selectable: event.button === 0 && !space && !modeRef.current,
+        selectable:
+          event.button === 0 && !space && modeRef.current === "select",
         dragged: false,
       };
       if (pan) clearTimeout(settleTimer);
       container!.setPointerCapture(event.pointerId);
       if (!pan) {
         resolvePointer();
-        if (!start) start = current;
+        if (!start && current) {
+          start = current;
+          setHasFirstPoint(true);
+        }
       }
       schedule();
     }
@@ -297,9 +316,13 @@ export function useFloorPlanCanvas(
           current &&
           planDistance(start, current) * view.scale > 1
         ) {
-          measurements.push({ id: crypto.randomUUID(), start, end: current });
-          setDraftMeasurements([...measurements]);
+          if (modeRef.current === "section") sectionRef.current(start, current);
+          else {
+            measurements.push({ id: crypto.randomUUID(), start, end: current });
+            setDraftMeasurements([...measurements]);
+          }
           start = null;
+          setHasFirstPoint(false);
         }
       }
       down = null;
@@ -332,7 +355,7 @@ export function useFloorPlanCanvas(
       if (event.key === "Escape") {
         event.preventDefault();
         cancel();
-        if (!modeRef.current) onSelectRef.current(null);
+        if (modeRef.current === "select") onSelectRef.current(null);
       }
       if (event.key === "Home" || event.key.toLowerCase() === "f") {
         event.preventDefault();
@@ -363,7 +386,7 @@ export function useFloorPlanCanvas(
       cancel();
     }
     function doubleClick() {
-      if (!modeRef.current) fit();
+      if (modeRef.current === "select") fit();
     }
     const observer = new ResizeObserver(() => {
       const rect = container!.getBoundingClientRect();
@@ -441,14 +464,15 @@ export function useFloorPlanCanvas(
   }, [savedMeasurements]);
 
   useEffect(() => {
-    modeRef.current = measuring;
+    modeRef.current = tool;
     commands.current?.cancel();
-  }, [measuring]);
+  }, [tool]);
   return {
     containerRef,
     canvasRef,
     overlayRef,
     statusRef,
+    hasFirstPoint,
     count: draftMeasurements.length + savedMeasurements.length,
     draftMeasurements,
     remove: (id: string) => commands.current?.remove(id),

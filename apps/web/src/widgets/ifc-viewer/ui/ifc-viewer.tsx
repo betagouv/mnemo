@@ -150,7 +150,9 @@ export function ProjectViewer({
     activePanel === "distance" || activePanel === "surface"
       ? activePanel
       : null;
-  const measurementsEnabled = snapshot.phase === "ready" && !floorPlans.plan;
+  const measurementsEnabled =
+    snapshot.phase === "ready" &&
+    !(activePanel === "floorPlan" && floorPlans.plan);
 
   const activeModelId = snapshot.activeModelId;
   const activeIfcSource = ifcSources.find(
@@ -257,53 +259,66 @@ export function ProjectViewer({
         {measurementsEnabled ? <MeasurementOverlay /> : null}
 
         {floorPlans.plan ? (
-          <FloorPlanView
-            Editor={MeasurementEditor}
-            key={floorPlans.plan.id}
-            title={floorPlans.plan.title}
-            exportTitle={
-              floorPlans.saved.selected?.name || floorPlans.plan.title
-            }
-            exportContext={{
-              projectName,
-              sourceName:
-                ifcSources.find(
-                  (source) => source.assetId === floorPlans.plan?.assetId,
-                )?.fileName ?? "Maquette IFC",
-              storeyName: floorPlans.plan.title,
-              verticalDatum: snapshot.models.find(
-                (model) => model.assetId === floorPlans.plan?.assetId,
-              )?.georeferencing?.verticalDatum,
-              storeyElevation:
-                snapshot.models
-                  .find((model) => model.assetId === floorPlans.plan?.assetId)
-                  ?.catalog?.storeys.find(
-                    (storey) => storey.expressId === floorPlans.plan?.storeyId,
-                  )?.elevation ?? null,
-            }}
-            drawing={floorPlans.plan.drawing}
-            savedPlanId={
-              floorPlans.saved.selected?.assetId === floorPlans.plan.assetId &&
-              floorPlans.saved.selected.storeyId === floorPlans.plan.storeyId
-                ? floorPlans.saved.selected.id
-                : null
-            }
-            getViewer={getViewer}
-            preset={floorPlans.preset}
-            rules={floorPlans.rules}
-            selectedIds={snapshot.selectedElements
-              .filter((element) => element.assetId === floorPlans.plan?.assetId)
-              .map((element) => element.expressId)}
-            onSelect={(expressId) => {
-              if (expressId === null) controllerRef.current?.selectEntity(null);
-              else if (floorPlans.plan)
-                controllerRef.current?.selectModelEntity(
-                  floorPlans.plan.assetId,
-                  expressId,
-                );
-            }}
-            onClose={floorPlans.close}
-          />
+          <div hidden={activePanel !== "floorPlan"}>
+            <FloorPlanView
+              section={snapshot.section}
+              Editor={MeasurementEditor}
+              key={floorPlans.plan.id}
+              title={floorPlans.plan.title}
+              exportTitle={
+                floorPlans.saved.selected?.name || floorPlans.plan.title
+              }
+              exportContext={{
+                projectName,
+                sourceName:
+                  ifcSources.find(
+                    (source) => source.assetId === floorPlans.plan?.assetId,
+                  )?.fileName ?? "Maquette IFC",
+                storeyName: floorPlans.plan.title,
+                verticalDatum: snapshot.models.find(
+                  (model) => model.assetId === floorPlans.plan?.assetId,
+                )?.georeferencing?.verticalDatum,
+                storeyElevation:
+                  snapshot.models
+                    .find((model) => model.assetId === floorPlans.plan?.assetId)
+                    ?.catalog?.storeys.find(
+                      (storey) =>
+                        storey.expressId === floorPlans.plan?.storeyId,
+                    )?.elevation ?? null,
+              }}
+              drawing={floorPlans.plan.drawing}
+              savedPlanId={
+                floorPlans.saved.selected?.assetId ===
+                  floorPlans.plan.assetId &&
+                floorPlans.saved.selected.storeyId === floorPlans.plan.storeyId
+                  ? floorPlans.saved.selected.id
+                  : null
+              }
+              getViewer={getViewer}
+              preset={floorPlans.preset}
+              rules={floorPlans.rules}
+              selectedIds={snapshot.selectedElements
+                .filter(
+                  (element) => element.assetId === floorPlans.plan?.assetId,
+                )
+                .map((element) => element.expressId)}
+              onSelect={(expressId) => {
+                if (expressId === null)
+                  controllerRef.current?.selectEntity(null);
+                else if (floorPlans.plan)
+                  controllerRef.current?.selectModelEntity(
+                    floorPlans.plan.assetId,
+                    expressId,
+                  );
+              }}
+              onSection={(start, end) => {
+                getViewer()?.sectionThroughPoints(start, end);
+
+                openPanel("cutPlane", "cuts");
+              }}
+              onClose={closePanel}
+            />
+          </div>
         ) : null}
 
         <BcfMarkers
@@ -478,18 +493,10 @@ export function ProjectViewer({
           snapshot={snapshot}
           getViewer={getViewer}
           hasActiveIfc={Boolean(activeIfcSource)}
-          onOpenSavedPlans={
-            floorPlans.saved.views.length
-              ? () => openPanel("floorPlan", "views")
-              : undefined
+          onReturnToPlan={
+            floorPlans.plan ? () => openPanel("floorPlan", "views") : undefined
           }
           onSectionModeChange={(mode) => {
-            const viewer = getViewer();
-            viewer?.cancelSectionPick();
-            if (snapshot.section.active) {
-              if (mode === "box") viewer?.showSectionBox();
-              else viewer?.showSectionPlane();
-            }
             setActivePanel(mode === "box" ? "cutBox" : "cutPlane");
           }}
           measurements={<MeasurementPanel />}

@@ -27,7 +27,6 @@ export function useFloorPlans(
     drawing: FloorPlanDrawing;
   } | null>(null);
   const [preset, setPreset] = useState<FloorPlanPresetId>("default");
-  const [selection, setSelection] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const requestId = useRef(0);
@@ -46,7 +45,6 @@ export function useFloorPlans(
     savedView?: SavedFloorPlan,
   ) {
     const request = ++requestId.current;
-    setSelection(`${assetId}/${storeyId}`);
     setPending(true);
     setError(null);
     try {
@@ -55,15 +53,17 @@ export function useFloorPlans(
       const drawing = await viewer.generateFloorPlan(assetId, storeyId);
       if (request === requestId.current) {
         setPlan({ id: request, assetId, storeyId, title, drawing });
+        saved.select(savedView);
         if (savedView) {
-          saved.select(savedView);
           setPreset(savedView.style.preset);
           setRules(savedView.style.rules);
+        } else {
+          setPreset("default");
+          setRules([]);
         }
       }
     } catch (error) {
       if (request === requestId.current) {
-        setSelection(plan ? `${plan.assetId}/${plan.storeyId}` : "");
         setError(
           `Niveau « ${title} » — ${error instanceof Error ? error.message : "Impossible de générer ce plan."}`,
         );
@@ -75,17 +75,8 @@ export function useFloorPlans(
   function cancel() {
     requestId.current++;
     getViewer()?.cancelFloorPlan();
-    setSelection(plan ? `${plan.assetId}/${plan.storeyId}` : "");
     setPending(false);
     setError(null);
-  }
-  function close() {
-    cancel();
-    setPlan(null);
-    saved.select();
-    setSelection("");
-    setError(null);
-    setPending(false);
   }
   const classes = useMemo(
     () =>
@@ -107,9 +98,7 @@ export function useFloorPlans(
     pending,
     error,
     open,
-    close,
     cancel,
-    selection,
     preset,
     setPreset,
     rules,
