@@ -3,7 +3,6 @@
 import type { SectionViewer } from "../model/viewer-target";
 import Button from "@codegouvfr/react-dsfr/Button";
 import Accordion from "@codegouvfr/react-dsfr/Accordion";
-import ToggleSwitch from "@codegouvfr/react-dsfr/ToggleSwitch";
 import Input from "@codegouvfr/react-dsfr/Input";
 import { SegmentedControl } from "@codegouvfr/react-dsfr/SegmentedControl";
 import type { IfcSectionSnapshot } from "@mnemo/ifc-viewer-adapter";
@@ -111,7 +110,17 @@ export function SectionPanel({
   const canCut = hasIfcGeometry || hasPointCloud;
   const cutVisible = section.active === mode;
 
-  useEffect(() => () => getViewer()?.cancelSectionPick(), [getViewer]);
+  useEffect(() => {
+    const viewer = getViewer();
+    if (!viewer || !canCut) return;
+    if (viewer.getSnapshot().section.active !== mode) {
+      if (mode === "box" && hasIfcGeometry) viewer.showSectionBox();
+      else if (mode === "plane" && hasIfcGeometry)
+        viewer.startSectionPick("face");
+      else if (mode === "plane") viewer.showSectionPlane();
+    }
+    return () => viewer.cancelSectionPick();
+  }, [getViewer, canCut, hasIfcGeometry, mode]);
 
   return (
     <div className="flex flex-col gap-4 p-4">
@@ -139,17 +148,6 @@ export function SectionPanel({
           },
         ]}
       />
-      <ToggleSwitch
-        label="Coupe active"
-        checked={cutVisible}
-        disabled={!canCut || (mode === "box" && !hasIfcGeometry)}
-        showCheckedHint={false}
-        onChange={(enabled) => {
-          if (!enabled) controller?.hideSection();
-          else if (mode === "plane") controller?.showSectionPlane();
-          else controller?.showSectionBox();
-        }}
-      />
       {!canCut ? (
         <p className="fr-hint-text m-0" role="status">
           Ajoutez une maquette IFC ou un relevé 3D pour créer une coupe.
@@ -157,49 +155,29 @@ export function SectionPanel({
       ) : null}
       {mode === "plane" ? (
         <>
-          <SegmentedControl
-            className={styles.axisControl}
-            legend="Orientation"
-            small
-            segments={[
-              {
-                label: "Horizontal",
-                nativeInputProps: {
-                  checked:
-                    section.plane.source === "axis" &&
-                    section.plane.axis === "down",
-                  disabled: !canCut,
-                  onChange: () => controller?.setSectionAxis("down"),
-                  value: "down",
-                },
-              },
-              {
-                label: "Frontal",
-                nativeInputProps: {
-                  checked:
-                    section.plane.source === "axis" &&
-                    section.plane.axis === "front",
-                  disabled: !canCut,
-                  onChange: () => controller?.setSectionAxis("front"),
-                  value: "front",
-                },
-              },
-              {
-                label: "Latéral",
-                nativeInputProps: {
-                  checked:
-                    section.plane.source === "axis" &&
-                    section.plane.axis === "side",
-                  disabled: !canCut,
-                  onChange: () => controller?.setSectionAxis("side"),
-                  value: "side",
-                },
-              },
-            ]}
-          />
-          <p className="fr-hint-text m-0">
-            Déplacez la coupe avec la flèche dans la scène.
-          </p>
+          {hasIfcGeometry && !section.pickMode && (
+            <Button
+              size="small"
+              priority="secondary"
+              onClick={() => controller?.startSectionPick("face")}
+            >
+              {cutVisible ? "Choisir une autre face" : "Choisir une face"}
+            </Button>
+          )}
+          {hasPointCloud && !hasIfcGeometry && !cutVisible && (
+            <Button
+              size="small"
+              priority="secondary"
+              onClick={() => controller?.showSectionPlane()}
+            >
+              Activer la coupe horizontale
+            </Button>
+          )}
+          {cutVisible && (
+            <p className="fr-hint-text m-0">
+              Déplacez la coupe avec la flèche dans la scène.
+            </p>
+          )}
           <Button
             disabled={!cutVisible}
             onClick={() =>
@@ -211,33 +189,13 @@ export function SectionPanel({
           >
             Inverser le côté conservé
           </Button>
-          {hasIfcGeometry ? (
-            <Accordion label="Créer depuis la maquette">
-              <div className="flex flex-col gap-2">
-                <Button
-                  onClick={() => controller?.startSectionPick("face")}
-                  priority="secondary"
-                  size="small"
-                >
-                  Choisir une face
-                </Button>
-                <Button
-                  onClick={() => controller?.startSectionPick("two-point")}
-                  priority="secondary"
-                  size="small"
-                >
-                  Tracer deux points
-                </Button>
-              </div>
-            </Accordion>
-          ) : null}
         </>
       ) : (
         <>
           <p className="fr-hint-text m-0">
             Ajustez les faces avec les flèches dans la scène.
           </p>
-          {section.box ? (
+          {hasIfcGeometry ? (
             <Button
               disabled={!hasIfcGeometry}
               onClick={() => controller?.fitSectionBox()}

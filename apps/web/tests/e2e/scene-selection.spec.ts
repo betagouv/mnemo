@@ -363,7 +363,10 @@ test("reveals the object picked in the scene inside the collapsed model tree", a
     await expect(contextOpacity).toHaveValue("24");
     await contextSettings.click();
     await page.getByRole("button", { name: "Coupes", exact: true }).click();
-    await page.getByText("Coupe active", { exact: true }).click();
+    await page
+      .getByRole("group", { name: "Type de coupe" })
+      .getByText("Boîte", { exact: true })
+      .click();
     await selectionCard
       .getByRole("button", { name: "Masquer", exact: true })
       .click();

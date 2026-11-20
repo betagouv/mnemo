@@ -63,7 +63,7 @@ test("moves box faces and section planes with projected axis arrows", async ({
       .getByRole("group", { name: "Type de coupe" })
       .getByText("Boîte", { exact: true })
       .click();
-    await page.getByText("Coupe active", { exact: true }).click();
+
     await page
       .getByRole("button", { name: "Position précise des faces", exact: true })
       .click();
@@ -144,22 +144,11 @@ test("moves box faces and section planes with projected axis arrows", async ({
       name: "Déplacer le plan de coupe",
       exact: true,
     });
-    for (const [orientation, color] of [
-      ["Horizontal", "rgb(101, 223, 153)"],
-      ["Frontal", "rgb(138, 175, 255)"],
-      ["Latéral", "rgb(255, 116, 124)"],
-    ]) {
-      await page
-        .getByRole("group", { name: "Orientation" })
-        .getByText(orientation, { exact: true })
-        .click();
-      await expect(planeArrow).toBeVisible();
-      await expect(planeArrow).toHaveCSS("color", color);
-    }
-    await page
-      .getByRole("group", { name: "Orientation" })
-      .getByText("Horizontal", { exact: true })
-      .click();
+    await expect(
+      page.getByText("Cliquez sur une face de la maquette."),
+    ).toBeVisible();
+    await canvas.click();
+    await expect(planeArrow).toBeVisible();
     const planeArrowPosition = () =>
       planeArrow.evaluate((element) =>
         [element.style.left, element.style.top].join(","),
@@ -193,7 +182,7 @@ test("moves box faces and section planes with projected axis arrows", async ({
     await page.evaluate(() =>
       document.documentElement.setAttribute("data-fr-theme", "light"),
     );
-    await expect(planeArrow).toHaveCSS("color", "rgb(24, 117, 60)");
+    await expect(planeArrow).toBeVisible();
     await page.screenshot({
       path: test.info().outputPath("section-plane-light.png"),
     });

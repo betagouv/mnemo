@@ -88,7 +88,7 @@ test("uses contextual panels without empty properties or unavailable tools", asy
     await expect(panel).toBeVisible();
     const standardWidth = (await panel.boundingBox())!.width;
     await expect(
-      panel.getByRole("checkbox", { name: "Coupe active" }),
+      panel.getByRole("button", { name: "Inverser le côté conservé" }),
     ).toBeDisabled();
     await expect(
       panel.getByRole("radio", { name: "Plan", exact: true }),

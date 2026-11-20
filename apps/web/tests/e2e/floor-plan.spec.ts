@@ -55,30 +55,20 @@ test("navigates and snaps measurements on a real storey plan", async ({
     exact: true,
   });
   await settings
-    .getByRole("combobox", { name: "Niveau", exact: true })
-    .selectOption({ label: "Ground Floor" });
+    .getByRole("button", { name: "Ground Floor", exact: true })
+    .click();
   const plan = page.getByRole("group", {
     name: "Plan interactif du niveau Ground Floor",
     exact: true,
   });
   await expect(plan).toBeVisible({ timeout: 60_000 });
   await expect(
-    settings.getByText("Coupe à +1 m au-dessus du niveau.", { exact: true }),
+    page.getByText(/Coupe à \+1 m · Altitude relative IFC/),
   ).toBeVisible();
-  await expect(
-    settings.getByText("Altitude relative IFC ±0,00 m", { exact: true }),
-  ).toBeVisible();
-  const levelBounds = await settings
-    .getByRole("combobox", { name: "Niveau", exact: true })
-    .boundingBox();
-  const altitudeBounds = await settings
-    .getByText("Altitude relative IFC ±0,00 m", { exact: true })
-    .boundingBox();
-  if (!levelBounds || !altitudeBounds)
-    throw new Error("Missing level altimetry bounds");
-  expect(
-    altitudeBounds.y - levelBounds.y - levelBounds.height,
-  ).toBeLessThanOrEqual(12);
+  const appearance = settings.getByRole("button", {
+    name: "Apparence du plan",
+  });
+  await appearance.click();
   await expect(
     settings.getByLabel("Style du plan", { exact: true }).locator("option"),
   ).toHaveText([
@@ -295,6 +285,7 @@ test("navigates and snaps measurements on a real storey plan", async ({
     });
   const defaultInk = await checksum();
   const style = settings.getByLabel("Style du plan", { exact: true });
+  if (!(await style.isVisible())) await appearance.click();
   await style.selectOption("architectural");
   await expect.poll(checksum).not.toBe(defaultInk);
   await expect(
@@ -416,8 +407,8 @@ test("navigates and snaps measurements on a real storey plan", async ({
     .click();
   await expect(saveDialog).not.toBeVisible();
   await expect(
-    settings.getByRole("status").filter({ hasText: "Vue à jour" }),
-  ).toBeVisible();
+    settings.getByRole("button", { name: "RDC terre cuite", exact: true }),
+  ).toHaveAttribute("aria-current", "page");
   // Persist a plan measurement on the saved view, then restore it after reload.
   const measureBounds = await canvas.boundingBox();
   if (!measureBounds) throw new Error("Missing plan bounds");
@@ -457,8 +448,8 @@ test("navigates and snaps measurements on a real storey plan", async ({
   ).toBeVisible({ timeout: 120_000 });
   await page.getByRole("button", { name: "Vues en plan", exact: true }).click();
   await settings
-    .getByRole("combobox", { name: "Vue enregistrée", exact: true })
-    .selectOption({ label: "RDC terre cuite" });
+    .getByRole("button", { name: "RDC terre cuite", exact: true })
+    .click();
   await expect(plan).toBeVisible({ timeout: 60_000 });
   await expect(
     page.getByRole("status").filter({ hasText: /^1 mesure$/ }),
@@ -472,6 +463,7 @@ test("navigates and snaps measurements on a real storey plan", async ({
   ).toBeVisible();
   await planMeasures.locator("summary").click();
 
+  await appearance.click();
   await settings
     .getByRole("button", { name: "Règles personnalisées (1)", exact: true })
     .click();
@@ -489,7 +481,7 @@ test("navigates and snaps measurements on a real storey plan", async ({
     .click();
   await page.setViewportSize({ width: 1440, height: 760 });
   await expect(
-    settings.getByRole("combobox", { name: "Niveau", exact: true }),
+    settings.getByRole("button", { name: "Ground Floor", exact: true }),
   ).toBeInViewport();
   await expect(
     settings.getByLabel("Style du plan", { exact: true }),
@@ -499,7 +491,7 @@ test("navigates and snaps measurements on a real storey plan", async ({
       name: "Enregistrer les modifications",
       exact: true,
     }),
-  ).toBeInViewport();
+  ).toHaveCount(0);
   const dismiss = page.getByRole("button", {
     name: "Masquer le message",
     exact: true,
@@ -522,15 +514,8 @@ test("navigates and snaps measurements on a real storey plan", async ({
   const sceneCanvas = await page
     .locator('canvas[aria-label^="Vue 3D"]')
     .elementHandle();
-  const savedViewSelect = settings.getByRole("combobox", {
-    name: "Vue enregistrée",
-    exact: true,
-  });
-  const savedId = await savedViewSelect.inputValue();
   const beforeNewLevel = workerCount;
-  await settings
-    .getByRole("combobox", { name: "Niveau", exact: true })
-    .selectOption({ label: "Roof" });
+  await settings.getByRole("button", { name: "Roof", exact: true }).click();
   await expect(
     page.getByRole("group", {
       name: "Plan interactif du niveau Roof",
@@ -538,20 +523,18 @@ test("navigates and snaps measurements on a real storey plan", async ({
     }),
   ).toBeVisible({ timeout: 60_000 });
   expect(workerCount).toBe(beforeNewLevel + 1);
-  await expect(savedViewSelect).toHaveValue(savedId);
   await expect(
-    settings
-      .getByRole("status")
-      .filter({ hasText: "Modifications non enregistrées" }),
+    settings.getByRole("button", { name: "Enregistrer cette vue" }),
   ).toBeVisible();
   await settings
-    .getByRole("combobox", { name: "Niveau", exact: true })
-    .selectOption({ label: "Ground Floor" });
+    .getByRole("button", { name: "RDC terre cuite", exact: true })
+    .click();
   await expect(plan).toBeVisible({ timeout: 60_000 });
   expect(workerCount).toBe(beforeNewLevel + 1);
   await expect(
-    settings.getByRole("status").filter({ hasText: "Vue à jour" }),
-  ).toBeVisible();
+    settings.getByRole("button", { name: "RDC terre cuite", exact: true }),
+  ).toHaveAttribute("aria-current", "page");
+  await settings.getByText("Gérer la vue", { exact: true }).click();
   await settings
     .getByRole("button", { name: "Supprimer la vue", exact: true })
     .click();
@@ -560,12 +543,28 @@ test("navigates and snaps measurements on a real storey plan", async ({
     .click();
   await expect(settings.getByText("Vue supprimée.")).toBeVisible();
   await page
-    .getByRole("button", { name: "Retour à la 3D", exact: true })
+    .getByRole("button", { name: "Tracer une coupe", exact: true })
     .click();
+  await expect(
+    page.getByText("Placez le premier point de la coupe."),
+  ).toBeVisible();
+  await plan.click({ position: { x: 100, y: 100 } });
+  await expect(
+    page.getByText("Placez le second point pour voir la coupe en 3D."),
+  ).toBeVisible();
+  await plan.click({ position: { x: 150, y: 130 } });
+  await expect(
+    page.getByRole("button", { name: "Déplacer le plan de coupe" }),
+  ).toBeVisible();
   await expect(plan).toHaveCount(0);
   expect(await sceneCanvas!.evaluate((element) => element.isConnected)).toBe(
     true,
   );
+  await page
+    .getByRole("button", { name: "Revenir au plan", exact: true })
+    .click();
+  await expect(plan).toBeVisible();
+  expect(workerCount).toBe(beforeNewLevel + 1);
   // Exercise the worker-error path with a fresh controller and no drawing cache.
   await page.addInitScript(() => {
     const postMessage = Worker.prototype.postMessage;
@@ -598,8 +597,8 @@ test("navigates and snaps measurements on a real storey plan", async ({
   ).toBeVisible({ timeout: 120_000 });
   await page.getByRole("button", { name: "Vues en plan", exact: true }).click();
   await settings
-    .getByRole("combobox", { name: "Niveau", exact: true })
-    .selectOption({ label: "Ground Floor" });
+    .getByRole("button", { name: "Ground Floor", exact: true })
+    .click();
   await expect(
     settings.getByRole("heading", { name: "Plan non généré", exact: true }),
   ).toBeVisible();

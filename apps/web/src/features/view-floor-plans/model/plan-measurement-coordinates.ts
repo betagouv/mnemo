@@ -14,12 +14,15 @@ export function planPointToProject(
   drawing: FloorPlanDrawing,
   point: PlanPoint,
 ) {
+  return viewer.measurementToProject(planPointToScene(drawing, point));
+}
+export function planPointToScene(drawing: FloorPlanDrawing, point: PlanPoint) {
   const plane = drawing.config.plane;
-  return viewer.measurementToProject({
+  return {
     x: plane.flipped ? -point.x : point.x,
     y: plane.position,
     z: point.y,
-  });
+  };
 }
 export function projectPointToPlan(
   viewer: PlanMeasurementViewer,

@@ -6,6 +6,7 @@ import {
 } from "@/entities/measurement";
 import {
   planPointToProject,
+  planPointToScene,
   projectPointToPlan,
   type PlanMeasurementViewer,
 } from "../model/plan-measurement-coordinates";
@@ -18,17 +19,20 @@ import type { FloorPlanRule } from "@mnemo/contracts/floor-plans";
 import { FloorPlanPdfButton } from "./floor-plan-pdf-button";
 import Button from "@codegouvfr/react-dsfr/Button";
 import type {
+  IfcSectionSnapshot,
   FloorPlanDrawing,
   FloorPlanPresetId,
 } from "@mnemo/ifc-viewer-adapter";
 import type { FloorPlanPdfInfo } from "../infrastructure/pdf/floor-plan-pdf-sheet";
 import { useMemo, useState } from "react";
+import { planSectionTrace } from "../model/plan-section-trace";
 import { useFloorPlanCanvas } from "../model/use-floor-plan-canvas";
 
 export type { FloorPlanDrawing } from "@mnemo/ifc-viewer-adapter";
 
 export function FloorPlanView({
   title,
+  section,
   savedPlanId,
   Editor,
   getViewer,
@@ -37,12 +41,14 @@ export function FloorPlanView({
   drawing,
   preset,
   rules,
+  onSection,
   onClose,
   selectedIds,
   onSelect,
 }: {
   title: string;
   Editor: MeasurementEditorSlot;
+  section: IfcSectionSnapshot;
   savedPlanId: string | null;
   getViewer: () => PlanMeasurementViewer | null;
   exportTitle: string;
@@ -57,6 +63,10 @@ export function FloorPlanView({
   drawing: FloorPlanDrawing;
   preset: FloorPlanPresetId;
   rules: readonly FloorPlanRule[];
+  onSection: (
+    start: ReturnType<typeof planPointToScene>,
+    end: ReturnType<typeof planPointToScene>,
+  ) => void;
   onClose: () => void;
   selectedIds: readonly number[];
   onSelect: (expressId: number | null) => void;
@@ -80,12 +90,18 @@ export function FloorPlanView({
           }))
       : [];
   }, [saved, drawing, getViewer]);
-  const [measuring, setMeasuring] = useState(false);
+  const trace = useMemo(
+    () => planSectionTrace(section, !!drawing.config.plane.flipped),
+    [section, drawing],
+  );
+  const [tool, setTool] = useState<"select" | "measure" | "section">("select");
+  const measuring = tool === "measure";
   const {
     containerRef,
     canvasRef,
     overlayRef,
     statusRef,
+    hasFirstPoint,
     count,
     draftMeasurements,
     remove,
@@ -94,12 +110,20 @@ export function FloorPlanView({
     clear,
   } = useFloorPlanCanvas(
     drawing,
-    measuring,
+    tool,
     preset,
     rules,
     selectedIds,
     onSelect,
     savedSegments,
+    trace,
+    (start, end) => {
+      setTool("select");
+      onSection(
+        planPointToScene(drawing, start),
+        planPointToScene(drawing, end),
+      );
+    },
   );
   return (
     <div
@@ -108,9 +132,10 @@ export function FloorPlanView({
     >
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-default-grey)] px-4 py-3">
         <div>
-          <h2 className="mb-0 text-base">{title}</h2>
+          <h2 className="mb-0 text-base">{exportTitle}</h2>
           <span className="text-xs text-[var(--text-mention-grey)]">
-            Coupe à {floorPlanCutHeightLabel} ·{" "}
+            {exportTitle !== title && `${title} · `}Coupe à{" "}
+            {floorPlanCutHeightLabel} ·{" "}
             {floorPlanElevationLabels(
               exportContext.storeyElevation,
               exportContext.verticalDatum,
@@ -124,12 +149,21 @@ export function FloorPlanView({
         >
           <Button
             size="small"
-            priority={measuring ? "primary" : "secondary"}
+            priority={measuring ? "primary" : "tertiary no outline"}
             iconId="fr-icon-ruler-line"
             nativeButtonProps={{ "aria-pressed": measuring }}
-            onClick={() => setMeasuring(!measuring)}
+            onClick={() => setTool(measuring ? "select" : "measure")}
           >
             Mesurer
+          </Button>
+          <Button
+            size="small"
+            iconId="fr-icon-crop-line"
+            priority={tool === "section" ? "primary" : "tertiary no outline"}
+            nativeButtonProps={{ "aria-pressed": tool === "section" }}
+            onClick={() => setTool(tool === "section" ? "select" : "section")}
+          >
+            {tool === "section" ? "Annuler le tracé" : "Tracer une coupe"}
           </Button>
           <Button
             size="small"
@@ -242,6 +276,18 @@ export function FloorPlanView({
         className="relative min-h-0 flex-1 overflow-hidden bg-white outline-offset-[-2px]"
         style={{ touchAction: "none" }}
       >
+        {tool === "section" && (
+          <div className="absolute inset-x-0 top-3 z-10 flex justify-center pointer-events-none">
+            <span
+              role="status"
+              className="bg-[var(--background-default-grey)] px-3 py-2 text-sm shadow"
+            >
+              {hasFirstPoint
+                ? "Placez le second point pour voir la coupe en 3D."
+                : "Placez le premier point de la coupe."}
+            </span>
+          </div>
+        )}
         <canvas
           ref={canvasRef}
           aria-label={`Dessin du niveau ${title}`}
@@ -255,13 +301,15 @@ export function FloorPlanView({
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border-default-grey)] px-4 py-2 text-xs text-[var(--text-mention-grey)]">
         <span id="floor-plan-help">
-          {measuring
-            ? "Deux points pour mesurer · Maj pour aligner · Alt pour un point libre · Échap pour annuler · Espace + glisser pour déplacer"
-            : "Cliquer pour sélectionner · Glisser pour déplacer · Molette pour zoomer · Double-clic pour cadrer"}
+          {tool === "section"
+            ? "Maj pour aligner · Alt pour un point libre · Échap pour recommencer"
+            : measuring
+              ? "Deux points pour mesurer · Maj pour aligner · Alt pour un point libre · Échap pour annuler · Espace + glisser pour déplacer"
+              : "Cliquer pour sélectionner · Glisser pour déplacer · Molette pour zoomer · Double-clic pour cadrer"}
         </span>
         <span ref={statusRef} />
         <span role="status">
-          {count} mesure{count > 1 ? "s" : ""}
+          {(measuring || count > 0) && `${count} mesure${count > 1 ? "s" : ""}`}
         </span>
       </div>
     </div>

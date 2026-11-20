@@ -15,7 +15,7 @@ export function ViewerPanelContent({
   getViewer,
   hasActiveIfc,
   onSectionModeChange,
-  onOpenSavedPlans,
+  onReturnToPlan,
   floorPlans,
   measurements,
 }: {
@@ -23,7 +23,7 @@ export function ViewerPanelContent({
   snapshot: IfcViewerSnapshot;
   getViewer: () => IfcViewerController | null;
   hasActiveIfc: boolean;
-  onOpenSavedPlans?: () => void;
+  onReturnToPlan?: () => void;
   onSectionModeChange: (mode: "plane" | "box") => void;
   floorPlans: ReactNode;
   measurements: ReactNode;
@@ -39,14 +39,14 @@ export function ViewerPanelContent({
     case "cutBox":
       return (
         <>
-          {onOpenSavedPlans && (
+          {onReturnToPlan && (
             <div className="px-4 pt-4">
               <Button
                 size="small"
                 priority="secondary"
-                onClick={onOpenSavedPlans}
+                onClick={onReturnToPlan}
               >
-                Voir les vues en plan enregistrées
+                Revenir au plan
               </Button>
             </div>
           )}

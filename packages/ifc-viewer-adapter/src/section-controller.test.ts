@@ -125,6 +125,7 @@ describe("SectionController", () => {
       distance: -3,
     });
     expect(controller.snapshot.draftPoint).toBeNull();
+    expect(controller.snapshot.plane.pickedAt).toEqual([3, 4.5, 3]);
     expect(controller.snapshot.trace).toEqual({
       start: [1, 2, 3],
       end: [5, 7, 3],
@@ -199,7 +200,7 @@ describe("SectionController", () => {
     controller.startPick("face");
     controller.pick(10, 20);
     await vi.waitFor(() =>
-      expect(controller.snapshot.message).toContain("deux points"),
+      expect(controller.snapshot.message).toContain("Tracer une coupe"),
     );
     expect(controller.snapshot.pickMode).toBe("face");
     expect(controller.snapshot.active).toBeNull();

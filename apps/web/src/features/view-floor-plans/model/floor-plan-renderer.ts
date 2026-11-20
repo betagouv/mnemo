@@ -145,6 +145,8 @@ export function drawPlanMarks(
   start: PlanPoint | null,
   current: PlanPoint | null,
   snap: PlanSnap | null,
+  trace: PlanSegment | null,
+  tracing: boolean,
   width: number,
   height: number,
   dpr: number,
@@ -186,7 +188,24 @@ export function drawPlanMarks(
     ctx.fillText(text, x, y);
   }
   for (const line of measurements) measure(line, false);
-  if (start && current) measure({ start, end: current }, true);
+  if (start && current && !tracing) measure({ start, end: current }, true);
+  const section = tracing && start && current ? { start, end: current } : trace;
+  if (section) {
+    const a = screen(section.start),
+      b = screen(section.end);
+    ctx.save();
+    ctx.strokeStyle = ctx.fillStyle = "#000091";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([10, 4, 2, 4]);
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+    ctx.font = "600 13px Marianne, system-ui, sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("Coupe 3D", b.x + 6, b.y - 6);
+    ctx.restore();
+  }
   if (!snap) return;
   const p = screen(snap.point);
   ctx.strokeStyle = "#18753c";
