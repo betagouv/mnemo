@@ -1,6 +1,5 @@
 .container {
   display: flex;
-  width: 7.5rem;
   flex-direction: column;
   align-items: center;
   gap: 0.45rem;
@@ -24,7 +23,7 @@
 }
 
 .projectionControl {
-  width: 100%;
+  width: 7.5rem;
   min-width: 0;
 }
 
@@ -125,13 +124,6 @@
 }
 
 .container .fit {
-  width: 100%;
+  align-self: stretch;
   justify-content: center;
-  padding: 0.35rem;
-  font-size: 0.75rem;
-  white-space: nowrap;
-}
-.container .fit::before {
-  --icon-size: 1rem;
-  margin-right: 0.25rem;
 }

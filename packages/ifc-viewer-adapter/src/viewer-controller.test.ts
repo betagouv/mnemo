@@ -81,6 +81,12 @@ function createHarness({
   };
   let frameCallback: ((time: number) => void) | null = null;
   const camera = {
+    zoomExtent: async (
+      min: typeof cameraPosition,
+      max: typeof cameraPosition,
+    ) => {
+      calls.frames.push({ min, max });
+    },
     frameBounds: async (
       min: { x: number; y: number; z: number },
       max: { x: number; y: number; z: number },
@@ -1034,6 +1040,19 @@ describe("IfcViewerController", () => {
     expect(calls.rendererCreated).toBe(1);
     expect(calls.rendererInitialized).toBe(1);
     expect(calls.geometryInitialized).toBe(1);
+    controller.dispose();
+  });
+
+  it("resets the camera to the scene bounds and clears the orbit pivot", () => {
+    const { controller, calls, setCameraBounds } = createHarness();
+    const bounds = {
+      min: { x: -32, y: 0, z: -7 },
+      max: { x: 30, y: 22, z: 8 },
+    };
+    setCameraBounds(bounds);
+    controller.resetView();
+    expect(calls.frames).toEqual([bounds]);
+    expect(calls.orbitCenter).toBeNull();
     controller.dispose();
   });
 

@@ -197,13 +197,11 @@ export function ViewCube({
       />
       <Button
         iconId="fr-icon-focus-3-line"
-        title="Tout cadrer"
         size="small"
-        priority="secondary"
         className={styles.fit}
-        onClick={() => getViewer()?.fitToView()}
+        onClick={() => getViewer()?.resetView()}
       >
-        Tout cadrer
+        Réinitialiser la vue
       </Button>
     </nav>
   );
