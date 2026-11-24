@@ -20,13 +20,13 @@ test.use({
     ],
   },
 });
-test.setTimeout(180000);
+test.setTimeout(300_000);
 test("creates a multi-object remark with a preview, comments, restores and exports its view", async ({
   page,
   request,
 }) => {
-  test.setTimeout(180000);
-  page.setDefaultTimeout(15000);
+  test.setTimeout(300_000);
+  page.setDefaultTimeout(60_000);
   page.on("dialog", (dialog) => void dialog.accept());
   const title = `BCF workspace ${Date.now()}`;
   await gotoHydrated(page, "/projets");

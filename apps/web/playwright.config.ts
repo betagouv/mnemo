@@ -16,6 +16,8 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   workers: process.env.CI ? 1 : undefined,
   retries: process.env.CI ? 2 : 0,
+  // Hosted runners render WebGPU in software: one pick takes several seconds.
+  expect: { timeout: process.env.CI ? 30_000 : 5_000 },
   reporter: process.env.CI ? "github" : "list",
   use: {
     baseURL: externalBaseUrl ?? "http://127.0.0.1:3100",

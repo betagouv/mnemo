@@ -24,8 +24,8 @@ test.use({
 test("persists named filter groups, duplicates and independent activation", async ({
   page,
 }) => {
-  test.setTimeout(180_000);
-  page.setDefaultTimeout(15_000);
+  test.setTimeout(300_000);
+  page.setDefaultTimeout(60_000);
   const title = `Filtres IFC ${Date.now()}`;
   await gotoHydrated(page, "/projets");
   await page.getByRole("button", { name: "Nouveau dossier" }).click();
