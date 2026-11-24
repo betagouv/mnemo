@@ -678,6 +678,23 @@ function createHarness({
 
 afterEach(() => vi.unstubAllGlobals());
 
+function stubBcfSnapshot() {
+  vi.stubGlobal(
+    "OffscreenCanvas",
+    class {
+      getContext() {
+        return {
+          drawImage() {},
+          getImageData() {
+            return { data: new Uint8ClampedArray([1, 2, 3, 255]) };
+          },
+        };
+      }
+    },
+  );
+  vi.stubGlobal("createImageBitmap", async () => ({ close() {} }));
+}
+
 describe("IfcViewerController", () => {
   it("frames only a loaded model without recreating the renderer", async () => {
     const { controller, calls } = createHarness();
@@ -2001,21 +2018,31 @@ describe("IfcViewerController", () => {
     controller.dispose();
   });
 
+  it("captures and restores the context of several federated IFC files", async () => {
+    stubBcfSnapshot();
+    const { controller } = createHarness();
+    for (const assetId of ["model-a", "model-b"])
+      await controller.loadIfc({
+        assetId,
+        fileName: `${assetId}.ifc`,
+        downloadUrl: "http://storage.local/model.ifc",
+      });
+    const unfaded = await controller.captureBcfViewpoint();
+    expect(unfaded.data.components?.coloring ?? []).toEqual([]);
+    controller.setLayerVisibility("model-b", { kind: "model" }, "opacity");
+    const { data } = await controller.captureBcfViewpoint();
+    expect(
+      data.components?.coloring?.flatMap(({ components }) =>
+        components.map((component) => component.authoringToolId),
+      ),
+    ).toEqual(["model-b:42"]);
+    vi.unstubAllGlobals();
+    expect(controller.applyBcfViewpoint(data, 10)).toEqual([]);
+    controller.dispose();
+  });
+
   it("round-trips a BCF viewpoint without recreating or reframing the renderer", async () => {
-    vi.stubGlobal(
-      "OffscreenCanvas",
-      class {
-        getContext() {
-          return {
-            drawImage() {},
-            getImageData() {
-              return { data: new Uint8ClampedArray([1, 2, 3, 255]) };
-            },
-          };
-        }
-      },
-    );
-    vi.stubGlobal("createImageBitmap", async () => ({ close() {} }));
+    stubBcfSnapshot();
     const { calls, controller } = createHarness();
     await controller.loadIfc({
       assetId: "model-a",
