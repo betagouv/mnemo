@@ -14,6 +14,7 @@
     "./point-clouds": "./src/point-clouds.ts",
     "./floor-plans": "./src/floor-plans.ts",
     "./accounts": "./src/accounts.ts",
+    "./map-reference": "./src/map-reference.ts",
     "./measurements": "./src/measurements.ts",
     "./bim-filters": "./src/bim-filters.ts"
   },

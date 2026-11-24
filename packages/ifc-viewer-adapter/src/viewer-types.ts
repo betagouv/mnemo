@@ -14,6 +14,7 @@ import type {
 
 import type { IfcBimCatalog, IfcBimIndex } from "./bim-index";
 import type { IfcGeoreferencingStatus } from "./georeferencing";
+import type { IfcPositioningIssue } from "./model-alignment";
 import type { IfcServerGeometryClient } from "./server-geometry";
 
 export type IfcViewerPhase =
@@ -57,6 +58,9 @@ export type IfcModelSnapshot = {
   message: string | null;
   catalog?: IfcBimCatalog;
   georeferencing?: IfcGeoreferencingStatus;
+  positioningIssues?: IfcPositioningIssue[];
+  /** Elements whose geometry exceeded the processing budget. */
+  skippedElements?: number;
 };
 
 export type LayerVisibility = "show" | "opacity" | "hide";
@@ -176,7 +180,8 @@ export type IfcElementDetails = {
 export type LoadIfcInput = {
   assetId: string;
   fileName: string;
-  downloadUrl: string;
+  /** A function grants access when the load starts, not while it is queued. */
+  downloadUrl: string | (() => Promise<string>);
   processing?:
     { engine: "browser" } | { engine: "rust"; serverBaseUrl: string };
 };

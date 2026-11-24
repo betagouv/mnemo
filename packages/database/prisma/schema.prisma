@@ -45,6 +45,7 @@ model assets {
   point_cloud_processing_results point_cloud_processing_results?
   point_cloud_settings           point_cloud_settings?
   floor_plans                    project_floor_plans[]
+  map_reference                  project_map_references?
   processing_jobs                processing_jobs[]
 
   @@index([project_id])
@@ -292,6 +293,7 @@ model projects {
   measurements         project_measurements[]
   floor_plans          project_floor_plans[]
   bim_filters          project_bim_filters?
+  map_reference        project_map_references?
 
   @@index([created_by])
 }
@@ -524,4 +526,13 @@ model project_bim_filters {
   version    Int      @default(1)
   updated_at DateTime @default(now()) @updatedAt @db.Timestamptz(6)
   project    projects @relation(fields: [project_id], references: [id], onDelete: Cascade)
+}
+
+model project_map_references {
+  project_id String   @id @db.Uuid
+  asset_id   String?  @unique @db.Uuid
+  reference  Json
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  project    projects @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  asset      assets?  @relation(fields: [asset_id], references: [id], onDelete: SetNull)
 }
