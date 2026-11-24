@@ -56,4 +56,6 @@ export {
   type FloorPlanStyle,
 } from "./floor-plan-drawing";
 
+export type { IfcPositioningIssue } from "./model-alignment";
+export type { ProjectFrameOptions } from "./project-frame";
 export type { MeasurementPoint } from "./measurement-picking";

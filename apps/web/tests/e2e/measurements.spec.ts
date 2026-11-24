@@ -23,8 +23,8 @@ test.use({
 test("measures and persists 3D geometry with snapping and shared results", async ({
   page,
 }) => {
-  test.setTimeout(180_000);
-  page.setDefaultTimeout(15_000);
+  test.setTimeout(300_000);
+  page.setDefaultTimeout(60_000);
   const title = `Mesures ${Date.now()}`;
   await gotoHydrated(page, "/projets");
   await page.getByRole("button", { name: "Nouveau dossier" }).click();

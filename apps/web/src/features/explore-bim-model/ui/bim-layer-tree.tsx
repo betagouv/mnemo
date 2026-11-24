@@ -10,6 +10,7 @@ import {
   type IfcViewerSnapshot,
 } from "@mnemo/ifc-viewer-adapter";
 import { useMemo, type ComponentProps } from "react";
+import { describeModelWarnings } from "@/entities/viewer";
 import { VisibilityCheckbox } from "@/shared/ui/visibility-checkbox";
 import { InlineDisclosure } from "@/shared/ui/inline-disclosure";
 import { useSelectionExpansion } from "../model/use-selection-expansion";
@@ -136,6 +137,16 @@ export function BimLayerTree({
                       {storeys.length} niveaux
                     </span>
                   </div>
+                  {describeModelWarnings(model, snapshot.models.length).map(
+                    (warning) => (
+                      <p
+                        className="fr-message fr-message--warning mb-2"
+                        key={warning}
+                      >
+                        {warning}
+                      </p>
+                    ),
+                  )}
                   {storeys.map((storey) => (
                     <StoreyTree
                       assetId={source.assetId}

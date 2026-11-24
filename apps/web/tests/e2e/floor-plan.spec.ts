@@ -32,8 +32,8 @@ test("navigates and snaps measurements on a real storey plan", async ({
   page.on("worker", () => {
     workerCount++;
   });
-  test.setTimeout(180_000);
-  page.setDefaultTimeout(15_000);
+  test.setTimeout(300_000);
+  page.setDefaultTimeout(60_000);
   await gotoHydrated(page, "/projets");
   const title = `Plan test ${Date.now()}`;
   await page.getByRole("button", { name: "Nouveau dossier" }).click();

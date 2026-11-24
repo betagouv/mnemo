@@ -1,40 +1,33 @@
-import type { GeoreferenceInfo } from "@ifc-lite/parser";
 import { describe, expect, it } from "vitest";
 
 import {
   classifyIfcGeoreferencing,
-  classifyServerIfcGeoreferencing,
+  fromServerGeoreferencing,
+  readMapReference,
+  type IfcGeoreference,
 } from "./georeferencing";
 
 describe("classifyIfcGeoreferencing", () => {
   it("does not confuse site coordinates with a project map conversion", () => {
     expect(
       classifyIfcGeoreferencing({
-        hasGeoreference: true,
         source: "siteLocation",
-        projectedCRS: { id: 1, name: "EPSG:4326" },
+        projectedCRS: { name: "EPSG:4326" },
         mapConversion: {
-          id: 2,
-          sourceCRS: 1,
-          targetCRS: 1,
           eastings: 0,
           northings: 0,
           orthogonalHeight: 0,
         },
-      } satisfies GeoreferenceInfo),
+      } satisfies IfcGeoreference),
     ).toEqual({ kind: "site-only", crs: null });
   });
 
   it("recognizes an explicit projected map conversion", () => {
     expect(
       classifyIfcGeoreferencing({
-        hasGeoreference: true,
         source: "mapConversion",
-        projectedCRS: { id: 2, name: "EPSG:2154" },
+        projectedCRS: { name: "EPSG:2154" },
         mapConversion: {
-          id: 3,
-          sourceCRS: 1,
-          targetCRS: 2,
           eastings: 700000,
           northings: 6600000,
           orthogonalHeight: 0,
@@ -47,18 +40,13 @@ describe("classifyIfcGeoreferencing", () => {
     });
   });
 
-  const projected: GeoreferenceInfo = {
-    hasGeoreference: true,
+  const projected: IfcGeoreference = {
     source: "mapConversion",
     projectedCRS: {
-      id: 2,
       name: "EPSG:2154",
       verticalDatum: "NGF-IGN69",
     },
     mapConversion: {
-      id: 3,
-      sourceCRS: 1,
-      targetCRS: 2,
       eastings: 700000,
       northings: 6600000,
       orthogonalHeight: 82,
@@ -96,15 +84,89 @@ describe("classifyIfcGeoreferencing", () => {
       rotation_degrees: 0,
       transform_matrix: [],
     };
-    expect(classifyServerIfcGeoreferencing(geo)).toEqual(
+    expect(classifyIfcGeoreferencing(fromServerGeoreferencing(geo))).toEqual(
       classifyIfcGeoreferencing(projected),
     );
     expect(
-      classifyServerIfcGeoreferencing({ ...geo, source: "siteLocation" }),
+      classifyIfcGeoreferencing(
+        fromServerGeoreferencing({ ...geo, source: "siteLocation" }),
+      ),
     ).toEqual({ kind: "site-only", crs: null });
-    expect(classifyServerIfcGeoreferencing(undefined)).toEqual({
+    expect(
+      classifyIfcGeoreferencing(fromServerGeoreferencing(undefined)),
+    ).toEqual({
       kind: "local",
       crs: null,
     });
+  });
+});
+
+describe("readMapReference", () => {
+  const declare = (
+    conversion: Partial<NonNullable<IfcGeoreference["mapConversion"]>>,
+    mapUnitScale?: number,
+  ): IfcGeoreference => ({
+    source: "mapConversion",
+    projectedCRS: { name: "EPSG:2154", mapUnitScale },
+    mapConversion: {
+      eastings: 652310,
+      northings: 6862414,
+      orthogonalHeight: 42,
+      ...conversion,
+    },
+  });
+
+  it.each([
+    ["a metric project", declare({}), 1],
+    ["a millimetre project with metric offsets", declare({}), 0.001],
+    ["Scale bridging the units", declare({ scale: 0.001 }, 1), 0.001],
+    ["Scale left at 1 in millimetres", declare({ scale: 1 }, 1), 0.001],
+    ["a foot project", declare({ scale: 0.3048 }, 1), 0.3048],
+    [
+      "millimetre offsets with an explicit map unit",
+      declare(
+        {
+          eastings: 652310000,
+          northings: 6862414000,
+          orthogonalHeight: 42000,
+        },
+        0.001,
+      ),
+      0.001,
+    ],
+    [
+      "millimetre offsets following the project unit",
+      declare({
+        eastings: 652310000,
+        northings: 6862414000,
+        orthogonalHeight: 42000,
+      }),
+      0.001,
+    ],
+  ])("reads %s in metres", (_label, georeference, lengthUnitScale) => {
+    const reference = readMapReference(georeference, lengthUnitScale)!;
+    expect(reference.eastings).toBeCloseTo(652310, 6);
+    expect(reference.northings).toBeCloseTo(6862414, 6);
+    expect(reference.orthogonalHeight).toBeCloseTo(42, 6);
+    expect(reference.scaleX).toBeCloseTo(1, 9);
+    expect(reference.scaleZ).toBeCloseTo(1, 9);
+  });
+
+  it("keeps a grid scale factor and IfcMapConversionScaled factors", () => {
+    expect(
+      readMapReference(declare({ scale: 0.9996 }), 0.001)?.scaleX,
+    ).toBeCloseTo(0.9996, 9);
+    expect(
+      readMapReference(declare({ factorX: 0.9996, factorY: 0.9996 }), 1),
+    ).toMatchObject({ scaleX: 0.9996, scaleY: 0.9996, scaleZ: 1 });
+  });
+
+  it("rejects unusable conversions instead of substituting an origin", () => {
+    expect(readMapReference(null)).toBeNull();
+    expect(readMapReference(declare({ eastings: NaN }))).toBeNull();
+    expect(readMapReference(declare({ scale: -1 }))).toBeNull();
+    expect(
+      readMapReference({ ...declare({}), source: "siteLocation" }),
+    ).toBeNull();
   });
 });

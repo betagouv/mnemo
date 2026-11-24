@@ -3,43 +3,45 @@ import {
   createEmptyViewerSnapshot,
   IfcViewerController,
 } from "@mnemo/ifc-viewer-adapter";
+import type { ProjectMapReference } from "@mnemo/contracts/map-reference";
 import { openAssetResultSchema } from "@mnemo/contracts/assets";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchJson } from "@/shared/lib/fetch-json";
+import { pinProjectMapReference } from "@/server/ifc/actions";
 import { useNotifications } from "@/shared/ui/notifications";
-import type {
-  ViewerIfcSource,
-  ViewerPointCloudSource,
+import {
+  summarizeModelWarnings,
+  type ViewerIfcSource,
+  type ViewerPointCloudSource,
 } from "@/entities/viewer";
 
-async function loadIfcSource(
+function loadIfcSource(
   controller: IfcViewerController,
   projectId: string,
   source: ViewerIfcSource,
 ) {
-  const downloadUrl =
-    source.processing.engine === "rust"
-      ? ""
-      : (
-          await fetchJson(
-            `/api/projects/${projectId}/assets/${source.assetId}/access`,
-            openAssetResultSchema,
-          )
-        ).downloadUrl;
-  await controller.loadIfc({
+  return controller.loadIfc({
     assetId: source.assetId,
     fileName: source.fileName,
-    downloadUrl,
+    downloadUrl: async () => {
+      const { downloadUrl } = await fetchJson(
+        `/api/projects/${projectId}/assets/${source.assetId}/access`,
+        openAssetResultSchema,
+      );
+      return downloadUrl;
+    },
     processing: source.processing,
   });
 }
 
 export function useProjectScene({
   ifcSources,
+  mapReference,
   pointCloudSources,
   projectId,
 }: {
   ifcSources: ViewerIfcSource[];
+  mapReference: ProjectMapReference | null;
   pointCloudSources: ViewerPointCloudSource[];
   projectId: string;
 }) {
@@ -47,11 +49,11 @@ export function useProjectScene({
   const controllerRef = useRef<IfcViewerController>(null);
   const [snapshot, setSnapshot] = useState(createEmptyViewerSnapshot);
   const { notify } = useNotifications();
-  const notifiedGeoreferencing = useRef(new Set<string>());
   const [retrying, setRetrying] = useState(false);
   const [accessError, setAccessError] = useState<string | null>(null);
   const [failedAssetId, setFailedAssetId] = useState<string | null>(null);
   const ifcSourcesRef = useRef(ifcSources);
+  const mapReferenceRef = useRef(mapReference);
   const getViewer = useCallback(() => controllerRef.current, []);
 
   const { loadInitial, ...clouds } = usePointCloudLayers(
@@ -65,7 +67,10 @@ export function useProjectScene({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const controller = new IfcViewerController(canvas);
+    const controller = new IfcViewerController(canvas, undefined, {
+      reference: mapReferenceRef.current,
+      pin: (reference) => pinProjectMapReference({ projectId, reference }),
+    });
     let cancelled = false;
     controllerRef.current = controller;
     const syncBackground = () => {
@@ -118,29 +123,16 @@ export function useProjectScene({
     };
   }, [projectId]);
 
+  const modelWarnings = summarizeModelWarnings(snapshot.models);
   useEffect(() => {
-    for (const model of snapshot.models) {
-      if (
-        model.phase !== "ready" ||
-        notifiedGeoreferencing.current.has(model.assetId)
-      )
-        continue;
-      notifiedGeoreferencing.current.add(model.assetId);
-      const status = model.georeferencing;
+    if (modelWarnings)
       notify({
-        id: `ifc-georeferencing:${projectId}:${model.assetId}`,
-        title: "Positionnement IFC à vérifier",
-        description: `${model.fileName} — ${
-          status?.kind === "projected"
-            ? `CRS ${status.crs ?? "déclaré"} détecté. L’alignement cartographique automatique n’est pas encore appliqué.`
-            : status?.kind === "site-only"
-              ? "Coordonnées de site seules : alignement automatique impossible. Vérifiez la superposition des fichiers."
-              : "Repère local : aucun géoréférencement IFC exploitable. Vérifiez la superposition des fichiers."
-        }`,
+        id: `ifc-models:${projectId}`,
+        title: "Maquettes à vérifier",
+        description: modelWarnings,
         severity: "warning",
       });
-    }
-  }, [notify, projectId, snapshot.models]);
+  }, [notify, modelWarnings, projectId]);
 
   const retry = useCallback(
     async (source: ViewerIfcSource) => {

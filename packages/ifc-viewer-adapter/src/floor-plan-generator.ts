@@ -7,13 +7,12 @@ import {
 import { intersectsFloorPlan } from "./floor-plan-meshes";
 import { floorPlanCutHeight } from "@mnemo/contracts/floor-plans";
 import { computeFloorPlan } from "./floor-plan-worker-client";
-import type { IfcModelLoader, LoadedIfcModel } from "./ifc-model-loader";
+import type { LoadedIfcModel } from "./ifc-model-loader";
 
 type FloorPlanScene = {
   disposed: boolean;
   models: ReadonlyMap<string, LoadedIfcModel>;
   renderer: Renderer;
-  modelLoader: Pick<IfcModelLoader, "renderOrigin">;
   federation: FederationRegistry;
 };
 type CachedPlan = {
@@ -59,10 +58,9 @@ export class FloorPlanGenerator {
         new Error("Ce niveau ne possède pas d'altitude disponible."),
       );
     }
-    const elevation =
-      storey.elevation +
-      floorPlanCutHeight -
-      context.modelLoader.renderOrigin.z;
+    const elevation = model.sceneElevation(
+      storey.elevation + floorPlanCutHeight,
+    );
     const key = `${assetId}/${storeyId}/${elevation}`;
     if (this.active?.key === key && this.active.model === model)
       return this.active.result;

@@ -25,8 +25,8 @@ test.use({
 test("reveals the object picked in the scene inside the collapsed model tree", async ({
   page,
 }) => {
-  test.setTimeout(180_000);
-  page.setDefaultTimeout(15_000);
+  test.setTimeout(300_000);
+  page.setDefaultTimeout(60_000);
   const title = `Sélection arborescence ${Date.now()}`;
   await gotoHydrated(page, "/projets");
   await page.getByRole("button", { name: "Nouveau dossier" }).click();

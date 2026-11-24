@@ -62,3 +62,5 @@ same change as a new record.
 | [0020](0020-account-approval-and-global-roles.md) | Administrator approval and global roles | Accepted |
 
 | [0021](0021-project-bim-filter-targets.md) | Project-scoped BIM filter groups and model targets | Accepted |
+
+| [0022](0022-project-map-reference.md) | Persistent project frame for federated IFC models | Proposed |

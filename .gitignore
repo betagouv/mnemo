@@ -24,6 +24,7 @@ uploads/
 models/
 *.ifc
 !apps/web/tests/fixtures/Ifc4_SampleHouse.ifc
+!apps/web/tests/fixtures/federation/*.ifc
 *.ifczip
 *.las
 *.laz

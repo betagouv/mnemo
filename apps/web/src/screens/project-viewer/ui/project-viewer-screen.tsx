@@ -9,6 +9,7 @@ import { getAssetService } from "@/server/assets/asset-service-factory";
 import { getAssistantThreadService } from "@/server/assistant/assistant-thread-service-factory";
 import { resolvePageActor } from "@/server/auth/resolve-actor";
 import { getBcfTopicService } from "@/server/bcf/bcf-topic-service-factory";
+import { getMapReferenceService } from "@/server/ifc/map-reference-service-factory";
 import { getPointCloudSettingsService } from "@/server/point-clouds/point-cloud-settings-service-factory";
 import { getPointCloudSourceService } from "@/server/point-clouds/point-cloud-source-service-factory";
 import { getProjectService } from "@/server/projects/project-service-factory";
@@ -31,18 +32,27 @@ export async function ProjectViewerScreen({
   if (!project) notFound();
 
   const canReadBcf = hasProjectPermission(project, "bcf:read");
-  const [assets, floorPlans, measurements, bimFilters, bcfTopics] =
-    await Promise.all([
-      getAssetService().list(actorId, project.id),
-      getFloorPlanService().list(actorId, project.id),
-      getMeasurementService().list(actorId, project.id),
-      getBimFilterService().get(actorId, project.id),
-      canReadBcf
-        ? getBcfTopicService().summaries(actorId, project.id)
-        : Promise.resolve([]),
-    ]);
+  const [
+    assets,
+    floorPlans,
+    measurements,
+    bimFilters,
+    mapReference,
+    bcfTopics,
+  ] = await Promise.all([
+    getAssetService().list(actorId, project.id),
+    getFloorPlanService().list(actorId, project.id),
+    getMeasurementService().list(actorId, project.id),
+    getBimFilterService().get(actorId, project.id),
+    getMapReferenceService().find(actorId, project.id),
+    canReadBcf
+      ? getBcfTopicService().summaries(actorId, project.id)
+      : Promise.resolve([]),
+  ]);
+  // The oldest model loads first, so that it defines the project's frame.
   const ifcSources = assets
     .filter((asset) => asset.kind === "ifc" && asset.status === "ready")
+    .toSorted((a, b) => a.createdAt.localeCompare(b.createdAt))
     .map((asset) => ({
       assetId: asset.id,
       fileName: asset.originalFileName,
@@ -154,6 +164,7 @@ export async function ProjectViewerScreen({
           initialFloorPlans={floorPlans}
           initialBimFilters={bimFilters}
           initialMeasurements={measurements}
+          mapReference={mapReference}
           canManageFloorPlans={hasProjectPermission(project, "project:update")}
           canManageBimFilters={hasProjectPermission(project, "project:update")}
           bcfPermissions={{

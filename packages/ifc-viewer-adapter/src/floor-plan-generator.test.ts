@@ -21,6 +21,7 @@ function scene() {
   const model = {
     meshIds: new Set([1]),
     modelIndex: 0,
+    sceneElevation: (elevation: number) => elevation,
     store: {},
     bimIndex: {
       catalog: {
@@ -35,7 +36,6 @@ function scene() {
     disposed: false,
     models: new Map([["asset", model]]),
     renderer: { getScene: () => ({ getMeshDataPieces }) },
-    modelLoader: { renderOrigin: { z: 0 } },
     federation: { fromGlobalId: () => null },
   } as unknown as Parameters<FloorPlanGenerator["generate"]>[0];
   return { context, pieces, getMeshDataPieces };

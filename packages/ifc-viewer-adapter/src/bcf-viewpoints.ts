@@ -86,12 +86,9 @@ export async function captureSceneBcfViewpoint(
     ...context.hiddenIds,
     ...context.layerVisibility.hiddenIds,
   ]);
-  const fadedIds = [...context.models]
-    .flatMap(([assetId, model]) =>
-      [...model.meshIds].map((id) =>
-        context.federation.toGlobalId(assetId, id),
-      ),
-    )
+  // Mesh IDs are already federated.
+  const fadedIds = [...context.models.values()]
+    .flatMap((model) => [...model.meshIds])
     .filter(
       (id) =>
         !hidden.has(id) &&

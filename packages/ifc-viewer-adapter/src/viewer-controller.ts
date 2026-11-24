@@ -26,6 +26,7 @@ import type { PointCloudTransform } from "@mnemo/point-cloud-viewer-adapter";
 import type { IfcBimQuery, IfcElementSummary } from "./bim-index";
 import { BimLayerVisibility } from "./bim-layer-visibility";
 import { IfcModelLoader, type LoadedIfcModel } from "./ifc-model-loader";
+import { ProjectFrame, type ProjectFrameOptions } from "./project-frame";
 import { PointCloudLayers } from "./point-cloud-layers";
 import { switchProjectionAtVisibleSurface } from "./projection-switch";
 import { SceneInteractions } from "./scene-interactions";
@@ -149,6 +150,7 @@ export class IfcViewerController {
   constructor(
     private readonly canvas: HTMLCanvasElement,
     runtime: IfcViewerRuntime = createDefaultRuntime(),
+    projectFrame: ProjectFrameOptions = {},
   ) {
     this.runtime = runtime;
     this.renderer = runtime.createRenderer(canvas);
@@ -157,6 +159,7 @@ export class IfcViewerController {
       renderer: this.renderer,
       federation: this.federation,
       models: this.models,
+      projectFrame: new ProjectFrame(projectFrame),
       runtime,
       initialize: () => this.init(),
       isDisposed: () => this.disposed,
@@ -542,7 +545,6 @@ export class IfcViewerController {
         disposed: this.disposed,
         models: this.models,
         renderer: this.renderer,
-        modelLoader: this.modelLoader,
         federation: this.federation,
       },
       assetId,

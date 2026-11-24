@@ -2,6 +2,7 @@
 
 import { MeasurementEditor } from "@/features/manage-measurements";
 import { ProjectMeasurementsProvider } from "@/entities/measurement";
+import type { ProjectMapReference } from "@mnemo/contracts/map-reference";
 import type { SavedMeasurement } from "@mnemo/contracts/measurements";
 import {
   SceneMeasurementProvider,
@@ -71,6 +72,7 @@ export function ProjectViewer({
   initialFloorPlans,
   initialBimFilters,
   initialMeasurements,
+  mapReference,
   canManageFloorPlans,
   canManageBimFilters,
   pointCloudFailures,
@@ -93,6 +95,7 @@ export function ProjectViewer({
   initialFloorPlans: SavedFloorPlan[];
   initialBimFilters: SavedBimFilters | null;
   initialMeasurements: SavedMeasurement[];
+  mapReference: ProjectMapReference | null;
   canManageFloorPlans: boolean;
   canManageBimFilters: boolean;
   pointCloudFailures: ViewerPointCloudFailure[];
@@ -115,7 +118,12 @@ export function ProjectViewer({
     setPointCloudVisible,
     reloadPointClouds,
     retry,
-  } = useProjectScene({ ifcSources, pointCloudSources, projectId });
+  } = useProjectScene({
+    ifcSources,
+    mapReference,
+    pointCloudSources,
+    projectId,
+  });
   const floorPlans = useFloorPlans(getViewer, projectId, initialFloorPlans);
   const [activeFilterGroupCount, setActiveFilterGroupCount] = useState(0);
   const bimFilterControls = useRef<BimFilterControls>(null);

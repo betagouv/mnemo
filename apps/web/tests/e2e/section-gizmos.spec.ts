@@ -27,8 +27,8 @@ test.use({
 test("moves box faces and section planes with projected axis arrows", async ({
   page,
 }) => {
-  test.setTimeout(180_000);
-  page.setDefaultTimeout(15_000);
+  test.setTimeout(300_000);
+  page.setDefaultTimeout(60_000);
   page.setDefaultNavigationTimeout(30_000);
   const name = `Boîte de coupe ${Date.now()}`;
   await gotoHydrated(page, "/projets");

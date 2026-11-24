@@ -174,6 +174,16 @@ export class PrismaAssetRepository implements AssetRepository {
         }
       }
 
+      // Saved coordinates need their frame; without any, a replacement model defines it.
+      await transaction.project_map_references.deleteMany({
+        where: {
+          asset_id: assetId,
+          project: {
+            measurements: { none: {} },
+            bcf_topics: { none: { bcf_viewpoints: { some: {} } } },
+          },
+        },
+      });
       await transaction.assets.update({
         where: { id: assetId },
         data: { status: "deleting", updated_at: requestedAt },
